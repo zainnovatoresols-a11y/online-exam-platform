@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 
 export default function Dashboard() {
     return (
@@ -13,10 +13,40 @@ export default function Dashboard() {
             <Head title="Admin Dashboard" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-                    <h1 className="text-2xl font-semibold text-gray-900">
-                        Admin Dashboard
-                    </h1>
+                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+                        <h1 className="text-2xl font-semibold text-gray-900">
+                            Admin Dashboard
+                        </h1>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Create tests and manage MCQ questions for your organization.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Tests
+                            </h3>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Create draft tests, add MCQ questions, then publish when ready.
+                            </p>
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <Link
+                                    href={route('admin.tests.create')}
+                                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                >
+                                    Create test
+                                </Link>
+                                <Link
+                                    href={route('admin.tests.index')}
+                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                >
+                                    View tests
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>

@@ -1,0 +1,257 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\TestStatus;
+use App\Enums\UserRole;
+use App\Models\Organization;
+use App\Models\Question;
+use App\Models\Test;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class TestManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_admin_can_create_a_test_for_their_organization(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.store'), [
+            'title' => 'Laravel Basics',
+            'description' => 'A short Laravel test.',
+            'duration_minutes' => 45,
+            'pass_mark' => 60,
+        ]);
+
+        $test = Test::where('title', 'Laravel Basics')->firstOrFail();
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertSame($organization->id, $test->organization_id);
+        $this->assertSame($admin->id, $test->created_by_id);
+        $this->assertSame(TestStatus::Draft->value, $test->status);
+    }
+
+    public function test_admin_without_an_organization_can_create_a_solo_test(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.store'), [
+            'title' => 'Solo Admin Test',
+            'description' => 'Owned directly by the admin.',
+            'duration_minutes' => 30,
+            'pass_mark' => 10,
+        ]);
+
+        $test = Test::where('title', 'Solo Admin Test')->firstOrFail();
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertNull($test->organization_id);
+        $this->assertSame($admin->id, $test->created_by_id);
+        $this->assertSame(TestStatus::Draft->value, $test->status);
+    }
+
+    public function test_admin_without_an_organization_cannot_access_another_admins_solo_test(): void
+    {
+        $owner = $this->userWithRole(UserRole::Admin);
+        $otherAdmin = $this->userWithRole(UserRole::Admin);
+        $test = Test::factory()->create([
+            'organization_id' => null,
+            'created_by_id' => $owner->id,
+        ]);
+
+        $response = $this->actingAs($otherAdmin)->get(route('admin.tests.show', $test));
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_cannot_access_another_organizations_test(): void
+    {
+        $adminOrganization = Organization::factory()->create();
+        $otherOrganization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $adminOrganization);
+        $test = Test::factory()->create([
+            'organization_id' => $otherOrganization->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.tests.show', $test));
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_can_publish_a_draft_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'status' => TestStatus::Draft->value,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.publish', $test));
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertSame(TestStatus::Published->value, $test->refresh()->status);
+        $this->assertNotNull($test->published_at);
+    }
+
+    public function test_admin_can_close_a_published_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->published()->create([
+            'organization_id' => $organization->id,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.close', $test));
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertSame(TestStatus::Closed->value, $test->refresh()->status);
+        $this->assertNotNull($test->closed_at);
+    }
+
+    public function test_admin_can_delete_only_draft_tests(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $draftTest = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'status' => TestStatus::Draft->value,
+        ]);
+        $publishedTest = Test::factory()->published()->create([
+            'organization_id' => $organization->id,
+        ]);
+
+        $draftResponse = $this->actingAs($admin)->delete(route('admin.tests.destroy', $draftTest));
+        $publishedResponse = $this->actingAs($admin)->delete(route('admin.tests.destroy', $publishedTest));
+
+        $draftResponse->assertRedirect(route('admin.tests.index'));
+        $publishedResponse->assertForbidden();
+        $this->assertDatabaseMissing('tests', ['id' => $draftTest->id]);
+        $this->assertDatabaseHas('tests', ['id' => $publishedTest->id]);
+    }
+
+    public function test_admin_can_add_an_mcq_question_with_options(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'status' => TestStatus::Draft->value,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'What does MVC stand for?',
+            'marks' => 2,
+            'options' => [
+                ['body' => 'Model View Controller', 'is_correct' => true],
+                ['body' => 'Module View Command', 'is_correct' => false],
+            ],
+        ]);
+
+        $question = Question::where('body', 'What does MVC stand for?')->firstOrFail();
+
+        $response->assertRedirect(route('admin.tests.questions.index', $test));
+        $this->assertSame(2, $question->marks);
+        $this->assertCount(2, $question->options);
+        $this->assertSame(1, $question->options()->where('is_correct', true)->count());
+    }
+
+    public function test_admin_without_an_organization_can_add_an_mcq_question_to_their_solo_test(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = Test::factory()->create([
+            'organization_id' => null,
+            'created_by_id' => $admin->id,
+            'status' => TestStatus::Draft->value,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'Solo test MCQ?',
+            'marks' => 1,
+            'options' => [
+                ['body' => 'Yes', 'is_correct' => true],
+                ['body' => 'No', 'is_correct' => false],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.tests.questions.index', $test));
+        $this->assertDatabaseHas('questions', [
+            'test_id' => $test->id,
+            'body' => 'Solo test MCQ?',
+        ]);
+    }
+
+    public function test_mcq_validation_fails_if_fewer_than_two_options_are_provided(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create(['organization_id' => $organization->id]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'One option question',
+            'marks' => 1,
+            'options' => [
+                ['body' => 'Only option', 'is_correct' => true],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('options');
+    }
+
+    public function test_mcq_validation_fails_if_no_correct_option_is_selected(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create(['organization_id' => $organization->id]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'No correct option question',
+            'marks' => 1,
+            'options' => [
+                ['body' => 'Option A', 'is_correct' => false],
+                ['body' => 'Option B', 'is_correct' => false],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('options');
+    }
+
+    public function test_mcq_validation_fails_if_multiple_correct_options_are_selected(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create(['organization_id' => $organization->id]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'Multiple correct option question',
+            'marks' => 1,
+            'options' => [
+                ['body' => 'Option A', 'is_correct' => true],
+                ['body' => 'Option B', 'is_correct' => true],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('options');
+    }
+
+    private function userWithRole(UserRole $role, ?Organization $organization = null): User
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate($role->value, 'web');
+
+        $user = User::factory()->create([
+            'organization_id' => $organization?->id,
+        ]);
+
+        $user->assignRole($role->value);
+
+        return $user;
+    }
+}
