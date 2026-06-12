@@ -21,12 +21,14 @@ class TestManagementTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $startsAt = now()->addDay()->seconds(0);
 
         $response = $this->actingAs($admin)->post(route('admin.tests.store'), [
             'title' => 'Laravel Basics',
             'description' => 'A short Laravel test.',
             'duration_minutes' => 45,
             'pass_mark' => 60,
+            'starts_at' => $startsAt->toDateTimeString(),
         ]);
 
         $test = Test::where('title', 'Laravel Basics')->firstOrFail();
@@ -35,6 +37,35 @@ class TestManagementTest extends TestCase
         $this->assertSame($organization->id, $test->organization_id);
         $this->assertSame($admin->id, $test->created_by_id);
         $this->assertSame(TestStatus::Draft->value, $test->status);
+        $this->assertSame(
+            $startsAt->toDateTimeString(),
+            $test->starts_at?->toDateTimeString(),
+        );
+    }
+
+    public function test_admin_can_update_test_start_time(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+        ]);
+        $startsAt = now()->addDays(2)->seconds(0);
+
+        $response = $this->actingAs($admin)->put(route('admin.tests.update', $test), [
+            'title' => $test->title,
+            'description' => $test->description,
+            'duration_minutes' => $test->duration_minutes,
+            'pass_mark' => $test->pass_mark,
+            'starts_at' => $startsAt->toDateTimeString(),
+        ]);
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertSame(
+            $startsAt->toDateTimeString(),
+            $test->refresh()->starts_at?->toDateTimeString(),
+        );
     }
 
     public function test_admin_without_an_organization_can_create_a_solo_test(): void

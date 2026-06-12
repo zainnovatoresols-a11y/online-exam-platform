@@ -26,6 +26,7 @@ class UpdateTestRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'pass_mark' => ['required', 'integer', 'min:1'],
+            'starts_at' => ['nullable', 'date'],
         ];
     }
 }

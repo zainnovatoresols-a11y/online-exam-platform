@@ -1,11 +1,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Test = {
     id: number;
     title: string;
     duration_minutes: number;
     pass_mark: number;
+    starts_at: string | null;
     status: string;
     questions_count: number;
     organization: { id: number; name: string } | null;
@@ -27,10 +29,34 @@ type Attempt = {
 export default function Show({
     test,
     attempt,
+    server_now,
 }: {
     test: Test;
     attempt: Attempt | null;
+    server_now: string;
 }) {
+    const [secondsUntilStart, setSecondsUntilStart] = useState(() =>
+        secondsUntil(test.starts_at, server_now),
+    );
+    const hasStarted = secondsUntilStart <= 0;
+    const canStart = hasStarted && test.questions_count > 0;
+    const startCountdown = useMemo(
+        () => formatRemainingTime(secondsUntilStart),
+        [secondsUntilStart],
+    );
+
+    useEffect(() => {
+        if (hasStarted) {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setSecondsUntilStart((seconds) => Math.max(seconds - 1, 0));
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [hasStarted]);
+
     const startAttempt = () => {
         router.post(route('candidate.tests.attempts.store', test.id));
     };
@@ -96,6 +122,16 @@ export default function Show({
                                     {test.questions_count}
                                 </dd>
                             </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">
+                                    Start time
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                    {test.starts_at
+                                        ? formatDateTime(test.starts_at)
+                                        : 'Available now'}
+                                </dd>
+                            </div>
                         </dl>
 
                         <div className="mt-6 rounded-md bg-gray-50 p-4">
@@ -149,7 +185,9 @@ export default function Show({
                                             Ready to begin
                                         </p>
                                         <p className="mt-1 text-sm text-gray-600">
-                                            {test.questions_count === 0
+                                            {!hasStarted
+                                                ? `Test starts in ${startCountdown}.`
+                                                : test.questions_count === 0
                                                 ? 'This test has no MCQ questions yet. Please contact the examiner.'
                                                 : 'You will see all MCQ questions after starting the test.'}
                                         </p>
@@ -157,7 +195,7 @@ export default function Show({
                                     <button
                                         type="button"
                                         onClick={startAttempt}
-                                        disabled={test.questions_count === 0}
+                                        disabled={!canStart}
                                         className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
                                     >
                                         Start test
@@ -170,4 +208,42 @@ export default function Show({
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function secondsUntil(target: string | null, serverNow: string): number {
+    if (!target) {
+        return 0;
+    }
+
+    return Math.max(
+        Math.floor(
+            (new Date(target).getTime() - new Date(serverNow).getTime()) /
+                1000,
+        ),
+        0,
+    );
+}
+
+function formatRemainingTime(totalSeconds: number): string {
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m`;
+    }
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
+function formatDateTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
 }

@@ -34,6 +34,7 @@ class TestLandingController extends Controller
         return Inertia::render('Candidate/Tests/Show', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email'])
                 ->loadCount('questions'),
+            'server_now' => now()->toISOString(),
             'attempt' => $attempt ? [
                 'id' => $attempt->id,
                 'status' => $attempt->status->value,

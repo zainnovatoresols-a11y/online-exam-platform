@@ -10,6 +10,7 @@ type Test = {
     description: string | null;
     duration_minutes: number;
     pass_mark: number;
+    starts_at: string | null;
     status: string;
     questions_count: number;
 };
@@ -108,6 +109,16 @@ export default function Show({ test }: { test: Test }) {
                                     {test.questions_count}
                                 </dd>
                             </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">
+                                    Start time
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                    {test.starts_at
+                                        ? formatDateTime(test.starts_at)
+                                        : 'Available now'}
+                                </dd>
+                            </div>
                         </dl>
                     </div>
 
@@ -142,4 +153,11 @@ export default function Show({ test }: { test: Test }) {
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatDateTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
 }

@@ -12,6 +12,7 @@ export default function Create() {
         description: '',
         duration_minutes: 60,
         pass_mark: 50,
+        starts_at: '',
     });
 
     const submit: FormEventHandler = (event) => {
@@ -127,6 +128,26 @@ export default function Create() {
                                     className="mt-2"
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <InputLabel
+                                htmlFor="starts_at"
+                                value="Start time"
+                            />
+                            <TextInput
+                                id="starts_at"
+                                type="datetime-local"
+                                className="mt-1 block w-full"
+                                value={data.starts_at}
+                                onChange={(event) =>
+                                    setData('starts_at', event.target.value)
+                                }
+                            />
+                            <InputError
+                                message={errors.starts_at}
+                                className="mt-2"
+                            />
                         </div>
 
                         <div className="flex items-center gap-4">

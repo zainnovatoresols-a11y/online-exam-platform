@@ -92,6 +92,36 @@ class CandidateMcqAttemptTest extends TestCase
         $this->assertDatabaseCount('test_attempts', 0);
     }
 
+    public function test_candidate_cannot_start_before_test_start_time(): void
+    {
+        [$candidate, $test] = $this->acceptedOrganizationInvitation([
+            'starts_at' => now()->addHour(),
+        ]);
+        $this->questionWithOptions($test);
+
+        $response = $this->actingAs($candidate)
+            ->post(route('candidate.tests.attempts.store', $test));
+
+        $response->assertForbidden();
+        $this->assertDatabaseCount('test_attempts', 0);
+    }
+
+    public function test_candidate_can_start_after_test_start_time(): void
+    {
+        [$candidate, $test] = $this->acceptedOrganizationInvitation([
+            'starts_at' => now()->subMinute(),
+        ]);
+        $this->questionWithOptions($test);
+
+        $response = $this->actingAs($candidate)
+            ->post(route('candidate.tests.attempts.store', $test));
+
+        $attempt = TestAttempt::firstOrFail();
+
+        $response->assertRedirect(route('candidate.attempts.show', $attempt));
+        $this->assertSame(AttemptStatus::InProgress, $attempt->status);
+    }
+
     public function test_candidate_cannot_create_multiple_attempts_for_same_test(): void
     {
         [$candidate, $test] = $this->acceptedOrganizationInvitation();

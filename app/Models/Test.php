@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'description',
     'duration_minutes',
     'pass_mark',
+    'starts_at',
     'status',
     'published_at',
     'closed_at',
@@ -34,6 +35,7 @@ class Test extends Model
     protected function casts(): array
     {
         return [
+            'starts_at' => 'datetime',
             'published_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -117,6 +119,11 @@ class Test extends Model
     public function isPublished(): bool
     {
         return $this->status === TestStatus::Published->value;
+    }
+
+    public function hasStarted(): bool
+    {
+        return $this->starts_at === null || now()->greaterThanOrEqualTo($this->starts_at);
     }
 
     public function isClosed(): bool

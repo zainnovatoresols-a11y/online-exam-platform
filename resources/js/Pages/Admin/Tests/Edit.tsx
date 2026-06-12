@@ -12,6 +12,7 @@ type Test = {
     description: string | null;
     duration_minutes: number;
     pass_mark: number;
+    starts_at: string | null;
 };
 
 export default function Edit({ test }: { test: Test }) {
@@ -20,6 +21,7 @@ export default function Edit({ test }: { test: Test }) {
         description: test.description ?? '',
         duration_minutes: test.duration_minutes,
         pass_mark: test.pass_mark,
+        starts_at: formatDateTimeLocal(test.starts_at),
     });
 
     const submit: FormEventHandler = (event) => {
@@ -137,6 +139,26 @@ export default function Edit({ test }: { test: Test }) {
                             </div>
                         </div>
 
+                        <div>
+                            <InputLabel
+                                htmlFor="starts_at"
+                                value="Start time"
+                            />
+                            <TextInput
+                                id="starts_at"
+                                type="datetime-local"
+                                className="mt-1 block w-full"
+                                value={data.starts_at}
+                                onChange={(event) =>
+                                    setData('starts_at', event.target.value)
+                                }
+                            />
+                            <InputError
+                                message={errors.starts_at}
+                                className="mt-2"
+                            />
+                        </div>
+
                         <div className="flex items-center gap-4">
                             <PrimaryButton disabled={processing}>
                                 Update
@@ -153,4 +175,17 @@ export default function Edit({ test }: { test: Test }) {
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatDateTimeLocal(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+    const offsetDate = new Date(
+        date.getTime() - date.getTimezoneOffset() * 60_000,
+    );
+
+    return offsetDate.toISOString().slice(0, 16);
 }

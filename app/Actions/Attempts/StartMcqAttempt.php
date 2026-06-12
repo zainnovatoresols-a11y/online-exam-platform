@@ -23,6 +23,10 @@ class StartMcqAttempt
             throw new AuthorizationException('This test is not available.');
         }
 
+        if (! $test->hasStarted()) {
+            throw new AuthorizationException('This test has not started yet.');
+        }
+
         $invitation = Invitation::query()
             ->where('test_id', $test->id)
             ->where('candidate_user_id', $candidate->id)

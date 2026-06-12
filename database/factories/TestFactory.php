@@ -26,6 +26,7 @@ class TestFactory extends Factory
             'description' => fake()->paragraph(),
             'duration_minutes' => 60,
             'pass_mark' => 50,
+            'starts_at' => null,
             'status' => TestStatus::Draft->value,
         ];
     }
