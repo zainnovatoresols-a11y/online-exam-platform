@@ -2,6 +2,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 
@@ -9,7 +10,8 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+    const { auth, flash } = usePage<PageProps>().props;
+    const user = auth.user;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -171,6 +173,21 @@ export default function Authenticated({
                         {header}
                     </div>
                 </header>
+            )}
+
+            {(flash.success || flash.error) && (
+                <div className="mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
+                    {flash.success && (
+                        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+                            {flash.success}
+                        </div>
+                    )}
+                    {flash.error && (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                            {flash.error}
+                        </div>
+                    )}
+                </div>
             )}
 
             <main>{children}</main>
