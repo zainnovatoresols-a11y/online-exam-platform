@@ -42,6 +42,10 @@ class CandidateInvitationNotification extends Notification
             ->line('From: '.$owner)
             ->action('Open Invitation', route('candidate.invitations.show', $this->invitation->token));
 
+        if ($this->invitation->starts_at) {
+            $message->line('Starts on: '.$this->invitation->starts_at->toDayDateTimeString().'.');
+        }
+
         if ($this->invitation->expires_at) {
             $message->line('This invitation expires on '.$this->invitation->expires_at->toDayDateTimeString().'.');
         }

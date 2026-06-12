@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -13,7 +14,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['organization_id', 'name', 'email', 'password'])]
+#[Fillable([
+    'organization_id',
+    'created_by_id',
+    'name',
+    'email',
+    'password',
+    'phone',
+    'stack_name',
+    'email_verified_at',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -41,6 +51,31 @@ class User extends Authenticatable
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * Get the admin who added this user to the candidate pool.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    /**
+     * Get candidates added by this admin.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function createdCandidates(): HasMany
+    {
+        return $this->hasMany(User::class, 'created_by_id');
+    }
+
+    public function isCandidate(): bool
+    {
+        return $this->hasRole(UserRole::Candidate->value);
     }
 
     /**

@@ -91,7 +91,7 @@ class InvitationController extends Controller
 
     private function markExpiredIfNeeded(Invitation $invitation): bool
     {
-        if (! $invitation->isPending() || ! $invitation->hasExpired()) {
+        if (! $invitation->isAcceptable() || ! $invitation->hasExpired()) {
             return false;
         }
 
@@ -122,6 +122,7 @@ class InvitationController extends Controller
             'email' => $invitation->email,
             'name' => $invitation->name,
             'status' => $invitation->status->value,
+            'starts_at' => $invitation->starts_at?->toISOString(),
             'expires_at' => $invitation->expires_at?->toISOString(),
             'accepted_at' => $invitation->accepted_at?->toISOString(),
             'test' => [

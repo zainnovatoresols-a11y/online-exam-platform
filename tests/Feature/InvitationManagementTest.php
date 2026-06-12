@@ -27,6 +27,7 @@ class InvitationManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'name' => 'Candidate One',
             'email' => 'candidate-one@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertRedirect(route('admin.tests.invitations.index', $test));
@@ -35,7 +36,7 @@ class InvitationManagementTest extends TestCase
             'organization_id' => $test->organization_id,
             'invited_by' => $admin->id,
             'email' => 'candidate-one@example.com',
-            'status' => InvitationStatus::Pending->value,
+            'status' => InvitationStatus::Sent->value,
         ]);
     }
 
@@ -50,6 +51,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'blocked@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertForbidden();
@@ -65,6 +67,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'solo-candidate@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertRedirect(route('admin.tests.invitations.index', $test));
@@ -88,6 +91,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($otherAdmin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'blocked-solo@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertForbidden();
@@ -109,6 +113,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'draft@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertRedirect(route('admin.tests.invitations.index', $test));
@@ -116,7 +121,7 @@ class InvitationManagementTest extends TestCase
             'test_id' => $test->id,
             'organization_id' => $organization->id,
             'email' => 'draft@example.com',
-            'status' => InvitationStatus::Pending->value,
+            'status' => InvitationStatus::Sent->value,
         ]);
     }
 
@@ -134,6 +139,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'closed@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertRedirect(route('admin.tests.invitations.index', $test));
@@ -141,7 +147,7 @@ class InvitationManagementTest extends TestCase
             'test_id' => $test->id,
             'organization_id' => $organization->id,
             'email' => 'closed@example.com',
-            'status' => InvitationStatus::Pending->value,
+            'status' => InvitationStatus::Sent->value,
         ]);
     }
 
@@ -159,6 +165,7 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'duplicate@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $response->assertSessionHasErrors('email');
@@ -171,6 +178,7 @@ class InvitationManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'org-copy@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $invitation = Invitation::where('email', 'org-copy@example.com')->firstOrFail();
@@ -185,6 +193,7 @@ class InvitationManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'solo-null@example.com',
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $invitation = Invitation::where('email', 'solo-null@example.com')->firstOrFail();
@@ -201,6 +210,7 @@ class InvitationManagementTest extends TestCase
         $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
             'email' => 'override@example.com',
             'organization_id' => $organization->id,
+            'starts_at' => now()->addHour()->toDateTimeString(),
         ]);
 
         $invitation = Invitation::where('email', 'override@example.com')->firstOrFail();

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('email');
             $table->string('token')->unique();
             $table->string('status')->default(InvitationStatus::Pending->value);
+            $table->timestamp('starts_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('accepted_at')->nullable();
             $table->timestamp('revoked_at')->nullable();

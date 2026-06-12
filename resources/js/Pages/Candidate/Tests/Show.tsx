@@ -26,17 +26,24 @@ type Attempt = {
     expires_at: string | null;
 };
 
+type Invitation = {
+    id: number;
+    starts_at: string | null;
+};
+
 export default function Show({
     test,
+    invitation,
     attempt,
     server_now,
 }: {
     test: Test;
+    invitation: Invitation;
     attempt: Attempt | null;
     server_now: string;
 }) {
     const [secondsUntilStart, setSecondsUntilStart] = useState(() =>
-        secondsUntil(test.starts_at, server_now),
+        secondsUntil(invitation.starts_at, server_now),
     );
     const isPublished = test.status === 'published';
     const hasStarted = secondsUntilStart <= 0;
@@ -128,8 +135,8 @@ export default function Show({
                                     Start time
                                 </dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {test.starts_at
-                                        ? formatDateTime(test.starts_at)
+                                    {invitation.starts_at
+                                        ? formatDateTime(invitation.starts_at)
                                         : 'Available now'}
                                 </dd>
                             </div>

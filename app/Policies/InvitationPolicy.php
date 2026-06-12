@@ -24,14 +24,14 @@ class InvitationPolicy
     {
         return $this->isAdmin($user)
             && $invitation->test->belongsToAdminScope($user)
-            && $invitation->status === InvitationStatus::Pending;
+            && in_array($invitation->status, [InvitationStatus::Pending, InvitationStatus::Sent], true);
     }
 
     public function revoke(User $user, Invitation $invitation): bool
     {
         return $this->isAdmin($user)
             && $invitation->test->belongsToAdminScope($user)
-            && $invitation->status === InvitationStatus::Pending;
+            && in_array($invitation->status, [InvitationStatus::Pending, InvitationStatus::Sent], true);
     }
 
     public function viewTest(User $user, Test $test): bool

@@ -7,6 +7,8 @@ use App\Models\Invitation;
 use App\Models\Question;
 use App\Models\Test;
 use App\Models\TestAttempt;
+use App\Models\User;
+use App\Policies\CandidatePolicy;
 use App\Policies\InvitationPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\QuestionPolicy;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Test::class, TestPolicy::class);
         Gate::policy(TestAttempt::class, TestAttemptPolicy::class);
         Gate::policy(Question::class, QuestionPolicy::class);
+        Gate::policy(User::class, CandidatePolicy::class);
 
         Vite::prefetch(concurrency: 3);
     }

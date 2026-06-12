@@ -23,10 +23,6 @@ class StartMcqAttempt
             throw new AuthorizationException('This test is not available.');
         }
 
-        if (! $test->hasStarted()) {
-            throw new AuthorizationException('This test has not started yet.');
-        }
-
         $invitation = Invitation::query()
             ->where('test_id', $test->id)
             ->where('candidate_user_id', $candidate->id)
@@ -38,16 +34,22 @@ class StartMcqAttempt
             throw new AuthorizationException('You do not have access to this test.');
         }
 
+        $startsAt = $invitation->starts_at ?? $test->starts_at;
+
+        if ($startsAt !== null && now()->lessThan($startsAt)) {
+            throw new AuthorizationException('This invitation has not started yet.');
+        }
+
         $startedAt = now();
         $maxScore = (int) $test->questions()->sum('marks');
 
         $attempt = TestAttempt::firstOrCreate(
             [
-                'test_id' => $test->id,
-                'candidate_user_id' => $candidate->id,
+                'invitation_id' => $invitation->id,
             ],
             [
-                'invitation_id' => $invitation->id,
+                'test_id' => $test->id,
+                'candidate_user_id' => $candidate->id,
                 'organization_id' => $test->organization_id,
                 'status' => AttemptStatus::InProgress,
                 'started_at' => $startedAt,

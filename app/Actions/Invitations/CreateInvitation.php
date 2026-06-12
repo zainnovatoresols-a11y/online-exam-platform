@@ -3,11 +3,10 @@
 namespace App\Actions\Invitations;
 
 use App\Enums\InvitationStatus;
+use App\Jobs\SendCandidateInvitation;
 use App\Models\Invitation;
 use App\Models\Test;
 use App\Models\User;
-use App\Notifications\CandidateInvitationNotification;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class CreateInvitation
@@ -15,7 +14,7 @@ class CreateInvitation
     /**
      * Create and email a candidate invitation.
      *
-     * @param array{name?: string|null, email: string, expires_at?: string|null} $data
+     * @param array{name?: string|null, email: string, starts_at: string, expires_at?: string|null, url_root?: string|null} $data
      */
     public function handle(Test $test, User $admin, array $data): Invitation
     {
@@ -27,11 +26,11 @@ class CreateInvitation
             'email' => strtolower($data['email']),
             'token' => $this->token(),
             'status' => InvitationStatus::Pending,
+            'starts_at' => $data['starts_at'],
             'expires_at' => $data['expires_at'] ?? null,
         ]);
 
-        Notification::route('mail', $invitation->email)
-            ->notify(new CandidateInvitationNotification($invitation));
+        SendCandidateInvitation::dispatch($invitation->id, $data['url_root'] ?? null);
 
         return $invitation;
     }

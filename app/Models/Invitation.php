@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'email',
     'token',
     'status',
+    'starts_at',
     'expires_at',
     'accepted_at',
     'revoked_at',
@@ -37,6 +38,7 @@ class Invitation extends Model
     {
         return [
             'status' => InvitationStatus::class,
+            'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
             'revoked_at' => 'datetime',
@@ -98,6 +100,16 @@ class Invitation extends Model
         return $this->status === InvitationStatus::Pending;
     }
 
+    public function isSent(): bool
+    {
+        return $this->status === InvitationStatus::Sent;
+    }
+
+    public function isAcceptable(): bool
+    {
+        return $this->isPending() || $this->isSent();
+    }
+
     public function isAccepted(): bool
     {
         return $this->status === InvitationStatus::Accepted;
@@ -111,5 +123,10 @@ class Invitation extends Model
     public function hasExpired(): bool
     {
         return $this->expires_at !== null && $this->expires_at->isPast();
+    }
+
+    public function hasStarted(): bool
+    {
+        return $this->starts_at === null || now()->greaterThanOrEqualTo($this->starts_at);
     }
 }

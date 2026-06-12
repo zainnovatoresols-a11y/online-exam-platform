@@ -30,6 +30,7 @@ class InvitationFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'token' => Str::random(64),
             'status' => InvitationStatus::Pending,
+            'starts_at' => null,
             'expires_at' => null,
         ];
     }

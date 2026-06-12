@@ -46,6 +46,16 @@ class AcceptInvitation
             ]);
         }
 
+        if (
+            $candidate->organization_id === null
+            && $invitation->organization_id === null
+            && $candidate->created_by_id === null
+        ) {
+            $candidate->update([
+                'created_by_id' => $invitation->invited_by,
+            ]);
+        }
+
         if ($candidate->email_verified_at === null) {
             $candidate->update([
                 'email_verified_at' => now(),

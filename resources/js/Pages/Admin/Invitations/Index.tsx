@@ -17,6 +17,7 @@ type Invitation = {
     name: string | null;
     email: string;
     status: string;
+    starts_at: string | null;
     expires_at: string | null;
     accepted_at: string | null;
 };
@@ -99,6 +100,9 @@ export default function Index({
                                         Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        Starts
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                                         Expires
                                     </th>
                                     <th className="px-6 py-3" />
@@ -119,11 +123,23 @@ export default function Index({
                                             {invitation.status}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-600">
-                                            {invitation.expires_at ?? 'No expiry'}
+                                            {invitation.starts_at
+                                                ? formatDateTime(
+                                                      invitation.starts_at,
+                                                  )
+                                                : 'Available now'}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            {invitation.expires_at
+                                                ? formatDateTime(
+                                                      invitation.expires_at,
+                                                  )
+                                                : 'No expiry'}
                                         </td>
                                         <td className="space-x-3 px-6 py-4 text-right text-sm">
-                                            {invitation.status ===
-                                                'pending' && (
+                                            {['pending', 'sent'].includes(
+                                                invitation.status,
+                                            ) && (
                                                 <>
                                                     <SecondaryButton
                                                         onClick={() =>
@@ -151,7 +167,7 @@ export default function Index({
                                 {invitations.data.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={4}
+                                            colSpan={5}
                                             className="px-6 py-4 text-sm text-gray-600"
                                         >
                                             No invitations sent yet.
@@ -165,4 +181,11 @@ export default function Index({
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatDateTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
 }

@@ -106,6 +106,21 @@ class CandidateMcqAttemptTest extends TestCase
         $this->assertDatabaseCount('test_attempts', 0);
     }
 
+    public function test_candidate_cannot_start_before_their_invitation_start_time(): void
+    {
+        [$candidate, $test] = $this->acceptedOrganizationInvitation(
+            ['starts_at' => null],
+            ['starts_at' => now()->addHour()],
+        );
+        $this->questionWithOptions($test);
+
+        $response = $this->actingAs($candidate)
+            ->post(route('candidate.tests.attempts.store', $test));
+
+        $response->assertForbidden();
+        $this->assertDatabaseCount('test_attempts', 0);
+    }
+
     public function test_candidate_can_start_after_test_start_time(): void
     {
         [$candidate, $test] = $this->acceptedOrganizationInvitation([
@@ -168,6 +183,86 @@ class CandidateMcqAttemptTest extends TestCase
             ->where('questions.0.options.0.id', $correctOption->id)
             ->where('attempt.expires_at', $attempt->expires_at?->toISOString())
             ->missing('questions.0.options.0.is_correct'));
+    }
+
+    public function test_second_candidate_does_not_see_first_candidates_attempt_result(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $zain = $this->userWithRole(UserRole::Candidate);
+        $zain->update(['email' => 'zain@example.com']);
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        $candidate->update(['email' => 'candidate@example.com']);
+        $test = Test::factory()->published()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+        ]);
+        [$question, $correctOption] = $this->questionWithOptions($test);
+
+        $this->acceptedInvitationFor($test, $admin, $zain);
+        $this->acceptedInvitationFor($test, $admin, $candidate);
+
+        $zainAttempt = $this->startAttempt($zain, $test);
+        $this->actingAs($zain)
+            ->post(route('candidate.attempts.submit', $zainAttempt), [
+                'answers' => [
+                    $question->id => $correctOption->id,
+                ],
+            ]);
+
+        $response = $this->actingAs($candidate)
+            ->get(route('candidate.tests.show', $test));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Candidate/Tests/Show')
+            ->where('attempt', null));
+    }
+
+    public function test_each_candidate_starts_a_separate_attempt_for_the_same_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $firstCandidate = $this->userWithRole(UserRole::Candidate);
+        $secondCandidate = $this->userWithRole(UserRole::Candidate);
+        $test = Test::factory()->published()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+        ]);
+        $this->questionWithOptions($test);
+
+        $this->acceptedInvitationFor($test, $admin, $firstCandidate);
+        $this->acceptedInvitationFor($test, $admin, $secondCandidate);
+
+        $this->startAttempt($firstCandidate, $test);
+        $this->startAttempt($secondCandidate, $test);
+
+        $this->assertDatabaseCount('test_attempts', 2);
+        $this->assertDatabaseHas('test_attempts', [
+            'test_id' => $test->id,
+            'candidate_user_id' => $firstCandidate->id,
+        ]);
+        $this->assertDatabaseHas('test_attempts', [
+            'test_id' => $test->id,
+            'candidate_user_id' => $secondCandidate->id,
+        ]);
+    }
+
+    public function test_candidate_landing_uses_invitation_start_time(): void
+    {
+        [$candidate, $test, $invitation] = $this->acceptedOrganizationInvitation(
+            ['starts_at' => null],
+            ['starts_at' => now()->addHour()],
+        );
+
+        $response = $this->actingAs($candidate)
+            ->get(route('candidate.tests.show', $test));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Candidate/Tests/Show')
+            ->where('invitation.id', $invitation->id)
+            ->where('invitation.starts_at', $invitation->starts_at?->toISOString()));
     }
 
     public function test_candidate_can_save_answers_before_submission(): void
@@ -375,10 +470,11 @@ class CandidateMcqAttemptTest extends TestCase
 
     /**
      * @param array<string, mixed> $testOverrides
+     * @param array<string, mixed> $invitationOverrides
      *
      * @return array{0: User, 1: Test, 2: Invitation}
      */
-    private function acceptedOrganizationInvitation(array $testOverrides = []): array
+    private function acceptedOrganizationInvitation(array $testOverrides = [], array $invitationOverrides = []): array
     {
         $organization = Organization::factory()->create();
         $admin = $this->userWithRole(UserRole::Admin, $organization);
@@ -397,9 +493,24 @@ class CandidateMcqAttemptTest extends TestCase
             'email' => $candidate->email,
             'status' => InvitationStatus::Accepted,
             'accepted_at' => now(),
+            ...$invitationOverrides,
         ]);
 
         return [$candidate, $test, $invitation];
+    }
+
+    private function acceptedInvitationFor(Test $test, User $admin, User $candidate): Invitation
+    {
+        return Invitation::factory()->create([
+            'organization_id' => $test->organization_id,
+            'test_id' => $test->id,
+            'invited_by' => $admin->id,
+            'candidate_user_id' => $candidate->id,
+            'email' => $candidate->email,
+            'status' => InvitationStatus::Accepted,
+            'accepted_at' => now(),
+            'starts_at' => now()->subMinute(),
+        ]);
     }
 
     /**

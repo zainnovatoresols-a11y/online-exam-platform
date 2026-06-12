@@ -6,6 +6,7 @@ type Invitation = {
     token: string;
     email: string;
     name: string | null;
+    starts_at: string | null;
     expires_at: string | null;
     test: {
         id: number;
@@ -53,6 +54,14 @@ export default function Show({ invitation }: { invitation: Invitation }) {
                         </dd>
                     </div>
                     <div>
+                        <dt className="font-medium text-gray-900">Starts</dt>
+                        <dd className="text-gray-600">
+                            {invitation.starts_at
+                                ? formatDateTime(invitation.starts_at)
+                                : 'Available now'}
+                        </dd>
+                    </div>
+                    <div>
                         <dt className="font-medium text-gray-900">Expires</dt>
                         <dd className="text-gray-600">
                             {invitation.expires_at ?? 'No expiry'}
@@ -66,4 +75,11 @@ export default function Show({ invitation }: { invitation: Invitation }) {
             </div>
         </GuestLayout>
     );
+}
+
+function formatDateTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
 }
