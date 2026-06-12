@@ -62,4 +62,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Invitation::class, 'candidate_user_id');
     }
+
+    /**
+     * Get candidate test attempts owned by this user.
+     *
+     * @return HasMany<TestAttempt, $this>
+     */
+    public function testAttempts(): HasMany
+    {
+        return $this->hasMany(TestAttempt::class, 'candidate_user_id');
+    }
 }

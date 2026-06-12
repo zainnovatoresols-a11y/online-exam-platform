@@ -79,6 +79,16 @@ class Test extends Model
         return $this->hasMany(Invitation::class);
     }
 
+    /**
+     * Get candidate attempts for this test.
+     *
+     * @return HasMany<TestAttempt, $this>
+     */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(TestAttempt::class);
+    }
+
     public function isOrganizationTest(): bool
     {
         return $this->organization_id !== null;

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitati
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
+use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
 use App\Http\Controllers\Candidate\Invitations\InvitationController as CandidateInvitationController;
 use App\Http\Controllers\Candidate\Tests\TestLandingController;
@@ -87,6 +88,12 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
     ->group(function (): void {
         Route::get('/dashboard', CandidateDashboardController::class)->name('dashboard');
         Route::get('/tests/{test}', TestLandingController::class)->name('tests.show');
+        Route::post('/tests/{test}/attempts', [TestAttemptController::class, 'store'])
+            ->name('tests.attempts.store');
+        Route::get('/attempts/{attempt}', [TestAttemptController::class, 'show'])
+            ->name('attempts.show');
+        Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
+            ->name('attempts.submit');
     });
 
 Route::middleware('auth')->group(function () {

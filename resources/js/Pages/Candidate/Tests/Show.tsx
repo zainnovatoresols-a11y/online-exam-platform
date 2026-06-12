@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 
 type Test = {
     id: number;
@@ -12,7 +12,25 @@ type Test = {
     creator: { id: number; name: string; email: string } | null;
 };
 
-export default function Show({ test }: { test: Test }) {
+type Attempt = {
+    id: number;
+    status: string;
+    score: number;
+    total_marks: number;
+    submitted_at: string | null;
+};
+
+export default function Show({
+    test,
+    attempt,
+}: {
+    test: Test;
+    attempt: Attempt | null;
+}) {
+    const startAttempt = () => {
+        router.post(route('candidate.tests.attempts.store', test.id));
+    };
+
     return (
         <AuthenticatedLayout
             header={
@@ -76,9 +94,71 @@ export default function Show({ test }: { test: Test }) {
                             </div>
                         </dl>
 
-                        <p className="mt-6 rounded-md bg-gray-50 p-4 text-sm text-gray-700">
-                            Test attempt flow will be implemented in the next stage.
-                        </p>
+                        <div className="mt-6 rounded-md bg-gray-50 p-4">
+                            {attempt?.status === 'submitted' ? (
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            Submitted
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            Score: {attempt.score} /{' '}
+                                            {attempt.total_marks}
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href={route(
+                                            'candidate.attempts.show',
+                                            attempt.id,
+                                        )}
+                                        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                    >
+                                        View result
+                                    </Link>
+                                </div>
+                            ) : attempt ? (
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            Attempt started
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            Continue your MCQ test from where
+                                            you left it.
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href={route(
+                                            'candidate.attempts.show',
+                                            attempt.id,
+                                        )}
+                                        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                    >
+                                        Resume test
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            Ready to begin
+                                        </p>
+                                        <p className="mt-1 text-sm text-gray-600">
+                                            You will see all MCQ questions after
+                                            starting the test.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={startAttempt}
+                                        disabled={test.questions_count === 0}
+                                        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+                                    >
+                                        Start test
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'organization_id',
@@ -80,6 +81,16 @@ class Invitation extends Model
     public function candidate(): BelongsTo
     {
         return $this->belongsTo(User::class, 'candidate_user_id');
+    }
+
+    /**
+     * Get the attempt started from this invitation.
+     *
+     * @return HasOne<TestAttempt, $this>
+     */
+    public function attempt(): HasOne
+    {
+        return $this->hasOne(TestAttempt::class);
     }
 
     public function isPending(): bool

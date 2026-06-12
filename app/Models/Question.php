@@ -34,4 +34,14 @@ class Question extends Model
     {
         return $this->hasMany(QuestionOption::class);
     }
+
+    /**
+     * Get candidate answers submitted for this question.
+     *
+     * @return HasMany<AttemptAnswer, $this>
+     */
+    public function attemptAnswers(): HasMany
+    {
+        return $this->hasMany(AttemptAnswer::class);
+    }
 }

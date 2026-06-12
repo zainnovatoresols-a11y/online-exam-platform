@@ -15,9 +15,20 @@ class TestLandingController extends Controller
     {
         Gate::authorize('viewTest', [Invitation::class, $test]);
 
+        $attempt = $test->attempts()
+            ->where('candidate_user_id', request()->user()->id)
+            ->first(['id', 'test_id', 'candidate_user_id', 'status', 'score', 'total_marks', 'submitted_at']);
+
         return Inertia::render('Candidate/Tests/Show', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email'])
                 ->loadCount('questions'),
+            'attempt' => $attempt ? [
+                'id' => $attempt->id,
+                'status' => $attempt->status->value,
+                'score' => $attempt->score,
+                'total_marks' => $attempt->total_marks,
+                'submitted_at' => $attempt->submitted_at?->toISOString(),
+            ] : null,
         ]);
     }
 }
