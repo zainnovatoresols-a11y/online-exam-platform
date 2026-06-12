@@ -36,6 +36,13 @@ export default function Create() {
                         onSubmit={submit}
                         className="space-y-6 bg-white p-6 shadow-sm sm:rounded-lg"
                     >
+                        <Link
+                            href={route('admin.tests.index')}
+                            className="text-sm font-medium text-gray-600 underline"
+                        >
+                            Back to tests
+                        </Link>
+
                         <div>
                             <InputLabel htmlFor="title" value="Title" />
                             <TextInput

@@ -44,6 +44,13 @@ export default function Edit({ test }: { test: Test }) {
                         onSubmit={submit}
                         className="space-y-6 bg-white p-6 shadow-sm sm:rounded-lg"
                     >
+                        <Link
+                            href={route('admin.tests.show', test.id)}
+                            className="text-sm font-medium text-gray-600 underline"
+                        >
+                            Back to test
+                        </Link>
+
                         <div>
                             <InputLabel htmlFor="title" value="Title" />
                             <TextInput

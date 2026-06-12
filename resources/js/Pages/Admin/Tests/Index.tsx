@@ -13,6 +13,7 @@ type Test = {
 type Props = {
     tests: {
         data: Test[];
+        from: number | null;
     };
 };
 
@@ -43,6 +44,9 @@ export default function Index({ tests }: Props) {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        #
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                                         Title
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
@@ -54,12 +58,18 @@ export default function Index({ tests }: Props) {
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                                         Questions
                                     </th>
-                                    <th className="px-6 py-3" />
+                                    
+                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
-                                {tests.data.map((test) => (
+                                {tests.data.map((test, index) => (
                                     <tr key={test.id}>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            {(tests.from ?? 1) + index}
+                                        </td>
                                         <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                             {test.title}
                                         </td>
@@ -99,7 +109,7 @@ export default function Index({ tests }: Props) {
                                 {tests.data.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-6 py-4 text-sm text-gray-600"
                                         >
                                             No tests created yet.
