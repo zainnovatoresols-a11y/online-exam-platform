@@ -81,6 +81,35 @@ class CandidatePoolTest extends TestCase
             ->where('filters.stack', 'Laravel'));
     }
 
+    public function test_admin_can_delete_candidate_from_their_pool(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $candidate = $this->candidateWithStack('Laravel', $organization);
+
+        $response = $this->actingAs($admin)->delete(route('admin.candidates.destroy', $candidate));
+
+        $response->assertRedirect(route('admin.candidates.index'));
+        $this->assertDatabaseMissing('users', [
+            'id' => $candidate->id,
+        ]);
+    }
+
+    public function test_admin_cannot_delete_candidate_outside_their_pool(): void
+    {
+        $organization = Organization::factory()->create();
+        $otherOrganization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $outsideCandidate = $this->candidateWithStack('Laravel', $otherOrganization);
+
+        $response = $this->actingAs($admin)->delete(route('admin.candidates.destroy', $outsideCandidate));
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('users', [
+            'id' => $outsideCandidate->id,
+        ]);
+    }
+
     public function test_admin_can_bulk_invite_selected_candidates_for_test(): void
     {
         Notification::fake();

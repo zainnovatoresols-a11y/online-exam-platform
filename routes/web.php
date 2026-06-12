@@ -58,7 +58,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
 
         Route::resource('candidates', AdminCandidateController::class)
-            ->except(['show', 'destroy']);
+            ->except(['show']);
 
         Route::resource('tests', AdminTestController::class);
         Route::post('tests/{test}/publish', [TestLifecycleController::class, 'publish'])

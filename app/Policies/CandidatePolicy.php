@@ -22,6 +22,11 @@ class CandidatePolicy
         return $this->ownsCandidate($user, $candidate);
     }
 
+    public function deleteCandidate(User $user, User $candidate): bool
+    {
+        return $this->ownsCandidate($user, $candidate);
+    }
+
     private function ownsCandidate(User $admin, User $candidate): bool
     {
         if (! $this->isAdmin($admin) || ! $candidate->isCandidate()) {

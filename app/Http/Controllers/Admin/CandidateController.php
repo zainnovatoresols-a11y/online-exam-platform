@@ -109,4 +109,14 @@ class CandidateController extends Controller
         return to_route('admin.candidates.index')
             ->with('success', 'Candidate updated successfully.');
     }
+
+    public function destroy(User $candidate): RedirectResponse
+    {
+        Gate::authorize('deleteCandidate', $candidate);
+
+        $candidate->delete();
+
+        return to_route('admin.candidates.index')
+            ->with('success', 'Candidate deleted successfully.');
+    }
 }

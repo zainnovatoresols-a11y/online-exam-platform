@@ -32,6 +32,14 @@ export default function Index({ candidates, stacks, filters }: Props) {
         );
     };
 
+    const destroy = (candidate: Candidate) => {
+        if (!window.confirm(`Delete ${candidate.name}?`)) {
+            return;
+        }
+
+        router.delete(route('admin.candidates.destroy', candidate.id));
+    };
+
     return (
         <AuthenticatedLayout
             header={
@@ -118,7 +126,7 @@ export default function Index({ candidates, stacks, filters }: Props) {
                                         <td className="px-6 py-4 text-sm text-gray-600">
                                             {candidate.stack_name ?? '-'}
                                         </td>
-                                        <td className="px-6 py-4 text-right text-sm">
+                                        <td className="space-x-4 px-6 py-4 text-right text-sm">
                                             <Link
                                                 href={route(
                                                     'admin.candidates.edit',
@@ -128,6 +136,15 @@ export default function Index({ candidates, stacks, filters }: Props) {
                                             >
                                                 Edit
                                             </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    destroy(candidate)
+                                                }
+                                                className="font-medium text-red-600 underline"
+                                            >
+                                                Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
