@@ -101,6 +101,6 @@ class TestController extends Controller
         $test->delete();
 
         return to_route('admin.tests.index')
-            ->with('success', 'Draft test deleted successfully.');
+            ->with('success', 'Test deleted successfully.');
     }
 }

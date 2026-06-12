@@ -115,7 +115,83 @@ class TestManagementTest extends TestCase
         $this->assertNotNull($test->closed_at);
     }
 
-    public function test_admin_can_delete_only_draft_tests(): void
+    public function test_admin_can_edit_closed_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+            'title' => 'Closed Laravel Test',
+            'status' => TestStatus::Closed->value,
+            'published_at' => now()->subDay(),
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->put(route('admin.tests.update', $test), [
+            'title' => 'Updated Closed Laravel Test',
+            'description' => 'Updated for reuse.',
+            'duration_minutes' => 90,
+            'pass_mark' => 70,
+        ]);
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertDatabaseHas('tests', [
+            'id' => $test->id,
+            'title' => 'Updated Closed Laravel Test',
+            'duration_minutes' => 90,
+            'pass_mark' => 70,
+            'status' => TestStatus::Closed->value,
+        ]);
+    }
+
+    public function test_admin_can_republish_closed_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+            'status' => TestStatus::Closed->value,
+            'published_at' => now()->subDay(),
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.publish', $test));
+
+        $response->assertRedirect(route('admin.tests.show', $test));
+        $this->assertSame(TestStatus::Published->value, $test->refresh()->status);
+        $this->assertNull($test->closed_at);
+    }
+
+    public function test_admin_can_manage_questions_on_closed_test(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+            'status' => TestStatus::Closed->value,
+            'closed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.questions.store', $test), [
+            'body' => 'Reusable closed test MCQ?',
+            'marks' => 1,
+            'options' => [
+                ['body' => 'Yes', 'is_correct' => true],
+                ['body' => 'No', 'is_correct' => false],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.tests.questions.index', $test));
+        $this->assertDatabaseHas('questions', [
+            'test_id' => $test->id,
+            'body' => 'Reusable closed test MCQ?',
+        ]);
+    }
+
+    public function test_admin_can_delete_draft_and_closed_tests_but_not_published_tests(): void
     {
         $organization = Organization::factory()->create();
         $admin = $this->userWithRole(UserRole::Admin, $organization);
@@ -123,16 +199,24 @@ class TestManagementTest extends TestCase
             'organization_id' => $organization->id,
             'status' => TestStatus::Draft->value,
         ]);
+        $closedTest = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'status' => TestStatus::Closed->value,
+            'closed_at' => now(),
+        ]);
         $publishedTest = Test::factory()->published()->create([
             'organization_id' => $organization->id,
         ]);
 
         $draftResponse = $this->actingAs($admin)->delete(route('admin.tests.destroy', $draftTest));
+        $closedResponse = $this->actingAs($admin)->delete(route('admin.tests.destroy', $closedTest));
         $publishedResponse = $this->actingAs($admin)->delete(route('admin.tests.destroy', $publishedTest));
 
         $draftResponse->assertRedirect(route('admin.tests.index'));
+        $closedResponse->assertRedirect(route('admin.tests.index'));
         $publishedResponse->assertForbidden();
         $this->assertDatabaseMissing('tests', ['id' => $draftTest->id]);
+        $this->assertDatabaseMissing('tests', ['id' => $closedTest->id]);
         $this->assertDatabaseHas('tests', ['id' => $publishedTest->id]);
     }
 

@@ -17,10 +17,13 @@ class TestLifecycleController extends Controller
         $test->update([
             'status' => TestStatus::Published->value,
             'published_at' => now(),
+            'closed_at' => null,
         ]);
 
         return to_route('admin.tests.show', $test)
-            ->with('success', 'Test published successfully.');
+            ->with('success', $test->wasChanged('closed_at')
+                ? 'Test republished successfully.'
+                : 'Test published successfully.');
     }
 
     public function close(Test $test): RedirectResponse

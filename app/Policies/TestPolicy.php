@@ -25,17 +25,20 @@ class TestPolicy
 
     public function update(User $user, Test $test): bool
     {
-        return $this->ownsTest($user, $test) && $test->isDraft();
+        return $this->ownsTest($user, $test)
+            && ($test->isDraft() || $test->isClosed());
     }
 
     public function delete(User $user, Test $test): bool
     {
-        return $this->ownsTest($user, $test) && $test->isDraft();
+        return $this->ownsTest($user, $test)
+            && ($test->isDraft() || $test->isClosed());
     }
 
     public function publish(User $user, Test $test): bool
     {
-        return $this->ownsTest($user, $test) && $test->isDraft();
+        return $this->ownsTest($user, $test)
+            && ($test->isDraft() || $test->isClosed());
     }
 
     public function close(User $user, Test $test): bool

@@ -34,7 +34,13 @@ export default function Show({ test }: { test: Test }) {
                     <div className="bg-white p-6 shadow-sm sm:rounded-lg">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <p className="text-sm font-medium uppercase text-gray-500">
+                                <Link
+                                    href={route('admin.tests.index')}
+                                    className="text-sm font-medium text-gray-600 underline"
+                                >
+                                    Back to tests
+                                </Link>
+                                <p className="mt-3 text-sm font-medium uppercase text-gray-500">
                                     {test.status}
                                 </p>
                                 <h3 className="mt-2 text-lg font-semibold text-gray-900">
@@ -63,7 +69,7 @@ export default function Show({ test }: { test: Test }) {
                                 >
                                     Invitations
                                 </Link>
-                                {test.status === 'draft' && (
+                                {test.status !== 'published' && (
                                     <Link
                                         href={route(
                                             'admin.tests.edit',
@@ -112,7 +118,17 @@ export default function Show({ test }: { test: Test }) {
                                     Publish
                                 </PrimaryButton>
                                 <DangerButton onClick={destroy}>
-                                    Delete draft
+                                    Delete draft test
+                                </DangerButton>
+                            </>
+                        )}
+                        {test.status === 'closed' && (
+                            <>
+                                <PrimaryButton onClick={publish}>
+                                    Republish
+                                </PrimaryButton>
+                                <DangerButton onClick={destroy}>
+                                    Delete closed test
                                 </DangerButton>
                             </>
                         )}

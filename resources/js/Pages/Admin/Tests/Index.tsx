@@ -82,7 +82,7 @@ export default function Index({ tests }: Props) {
                                             >
                                                 View
                                             </Link>
-                                            {test.status === 'draft' && (
+                                            {test.status !== 'published' && (
                                                 <Link
                                                     href={route(
                                                         'admin.tests.edit',

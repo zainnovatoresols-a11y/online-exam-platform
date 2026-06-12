@@ -118,4 +118,9 @@ class Test extends Model
     {
         return $this->status === TestStatus::Published->value;
     }
+
+    public function isClosed(): bool
+    {
+        return $this->status === TestStatus::Closed->value;
+    }
 }
