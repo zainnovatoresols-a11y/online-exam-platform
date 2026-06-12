@@ -54,6 +54,15 @@ export default function Show({ test }: { test: Test }) {
                                 >
                                     Questions
                                 </Link>
+                                <Link
+                                    href={route(
+                                        'admin.tests.invitations.index',
+                                        test.id,
+                                    )}
+                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                >
+                                    Invitations
+                                </Link>
                                 {test.status === 'draft' && (
                                     <Link
                                         href={route(

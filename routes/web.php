@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
+use App\Http\Controllers\Candidate\Invitations\InvitationController as CandidateInvitationController;
+use App\Http\Controllers\Candidate\Tests\TestLandingController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -22,6 +25,11 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+Route::get('/invite/{token}', [CandidateInvitationController::class, 'show'])
+    ->name('candidate.invitations.show');
+Route::post('/invite/{token}/accept', [CandidateInvitationController::class, 'accept'])
+    ->name('candidate.invitations.accept');
 
 Route::middleware(['auth', 'verified'])->get('/dashboard', DashboardRedirectController::class)
     ->name('dashboard');
@@ -57,6 +65,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
             ->prefix('tests/{test}')
             ->name('tests.')
             ->group(function (): void {
+                Route::get('invitations', [AdminInvitationController::class, 'index'])
+                    ->name('invitations.index');
+                Route::get('invitations/create', [AdminInvitationController::class, 'create'])
+                    ->name('invitations.create');
+                Route::post('invitations', [AdminInvitationController::class, 'store'])
+                    ->name('invitations.store');
+                Route::post('invitations/{invitation}/resend', [AdminInvitationController::class, 'resend'])
+                    ->name('invitations.resend');
+                Route::delete('invitations/{invitation}/revoke', [AdminInvitationController::class, 'revoke'])
+                    ->name('invitations.revoke');
+
                 Route::resource('questions', AdminQuestionController::class)
                     ->except(['show']);
             });
@@ -67,6 +86,7 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
     ->name('candidate.')
     ->group(function (): void {
         Route::get('/dashboard', CandidateDashboardController::class)->name('dashboard');
+        Route::get('/tests/{test}', TestLandingController::class)->name('tests.show');
     });
 
 Route::middleware('auth')->group(function () {

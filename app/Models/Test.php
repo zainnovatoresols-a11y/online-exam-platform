@@ -69,6 +69,36 @@ class Test extends Model
         return $this->hasMany(Question::class);
     }
 
+    /**
+     * Get invitations sent for this test.
+     *
+     * @return HasMany<Invitation, $this>
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
+    }
+
+    public function isOrganizationTest(): bool
+    {
+        return $this->organization_id !== null;
+    }
+
+    public function isSoloTest(): bool
+    {
+        return $this->organization_id === null;
+    }
+
+    public function belongsToAdminScope(User $admin): bool
+    {
+        if ($this->isOrganizationTest()) {
+            return $admin->organization_id !== null
+                && $this->organization_id === $admin->organization_id;
+        }
+
+        return (int) $this->created_by_id === (int) $admin->id;
+    }
+
     public function isDraft(): bool
     {
         return $this->status === TestStatus::Draft->value;

@@ -40,10 +40,6 @@ class QuestionPolicy
             return false;
         }
 
-        if ($test->organization_id !== null) {
-            return $user->organization_id === $test->organization_id;
-        }
-
-        return $test->created_by_id === $user->id;
+        return $test->belongsToAdminScope($user);
     }
 }

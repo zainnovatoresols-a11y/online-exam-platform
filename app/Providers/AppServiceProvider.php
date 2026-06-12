@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\Organization;
+use App\Models\Invitation;
 use App\Models\Question;
 use App\Models\Test;
+use App\Policies\InvitationPolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\QuestionPolicy;
 use App\Policies\TestPolicy;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Organization::class, OrganizationPolicy::class);
+        Gate::policy(Invitation::class, InvitationPolicy::class);
         Gate::policy(Test::class, TestPolicy::class);
         Gate::policy(Question::class, QuestionPolicy::class);
 

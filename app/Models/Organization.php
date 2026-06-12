@@ -33,4 +33,14 @@ class Organization extends Model
     {
         return $this->hasMany(Test::class);
     }
+
+    /**
+     * Get invitations sent for organization tests.
+     *
+     * @return HasMany<Invitation, $this>
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
+    }
 }
