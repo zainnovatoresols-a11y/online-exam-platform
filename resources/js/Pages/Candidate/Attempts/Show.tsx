@@ -1,12 +1,16 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 type Attempt = {
     id: number;
+    status: string;
     started_at: string | null;
+    expires_at: string | null;
+    server_now: string;
 };
 
 type Test = {
@@ -37,21 +41,45 @@ export default function Show({
     attempt,
     test,
     questions,
+    saved_answers,
 }: {
     attempt: Attempt;
     test: Test;
     questions: Question[];
+    saved_answers: Record<string, number>;
 }) {
     const { data, setData, post, processing, errors } = useForm<AttemptForm>({
-        answers: {},
+        answers: saved_answers,
     });
 
     const formErrors = errors as Record<string, string>;
+    const [remainingSeconds, setRemainingSeconds] = useState(() =>
+        secondsUntilExpiry(attempt.expires_at, attempt.server_now),
+    );
+    const expired = remainingSeconds <= 0;
+    const timeRemaining = useMemo(
+        () => formatRemainingTime(remainingSeconds),
+        [remainingSeconds],
+    );
+
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            setRemainingSeconds((seconds) => Math.max(seconds - 1, 0));
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, []);
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
         post(route('candidate.attempts.submit', attempt.id));
+    };
+
+    const save = () => {
+        post(route('candidate.attempts.answers.save', attempt.id), {
+            preserveScroll: true,
+        });
     };
 
     const selectAnswer = (questionId: number, optionId: number) => {
@@ -106,7 +134,21 @@ export default function Show({
                                     {questions.length}
                                 </dd>
                             </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">
+                                    Time remaining
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                    {timeRemaining}
+                                </dd>
+                            </div>
                         </dl>
+                        {expired && (
+                            <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-700">
+                                Time is over. Answers can no longer be saved or
+                                submitted.
+                            </p>
+                        )}
                     </div>
 
                     <form onSubmit={submit} className="space-y-6">
@@ -167,14 +209,53 @@ export default function Show({
                             </div>
                         ))}
 
-                        <div className="flex justify-end bg-white p-6 shadow-sm sm:rounded-lg">
-                            <PrimaryButton disabled={processing}>
-                                Submit test
-                            </PrimaryButton>
+                        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
+                            <InputError
+                                message={formErrors.attempt}
+                                className="mt-0"
+                            />
+                            <div className="flex gap-3">
+                                <SecondaryButton
+                                    type="button"
+                                    onClick={save}
+                                    disabled={processing || expired}
+                                >
+                                    Save answers
+                                </SecondaryButton>
+                                <PrimaryButton disabled={processing || expired}>
+                                    Submit test
+                                </PrimaryButton>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function secondsUntilExpiry(
+    expiresAt: string | null,
+    serverNow: string,
+): number {
+    if (!expiresAt) {
+        return 0;
+    }
+
+    const expiresAtTime = new Date(expiresAt).getTime();
+    const serverNowTime = new Date(serverNow).getTime();
+
+    return Math.max(Math.floor((expiresAtTime - serverNowTime) / 1000), 0);
+}
+
+function formatRemainingTime(totalSeconds: number): string {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

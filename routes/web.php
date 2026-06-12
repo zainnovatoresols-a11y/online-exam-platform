@@ -92,6 +92,8 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
             ->name('tests.attempts.store');
         Route::get('/attempts/{attempt}', [TestAttemptController::class, 'show'])
             ->name('attempts.show');
+        Route::post('/attempts/{attempt}/answers', [TestAttemptController::class, 'save'])
+            ->name('attempts.answers.save');
         Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
             ->name('attempts.submit');
     });

@@ -34,18 +34,38 @@ class StartMcqAttempt
             throw new AuthorizationException('You do not have access to this test.');
         }
 
-        return TestAttempt::firstOrCreate(
+        $startedAt = now();
+        $maxScore = (int) $test->questions()->sum('marks');
+
+        $attempt = TestAttempt::firstOrCreate(
             [
                 'test_id' => $test->id,
                 'candidate_user_id' => $candidate->id,
             ],
             [
                 'invitation_id' => $invitation->id,
+                'organization_id' => $test->organization_id,
                 'status' => AttemptStatus::InProgress,
-                'started_at' => now(),
+                'started_at' => $startedAt,
+                'expires_at' => $startedAt->copy()->addMinutes((int) $test->duration_minutes),
                 'score' => 0,
-                'total_marks' => (int) $test->questions()->sum('marks'),
+                'max_score' => $maxScore,
+                'total_marks' => $maxScore,
+                'percentage' => null,
+                'passed' => null,
             ],
         );
+
+        if (! $attempt->wasRecentlyCreated && ($attempt->expires_at === null || $attempt->max_score === 0)) {
+            $attempt->update([
+                'organization_id' => $attempt->organization_id ?? $test->organization_id,
+                'expires_at' => $attempt->expires_at
+                    ?? $attempt->started_at?->copy()->addMinutes((int) $test->duration_minutes),
+                'max_score' => $attempt->max_score ?: $maxScore,
+                'total_marks' => $attempt->total_marks ?: $maxScore,
+            ]);
+        }
+
+        return $attempt->refresh();
     }
 }

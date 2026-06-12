@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('test_id')->constrained()->cascadeOnDelete();
             $table->foreignId('invitation_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->foreignId('candidate_user_id')->constrained('users')->cascadeOnDelete();
-            $table->string('status')->default(AttemptStatus::InProgress->value);
+            $table->string('status')->default(AttemptStatus::NotStarted->value);
             $table->timestamp('started_at');
             $table->timestamp('submitted_at')->nullable();
             $table->unsignedInteger('score')->default(0);

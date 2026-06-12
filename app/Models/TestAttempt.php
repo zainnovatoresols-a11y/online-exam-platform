@@ -14,11 +14,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'test_id',
     'invitation_id',
     'candidate_user_id',
+    'organization_id',
     'status',
     'started_at',
     'submitted_at',
+    'expires_at',
     'score',
+    'max_score',
     'total_marks',
+    'percentage',
+    'passed',
 ])]
 class TestAttempt extends Model
 {
@@ -36,6 +41,9 @@ class TestAttempt extends Model
             'status' => AttemptStatus::class,
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'expires_at' => 'datetime',
+            'percentage' => 'decimal:2',
+            'passed' => 'boolean',
         ];
     }
 
@@ -70,6 +78,16 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get the organization copied from the test when the attempt started.
+     *
+     * @return BelongsTo<Organization, $this>
+     */
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    /**
      * Get submitted answers.
      *
      * @return HasMany<AttemptAnswer, $this>
@@ -82,5 +100,17 @@ class TestAttempt extends Model
     public function isSubmitted(): bool
     {
         return $this->status === AttemptStatus::Submitted;
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === AttemptStatus::InProgress;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null
+            && now()->greaterThanOrEqualTo($this->expires_at)
+            && ! $this->isSubmitted();
     }
 }

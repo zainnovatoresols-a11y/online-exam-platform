@@ -5,9 +5,13 @@ type Attempt = {
     id: number;
     status: string;
     score: number;
+    max_score: number;
     total_marks: number;
+    percentage: string | number | null;
+    passed: boolean | null;
     started_at: string | null;
     submitted_at: string | null;
+    expires_at: string | null;
 };
 
 type Test = {
@@ -44,11 +48,9 @@ export default function Result({
     test: Test;
     answers: Answer[];
 }) {
-    const percentage =
-        attempt.total_marks > 0
-            ? Math.round((attempt.score / attempt.total_marks) * 100)
-            : 0;
-    const passed = percentage >= test.pass_mark;
+    const maxScore = attempt.max_score || attempt.total_marks;
+    const percentage = Number(attempt.percentage ?? 0);
+    const passed = attempt.passed ?? percentage >= test.pass_mark;
 
     return (
         <AuthenticatedLayout
@@ -76,7 +78,7 @@ export default function Result({
                                     Score
                                 </dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {attempt.score} / {attempt.total_marks}
+                                    {attempt.score} / {maxScore}
                                 </dd>
                             </div>
                             <div>

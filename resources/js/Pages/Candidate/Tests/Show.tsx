@@ -16,8 +16,12 @@ type Attempt = {
     id: number;
     status: string;
     score: number;
+    max_score: number;
     total_marks: number;
+    percentage: string | number | null;
+    passed: boolean | null;
     submitted_at: string | null;
+    expires_at: string | null;
 };
 
 export default function Show({
@@ -103,7 +107,8 @@ export default function Show({
                                         </p>
                                         <p className="mt-1 text-sm text-gray-600">
                                             Score: {attempt.score} /{' '}
-                                            {attempt.total_marks}
+                                            {attempt.max_score ||
+                                                attempt.total_marks}
                                         </p>
                                     </div>
                                     <Link
@@ -144,8 +149,9 @@ export default function Show({
                                             Ready to begin
                                         </p>
                                         <p className="mt-1 text-sm text-gray-600">
-                                            You will see all MCQ questions after
-                                            starting the test.
+                                            {test.questions_count === 0
+                                                ? 'This test has no MCQ questions yet. Please contact the examiner.'
+                                                : 'You will see all MCQ questions after starting the test.'}
                                         </p>
                                     </div>
                                     <button

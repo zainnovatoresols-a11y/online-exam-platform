@@ -5,6 +5,7 @@ namespace App\Actions\Attempts;
 use App\Enums\AttemptStatus;
 use App\Models\TestAttempt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SubmitMcqAttempt
 {
@@ -15,11 +16,17 @@ class SubmitMcqAttempt
      */
     public function handle(TestAttempt $attempt, array $answers): TestAttempt
     {
+        if ($attempt->isExpired()) {
+            throw ValidationException::withMessages([
+                'attempt' => 'This test has expired and can no longer be submitted.',
+            ]);
+        }
+
         return DB::transaction(function () use ($attempt, $answers): TestAttempt {
             $attempt->load('test.questions.options');
 
             $score = 0;
-            $totalMarks = 0;
+            $maxScore = 0;
 
             $attempt->answers()->delete();
 
@@ -30,7 +37,7 @@ class SubmitMcqAttempt
                 $questionScore = $isCorrect ? (int) $question->marks : 0;
 
                 $score += $questionScore;
-                $totalMarks += (int) $question->marks;
+                $maxScore += (int) $question->marks;
 
                 $attempt->answers()->create([
                     'question_id' => $question->id,
@@ -40,11 +47,18 @@ class SubmitMcqAttempt
                 ]);
             }
 
+            $percentage = $maxScore > 0
+                ? round(($score / $maxScore) * 100, 2)
+                : 0;
+
             $attempt->update([
                 'status' => AttemptStatus::Submitted,
                 'submitted_at' => now(),
                 'score' => $score,
-                'total_marks' => $totalMarks,
+                'max_score' => $maxScore,
+                'total_marks' => $maxScore,
+                'percentage' => $percentage,
+                'passed' => $percentage >= (int) $attempt->test->pass_mark,
             ]);
 
             return $attempt->refresh();

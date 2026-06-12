@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum AttemptStatus: string
 {
+    case NotStarted = 'not_started';
     case InProgress = 'in_progress';
     case Submitted = 'submitted';
 }

@@ -24,10 +24,15 @@ class TestAttemptFactory extends Factory
             'test_id' => Test::factory(),
             'invitation_id' => null,
             'candidate_user_id' => User::factory(),
+            'organization_id' => null,
             'status' => AttemptStatus::InProgress,
             'started_at' => now(),
+            'expires_at' => now()->addHour(),
             'score' => 0,
+            'max_score' => 0,
             'total_marks' => 0,
+            'percentage' => null,
+            'passed' => null,
         ];
     }
 }

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Candidate\Attempts;
 
 use App\Actions\Attempts\StartMcqAttempt;
+use App\Actions\Attempts\SaveMcqAnswers;
 use App\Actions\Attempts\SubmitMcqAttempt;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Candidate\Attempts\SaveMcqAnswersRequest;
 use App\Http\Requests\Candidate\Attempts\SubmitMcqAttemptRequest;
 use App\Models\Invitation;
 use App\Models\Test;
@@ -43,12 +45,16 @@ class TestAttemptController extends Controller
             'test.creator:id,name,email',
             'test.questions' => fn ($query) => $query->orderBy('order')->orderBy('id'),
             'test.questions.options:id,question_id,body',
+            'answers:id,test_attempt_id,question_id,selected_option_id',
         ]);
 
         return Inertia::render('Candidate/Attempts/Show', [
             'attempt' => [
                 'id' => $attempt->id,
+                'status' => $attempt->status->value,
                 'started_at' => $attempt->started_at?->toISOString(),
+                'expires_at' => $attempt->expires_at?->toISOString(),
+                'server_now' => now()->toISOString(),
             ],
             'test' => $this->testPayload($attempt),
             'questions' => $attempt->test->questions->map(fn ($question): array => [
@@ -60,7 +66,25 @@ class TestAttemptController extends Controller
                     'body' => $option->body,
                 ])->values(),
             ])->values(),
+            'saved_answers' => $attempt->answers
+                ->filter(fn ($answer): bool => $answer->selected_option_id !== null)
+                ->mapWithKeys(fn ($answer): array => [
+                    (string) $answer->question_id => $answer->selected_option_id,
+                ])
+                ->all(),
         ]);
+    }
+
+    public function save(
+        SaveMcqAnswersRequest $request,
+        TestAttempt $attempt,
+        SaveMcqAnswers $saveMcqAnswers,
+    ): RedirectResponse {
+        Gate::authorize('save', $attempt);
+
+        $saveMcqAnswers->handle($attempt, $request->validated('answers'));
+
+        return back()->with('success', 'Answers saved successfully.');
     }
 
     public function submit(
@@ -90,9 +114,13 @@ class TestAttemptController extends Controller
                 'id' => $attempt->id,
                 'status' => $attempt->status->value,
                 'score' => $attempt->score,
+                'max_score' => $attempt->max_score,
                 'total_marks' => $attempt->total_marks,
+                'percentage' => $attempt->percentage,
+                'passed' => $attempt->passed,
                 'started_at' => $attempt->started_at?->toISOString(),
                 'submitted_at' => $attempt->submitted_at?->toISOString(),
+                'expires_at' => $attempt->expires_at?->toISOString(),
             ],
             'test' => $this->testPayload($attempt),
             'answers' => $attempt->answers->map(fn ($answer): array => [

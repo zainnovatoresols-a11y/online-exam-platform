@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\AttemptStatus;
 use App\Enums\UserRole;
 use App\Models\TestAttempt;
 use App\Models\User;
@@ -17,7 +16,13 @@ class TestAttemptPolicy
     public function submit(User $user, TestAttempt $attempt): bool
     {
         return $this->ownsAttempt($user, $attempt)
-            && $attempt->status === AttemptStatus::InProgress;
+            && $attempt->isInProgress();
+    }
+
+    public function save(User $user, TestAttempt $attempt): bool
+    {
+        return $this->ownsAttempt($user, $attempt)
+            && $attempt->isInProgress();
     }
 
     private function ownsAttempt(User $user, TestAttempt $attempt): bool
