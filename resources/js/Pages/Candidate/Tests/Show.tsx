@@ -38,8 +38,9 @@ export default function Show({
     const [secondsUntilStart, setSecondsUntilStart] = useState(() =>
         secondsUntil(test.starts_at, server_now),
     );
+    const isPublished = test.status === 'published';
     const hasStarted = secondsUntilStart <= 0;
-    const canStart = hasStarted && test.questions_count > 0;
+    const canStart = isPublished && hasStarted && test.questions_count > 0;
     const startCountdown = useMemo(
         () => formatRemainingTime(secondsUntilStart),
         [secondsUntilStart],
@@ -185,7 +186,11 @@ export default function Show({
                                             Ready to begin
                                         </p>
                                         <p className="mt-1 text-sm text-gray-600">
-                                            {!hasStarted
+                                            {!isPublished
+                                                ? test.status === 'closed'
+                                                    ? 'This test is closed and cannot be started.'
+                                                    : 'This test is not published yet. Please wait for the examiner.'
+                                                : !hasStarted
                                                 ? `Test starts in ${startCountdown}.`
                                                 : test.questions_count === 0
                                                 ? 'This test has no MCQ questions yet. Please contact the examiner.'

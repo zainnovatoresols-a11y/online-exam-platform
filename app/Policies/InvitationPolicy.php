@@ -17,14 +17,13 @@ class InvitationPolicy
 
     public function create(User $user, Test $test): bool
     {
-        return $this->viewAny($user, $test) && $test->isPublished();
+        return $this->viewAny($user, $test);
     }
 
     public function resend(User $user, Invitation $invitation): bool
     {
         return $this->isAdmin($user)
             && $invitation->test->belongsToAdminScope($user)
-            && $invitation->test->isPublished()
             && $invitation->status === InvitationStatus::Pending;
     }
 

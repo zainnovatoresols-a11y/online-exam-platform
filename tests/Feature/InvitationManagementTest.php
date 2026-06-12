@@ -96,7 +96,7 @@ class InvitationManagementTest extends TestCase
         ]);
     }
 
-    public function test_admin_cannot_invite_candidate_to_draft_test(): void
+    public function test_admin_can_invite_candidate_to_draft_test(): void
     {
         Notification::fake();
         $organization = Organization::factory()->create();
@@ -111,10 +111,16 @@ class InvitationManagementTest extends TestCase
             'email' => 'draft@example.com',
         ]);
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('admin.tests.invitations.index', $test));
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'organization_id' => $organization->id,
+            'email' => 'draft@example.com',
+            'status' => InvitationStatus::Pending->value,
+        ]);
     }
 
-    public function test_admin_cannot_invite_candidate_to_closed_test(): void
+    public function test_admin_can_invite_candidate_to_closed_test(): void
     {
         Notification::fake();
         $organization = Organization::factory()->create();
@@ -130,7 +136,13 @@ class InvitationManagementTest extends TestCase
             'email' => 'closed@example.com',
         ]);
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('admin.tests.invitations.index', $test));
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'organization_id' => $organization->id,
+            'email' => 'closed@example.com',
+            'status' => InvitationStatus::Pending->value,
+        ]);
     }
 
     public function test_duplicate_pending_invite_for_same_test_and_email_is_rejected(): void
