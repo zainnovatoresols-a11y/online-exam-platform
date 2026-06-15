@@ -9,10 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Invitations\StoreInvitationRequest;
 use App\Models\Invitation;
 use App\Models\Test;
-use App\Models\User;
-use App\Queries\AdminCandidatePoolQuery;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -50,39 +47,13 @@ class InvitationController extends Controller
         ]);
     }
 
-    public function create(Request $request, Test $test, AdminCandidatePoolQuery $candidatePoolQuery): Response
+    public function create(Test $test): Response
     {
         Gate::authorize('create', [Invitation::class, $test]);
-
-        $stack = trim((string) $request->query('stack', ''));
-        $baseQuery = $candidatePoolQuery->query($request->user());
-
-        $stacks = (clone $baseQuery)
-            ->whereNotNull('stack_name')
-            ->where('stack_name', '!=', '')
-            ->distinct()
-            ->orderBy('stack_name')
-            ->pluck('stack_name')
-            ->values();
 
         return Inertia::render('Admin/Invitations/Create', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email']),
             'public_url' => $this->publicUrl($test),
-            'candidates' => $candidatePoolQuery->query($request->user())
-                ->when($stack !== '', fn ($query) => $query->where('stack_name', $stack))
-                ->orderBy('name')
-                ->get(['id', 'name', 'email', 'phone', 'stack_name'])
-                ->map(fn (User $candidate): array => [
-                    'id' => $candidate->id,
-                    'name' => $candidate->name,
-                    'email' => $candidate->email,
-                    'phone' => $candidate->phone,
-                    'stack_name' => $candidate->stack_name,
-                ]),
-            'stacks' => $stacks,
-            'filters' => [
-                'stack' => $stack !== '' ? $stack : null,
-            ],
         ]);
     }
 
@@ -90,35 +61,12 @@ class InvitationController extends Controller
         StoreInvitationRequest $request,
         Test $test,
         CreateInvitation $createInvitation,
-        AdminCandidatePoolQuery $candidatePoolQuery,
     ): RedirectResponse {
         Gate::authorize('create', [Invitation::class, $test]);
 
         $validated = $request->validated();
         $urlRoot = $request->root();
-        $candidateIds = collect($validated['candidate_ids'] ?? [])
-            ->filter()
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values();
         $queued = 0;
-
-        if ($candidateIds->isNotEmpty()) {
-            $candidatePoolQuery->query($request->user())
-                ->whereIn('id', $candidateIds)
-                ->get()
-                ->each(function (User $candidate) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued): void {
-                    $createInvitation->handle($test, $request->user(), [
-                        'name' => $candidate->name,
-                        'email' => $candidate->email,
-                        'starts_at' => $validated['starts_at'],
-                        'expires_at' => $validated['expires_at'] ?? null,
-                        'url_root' => $urlRoot,
-                    ]);
-
-                    $queued++;
-                });
-        }
 
         collect($request->bulkEmails())
             ->each(function (string $email) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued): void {

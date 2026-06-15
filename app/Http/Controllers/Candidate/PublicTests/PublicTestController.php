@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Candidate\PublicTests;
 
 use App\Actions\Invitations\RegisterCandidateForPublicTest;
+use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Candidate\PublicTests\PublicTestRegistrationRequest;
+use App\Models\Invitation;
 use App\Models\Test;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -14,9 +16,13 @@ use Inertia\Response;
 
 class PublicTestController extends Controller
 {
-    public function policy(Request $request, string $publicToken): Response
+    public function policy(Request $request, string $publicToken): Response|RedirectResponse
     {
         $test = $this->findPublicTest($publicToken);
+
+        if ($redirect = $this->registeredCandidateRedirect($request, $test, $request->query('email', ''))) {
+            return $redirect;
+        }
 
         return Inertia::render('Candidate/PublicTests/Policy', [
             'test' => $this->testPayload($test),
@@ -27,6 +33,10 @@ class PublicTestController extends Controller
     public function acceptPolicy(Request $request, string $publicToken): RedirectResponse
     {
         $test = $this->findPublicTest($publicToken);
+
+        if ($redirect = $this->registeredCandidateRedirect($request, $test, $request->input('email', ''))) {
+            return $redirect;
+        }
 
         $request->session()->put($this->policySessionKey($test), true);
 
@@ -39,6 +49,10 @@ class PublicTestController extends Controller
     public function register(Request $request, string $publicToken): Response|RedirectResponse
     {
         $test = $this->findPublicTest($publicToken);
+
+        if ($redirect = $this->registeredCandidateRedirect($request, $test, $request->query('email', ''))) {
+            return $redirect;
+        }
 
         if (! $request->session()->get($this->policySessionKey($test), false)) {
             return to_route('candidate.public-tests.policy', [
@@ -98,6 +112,40 @@ class PublicTestController extends Controller
     private function email(mixed $email): string
     {
         return strtolower(trim((string) $email));
+    }
+
+    private function registeredCandidateRedirect(Request $request, Test $test, mixed $email): ?RedirectResponse
+    {
+        $candidateEmail = $this->email($email);
+        $candidate = $request->user();
+
+        if ($candidate) {
+            $userEmail = $this->email($candidate->email);
+
+            if ($candidateEmail !== '' && $candidateEmail !== $userEmail) {
+                return null;
+            }
+
+            $candidateEmail = $userEmail;
+        }
+
+        if ($candidateEmail === '') {
+            return null;
+        }
+
+        $invitation = Invitation::query()
+            ->where('test_id', $test->id)
+            ->where('email', $candidateEmail)
+            ->when($candidate, fn ($query) => $query->where('candidate_user_id', $candidate->id))
+            ->where('status', InvitationStatus::Accepted->value)
+            ->whereNotNull('candidate_user_id')
+            ->whereNotNull('policy_accepted_at')
+            ->whereNotNull('candidate_profile')
+            ->first();
+
+        return $invitation
+            ? to_route('candidate.tests.show', $test)
+            : null;
     }
 
     /**

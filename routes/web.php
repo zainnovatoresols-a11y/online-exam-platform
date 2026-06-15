@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\CandidateController as AdminCandidateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
@@ -66,9 +65,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.')
     ->group(function (): void {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
-
-        Route::resource('candidates', AdminCandidateController::class)
-            ->except(['show']);
 
         Route::resource('tests', AdminTestController::class);
         Route::post('tests/{test}/publish', [TestLifecycleController::class, 'publish'])

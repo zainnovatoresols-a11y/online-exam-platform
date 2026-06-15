@@ -4,11 +4,7 @@ namespace App\Http\Requests\Admin\Invitations;
 
 use App\Enums\InvitationStatus;
 use App\Models\Invitation;
-use App\Models\User;
-use App\Queries\AdminCandidatePoolQuery;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreInvitationRequest extends FormRequest
@@ -39,10 +35,8 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'required_without_all:candidate_ids,emails', 'email', 'max:255'],
-            'candidate_ids' => ['nullable', 'required_without_all:email,emails', 'array'],
-            'candidate_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')],
-            'emails' => ['nullable', 'required_without_all:email,candidate_ids', 'string'],
+            'email' => ['nullable', 'required_without:emails', 'email', 'max:255'],
+            'emails' => ['nullable', 'required_without:email', 'string'],
             'starts_at' => ['required', 'date'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
@@ -57,13 +51,17 @@ class StoreInvitationRequest extends FormRequest
                 return;
             }
 
-            $emails = $this->candidateEmails();
+            $emails = [];
 
             if ($this->filled('email')) {
                 $emails[] = strtolower(trim((string) $this->input('email')));
             }
 
             $bulkEmails = $this->bulkEmails(unique: false);
+
+            if (! $this->filled('email') && $bulkEmails === []) {
+                $validator->errors()->add('emails', 'Please enter at least one email address.');
+            }
 
             foreach ($bulkEmails as $email) {
                 if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -99,61 +97,7 @@ class StoreInvitationRequest extends FormRequest
                     'The same email is listed more than once.',
                 );
             }
-
-            foreach ($this->candidateUsers() as $candidate) {
-                if (! $this->candidateBelongsToAdminScope($candidate)) {
-                    $validator->errors()->add('candidate_ids', 'One or more selected candidates are outside your candidate pool.');
-
-                    return;
-                }
-            }
         });
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function candidateEmails(): array
-    {
-        return $this->candidateUsers()
-            ->pluck('email')
-            ->map(fn (string $email): string => strtolower($email))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return EloquentCollection<int, User>
-     */
-    private function candidateUsers(): EloquentCollection
-    {
-        $ids = collect($this->input('candidate_ids', []))
-            ->filter()
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return User::query()->whereRaw('1 = 0')->get();
-        }
-
-        return User::query()
-            ->whereIn('id', $ids)
-            ->get();
-    }
-
-    private function candidateBelongsToAdminScope(User $candidate): bool
-    {
-        $admin = $this->user();
-
-        if (! $admin) {
-            return false;
-        }
-
-        return app(AdminCandidatePoolQuery::class)
-            ->query($admin)
-            ->whereKey($candidate->id)
-            ->exists();
     }
 
     /**
@@ -169,7 +113,7 @@ class StoreInvitationRequest extends FormRequest
             return 'email';
         }
 
-        return 'candidate_ids';
+        return 'email';
     }
 
     /**

@@ -54,23 +54,13 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the admin who added this user to the candidate pool.
+     * Get the admin who created this user account.
      *
      * @return BelongsTo<User, $this>
      */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');
-    }
-
-    /**
-     * Get candidates added by this admin.
-     *
-     * @return HasMany<User, $this>
-     */
-    public function createdCandidates(): HasMany
-    {
-        return $this->hasMany(User::class, 'created_by_id');
     }
 
     public function isCandidate(): bool
