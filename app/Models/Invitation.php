@@ -22,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'starts_at',
     'expires_at',
     'accepted_at',
+    'policy_accepted_at',
+    'candidate_profile',
     'revoked_at',
 ])]
 class Invitation extends Model
@@ -41,6 +43,8 @@ class Invitation extends Model
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
+            'policy_accepted_at' => 'datetime',
+            'candidate_profile' => 'array',
             'revoked_at' => 'datetime',
         ];
     }
@@ -118,6 +122,11 @@ class Invitation extends Model
     public function isRevoked(): bool
     {
         return $this->status === InvitationStatus::Revoked;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === InvitationStatus::Expired;
     }
 
     public function hasExpired(): bool

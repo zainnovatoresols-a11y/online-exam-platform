@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\CandidateController as AdminCandidateController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\TestLifecycleController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
 use App\Http\Controllers\Candidate\Invitations\InvitationController as CandidateInvitationController;
+use App\Http\Controllers\Candidate\PublicTests\PublicTestController;
 use App\Http\Controllers\Candidate\Tests\TestLandingController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\ProfileController;
@@ -27,6 +28,15 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+Route::get('/public-tests/{publicToken}', [PublicTestController::class, 'policy'])
+    ->name('candidate.public-tests.policy');
+Route::post('/public-tests/{publicToken}/policy', [PublicTestController::class, 'acceptPolicy'])
+    ->name('candidate.public-tests.policy.accept');
+Route::get('/public-tests/{publicToken}/register', [PublicTestController::class, 'register'])
+    ->name('candidate.public-tests.register');
+Route::post('/public-tests/{publicToken}/register', [PublicTestController::class, 'store'])
+    ->name('candidate.public-tests.register.store');
 
 Route::get('/invite/{token}', [CandidateInvitationController::class, 'show'])
     ->name('candidate.invitations.show');

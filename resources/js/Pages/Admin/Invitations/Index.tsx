@@ -25,6 +25,7 @@ type Invitation = {
 type Props = {
     test: Test;
     canCreateInvitation: boolean;
+    public_url: string | null;
     invitations: {
         data: Invitation[];
     };
@@ -33,6 +34,7 @@ type Props = {
 export default function Index({
     test,
     canCreateInvitation,
+    public_url,
     invitations,
 }: Props) {
     const resend = (invitationId: number) => {
@@ -72,6 +74,18 @@ export default function Index({
                                 {test.organization?.name ??
                                     test.creator?.name ??
                                     'Solo admin'}
+                            </p>
+                        </div>
+                        <div className="max-w-xl rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                            <p className="font-medium text-gray-900">
+                                Public test URL
+                            </p>
+                            <p className="mt-1 break-all">
+                                {public_url ?? 'Not generated yet'}
+                            </p>
+                            <p className="mt-2 text-xs text-gray-500">
+                                Send this URL to candidates. Invited emails are
+                                allowed even when open public access is off.
                             </p>
                         </div>
 

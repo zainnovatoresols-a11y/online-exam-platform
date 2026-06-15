@@ -25,9 +25,11 @@ class InvitationController extends Controller
 
         return Inertia::render('Admin/Invitations/Index', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email']),
+            'public_url' => $this->publicUrl($test),
             'canCreateInvitation' => Gate::allows('create', [Invitation::class, $test]),
             'invitations' => $test->invitations()
                 ->with(['candidate:id,name,email'])
+                ->whereNotNull('email')
                 ->latest('id')
                 ->paginate(10)
                 ->through(fn (Invitation $invitation): array => [
@@ -65,6 +67,7 @@ class InvitationController extends Controller
 
         return Inertia::render('Admin/Invitations/Create', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email']),
+            'public_url' => $this->publicUrl($test),
             'candidates' => $candidatePoolQuery->query($request->user())
                 ->when($stack !== '', fn ($query) => $query->where('stack_name', $stack))
                 ->orderBy('name')
@@ -94,36 +97,53 @@ class InvitationController extends Controller
         $validated = $request->validated();
         $urlRoot = $request->root();
         $candidateIds = collect($validated['candidate_ids'] ?? [])
+            ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()
             ->values();
+        $queued = 0;
 
         if ($candidateIds->isNotEmpty()) {
-            $candidates = $candidatePoolQuery->query($request->user())
+            $candidatePoolQuery->query($request->user())
                 ->whereIn('id', $candidateIds)
-                ->get();
+                ->get()
+                ->each(function (User $candidate) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued): void {
+                    $createInvitation->handle($test, $request->user(), [
+                        'name' => $candidate->name,
+                        'email' => $candidate->email,
+                        'starts_at' => $validated['starts_at'],
+                        'expires_at' => $validated['expires_at'] ?? null,
+                        'url_root' => $urlRoot,
+                    ]);
 
-            foreach ($candidates as $candidate) {
+                    $queued++;
+                });
+        }
+
+        collect($request->bulkEmails())
+            ->each(function (string $email) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued): void {
                 $createInvitation->handle($test, $request->user(), [
-                    'name' => $candidate->name,
-                    'email' => $candidate->email,
+                    'name' => null,
+                    'email' => $email,
                     'starts_at' => $validated['starts_at'],
                     'expires_at' => $validated['expires_at'] ?? null,
                     'url_root' => $urlRoot,
                 ]);
-            }
 
-            return to_route('admin.tests.invitations.index', $test)
-                ->with('success', $candidates->count().' invitation(s) queued successfully.');
+                $queued++;
+            });
+
+        if (filled($validated['email'] ?? null)) {
+            $createInvitation->handle($test, $request->user(), [
+                ...$validated,
+                'url_root' => $urlRoot,
+            ]);
+
+            $queued++;
         }
 
-        $createInvitation->handle($test, $request->user(), [
-            ...$validated,
-            'url_root' => $urlRoot,
-        ]);
-
         return to_route('admin.tests.invitations.index', $test)
-            ->with('success', 'Invitation queued successfully.');
+            ->with('success', $queued.' invitation(s) queued successfully. Share the public URL with allowed candidates.');
     }
 
     public function resend(Test $test, Invitation $invitation, ResendInvitation $resendInvitation): RedirectResponse
@@ -151,5 +171,12 @@ class InvitationController extends Controller
     private function ensureInvitationBelongsToTest(Test $test, Invitation $invitation): void
     {
         abort_unless($invitation->test_id === $test->id, 404);
+    }
+
+    private function publicUrl(Test $test): ?string
+    {
+        return $test->public_token
+            ? route('candidate.public-tests.policy', $test->public_token)
+            : null;
     }
 }

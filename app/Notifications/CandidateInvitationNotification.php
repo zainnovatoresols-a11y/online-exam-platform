@@ -33,6 +33,9 @@ class CandidateInvitationNotification extends Notification
     {
         $test = $this->invitation->test;
         $owner = $test->organization?->name ?? $test->creator?->name ?? 'Exam Admin';
+        $url = $test->public_token
+            ? route('candidate.public-tests.policy', ['publicToken' => $test->public_token, 'email' => $this->invitation->email])
+            : route('candidate.invitations.show', $this->invitation->token);
 
         $message = (new MailMessage)
             ->subject('You are invited to take '.$test->title)
@@ -40,7 +43,7 @@ class CandidateInvitationNotification extends Notification
             ->line('You have been invited to take the following test:')
             ->line($test->title)
             ->line('From: '.$owner)
-            ->action('Open Invitation', route('candidate.invitations.show', $this->invitation->token));
+            ->action('Open Test Link', $url);
 
         if ($this->invitation->starts_at) {
             $message->line('Starts on: '.$this->invitation->starts_at->toDayDateTimeString().'.');
@@ -50,6 +53,6 @@ class CandidateInvitationNotification extends Notification
             $message->line('This invitation expires on '.$this->invitation->expires_at->toDayDateTimeString().'.');
         }
 
-        return $message->line('This link can be accepted once.');
+        return $message->line('Please read and accept the test policy before entering your candidate details.');
     }
 }

@@ -14,6 +14,18 @@ class StoreTestRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'public_access_enabled' => $this->boolean('public_access_enabled'),
+            'candidate_fields' => collect($this->input('candidate_fields', []))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all(),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -27,6 +39,10 @@ class StoreTestRequest extends FormRequest
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'pass_mark' => ['required', 'integer', 'min:1'],
             'starts_at' => ['nullable', 'date'],
+            'public_access_enabled' => ['boolean'],
+            'candidate_fields' => ['array'],
+            'candidate_fields.*' => ['string', 'in:phone,stack_name'],
+            'policy_text' => ['nullable', 'string', 'max:10000'],
         ];
     }
 }

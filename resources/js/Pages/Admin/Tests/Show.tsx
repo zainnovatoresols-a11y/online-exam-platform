@@ -13,6 +13,8 @@ type Test = {
     starts_at: string | null;
     status: string;
     questions_count: number;
+    public_url: string | null;
+    public_access_enabled: boolean;
 };
 
 export default function Show({ test }: { test: Test }) {
@@ -107,6 +109,29 @@ export default function Show({ test }: { test: Test }) {
                                 </dt>
                                 <dd className="mt-1 text-sm text-gray-900">
                                     {test.questions_count}
+                                </dd>
+                            </div>
+                            <div className="sm:col-span-2">
+                                <dt className="text-sm font-medium text-gray-500">
+                                    Public test URL
+                                </dt>
+                                <dd className="mt-1 break-all text-sm text-gray-900">
+                                    {test.public_url ?? 'Not generated yet'}
+                                </dd>
+                                <dd className="mt-2 text-xs text-gray-500">
+                                    {test.public_access_enabled
+                                        ? 'Anyone with this URL can register after accepting the policy.'
+                                        : 'Only emailed/invited addresses can register through this URL.'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">
+                                    Public access
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                    {test.public_access_enabled
+                                        ? 'Open'
+                                        : 'Invite list only'}
                                 </dd>
                             </div>
                             <div>

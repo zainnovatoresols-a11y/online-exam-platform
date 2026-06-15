@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'organization_id',
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'duration_minutes',
     'pass_mark',
     'starts_at',
+    'public_token',
+    'public_access_enabled',
+    'candidate_fields',
+    'policy_text',
     'status',
     'published_at',
     'closed_at',
@@ -36,9 +41,28 @@ class Test extends Model
     {
         return [
             'starts_at' => 'datetime',
+            'public_access_enabled' => 'boolean',
+            'candidate_fields' => 'array',
             'published_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
+    }
+
+    public const DEFAULT_POLICY_TEXT = <<<'POLICY'
+Read all instructions carefully before starting the test.
+Do not copy, paste, or use outside help during the test.
+Do not switch tabs, open another browser, or use another device for answers.
+Answer every question yourself and submit before the timer ends.
+Once the test starts, the timer cannot be paused.
+POLICY;
+
+    public static function newPublicToken(): string
+    {
+        do {
+            $token = Str::random(48);
+        } while (self::query()->where('public_token', $token)->exists());
+
+        return $token;
     }
 
     /**
@@ -129,5 +153,26 @@ class Test extends Model
     public function isClosed(): bool
     {
         return $this->status === TestStatus::Closed->value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function candidateRegistrationFields(): array
+    {
+        return collect($this->candidate_fields ?? [])
+            ->filter(fn (mixed $field): bool => in_array($field, ['phone', 'stack_name'], true))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function policyText(): string
+    {
+        if (filled($this->policy_text)) {
+            return (string) $this->policy_text;
+        }
+
+        return self::DEFAULT_POLICY_TEXT;
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Queries\AdminCandidatePoolQuery;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -24,7 +25,7 @@ class StoreInvitationRequest extends FormRequest
     {
         if ($this->has('email')) {
             $this->merge([
-                'email' => strtolower((string) $this->input('email')),
+                'email' => strtolower(trim((string) $this->input('email'))),
             ]);
         }
     }
@@ -38,9 +39,10 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'required_without:candidate_ids', 'email', 'max:255'],
-            'candidate_ids' => ['nullable', 'required_without:email', 'array'],
+            'email' => ['nullable', 'required_without_all:candidate_ids,emails', 'email', 'max:255'],
+            'candidate_ids' => ['nullable', 'required_without_all:email,emails', 'array'],
             'candidate_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')],
+            'emails' => ['nullable', 'required_without_all:email,candidate_ids', 'string'],
             'starts_at' => ['required', 'date'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
@@ -58,7 +60,17 @@ class StoreInvitationRequest extends FormRequest
             $emails = $this->candidateEmails();
 
             if ($this->filled('email')) {
-                $emails[] = strtolower((string) $this->input('email'));
+                $emails[] = strtolower(trim((string) $this->input('email')));
+            }
+
+            $bulkEmails = $this->bulkEmails(unique: false);
+
+            foreach ($bulkEmails as $email) {
+                if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $validator->errors()->add('emails', "The email {$email} is invalid.");
+                }
+
+                $emails[] = $email;
             }
 
             foreach (array_unique($emails) as $email) {
@@ -73,14 +85,25 @@ class StoreInvitationRequest extends FormRequest
                     ->exists();
 
                 if ($duplicateInvite) {
-                    $field = $this->filled('candidate_ids') ? 'candidate_ids' : 'email';
-                    $validator->errors()->add($field, "An active invitation already exists for {$email}.");
+                    $validator->errors()->add(
+                        $this->fieldForEmail($email, $bulkEmails),
+                        "An active invitation already exists for {$email}.",
+                    );
                 }
+            }
+
+            $providedEmails = collect($emails);
+            if ($providedEmails->count() !== $providedEmails->unique()->count()) {
+                $validator->errors()->add(
+                    $this->filled('emails') ? 'emails' : 'email',
+                    'The same email is listed more than once.',
+                );
             }
 
             foreach ($this->candidateUsers() as $candidate) {
                 if (! $this->candidateBelongsToAdminScope($candidate)) {
                     $validator->errors()->add('candidate_ids', 'One or more selected candidates are outside your candidate pool.');
+
                     return;
                 }
             }
@@ -100,9 +123,9 @@ class StoreInvitationRequest extends FormRequest
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     * @return EloquentCollection<int, User>
      */
-    private function candidateUsers()
+    private function candidateUsers(): EloquentCollection
     {
         $ids = collect($this->input('candidate_ids', []))
             ->filter()
@@ -131,5 +154,43 @@ class StoreInvitationRequest extends FormRequest
             ->query($admin)
             ->whereKey($candidate->id)
             ->exists();
+    }
+
+    /**
+     * @param  list<string>  $bulkEmails
+     */
+    private function fieldForEmail(string $email, array $bulkEmails): string
+    {
+        if (in_array($email, $bulkEmails, true)) {
+            return 'emails';
+        }
+
+        if ($this->filled('email') && strtolower(trim((string) $this->input('email'))) === $email) {
+            return 'email';
+        }
+
+        return 'candidate_ids';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function bulkEmails(bool $unique = true): array
+    {
+        if (blank($this->input('emails'))) {
+            return [];
+        }
+
+        $emails = collect(preg_split('/[\s,;]+/', (string) $this->input('emails')) ?: [])
+            ->map(fn (string $email): string => strtolower(trim($email)))
+            ->filter(fn (string $email): bool => $email !== '');
+
+        if ($unique) {
+            $emails = $emails->unique();
+        }
+
+        return $emails
+            ->values()
+            ->all();
     }
 }

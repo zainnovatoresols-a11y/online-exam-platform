@@ -194,7 +194,7 @@ class CandidatePoolTest extends TestCase
         ]);
     }
 
-    public function test_sent_invitation_becomes_accepted_when_candidate_accepts(): void
+    public function test_sent_invitation_accept_route_redirects_to_public_policy_flow(): void
     {
         $organization = Organization::factory()->create();
         $admin = $this->userWithRole(UserRole::Admin, $organization);
@@ -212,9 +212,12 @@ class CandidatePoolTest extends TestCase
 
         $response = $this->post(route('candidate.invitations.accept', $invitation->token));
 
-        $response->assertRedirect(route('candidate.tests.show', $test));
-        $this->assertSame(InvitationStatus::Accepted, $invitation->refresh()->status);
-        $this->assertNotNull($invitation->accepted_at);
+        $response->assertRedirect(route('candidate.public-tests.policy', [
+            'publicToken' => $test->public_token,
+            'email' => $invitation->email,
+        ]));
+        $this->assertSame(InvitationStatus::Sent, $invitation->refresh()->status);
+        $this->assertNull($invitation->accepted_at);
     }
 
     private function userWithRole(UserRole $role, ?Organization $organization = null): User

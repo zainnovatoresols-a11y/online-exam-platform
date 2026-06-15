@@ -34,6 +34,10 @@ class InvitationController extends Controller
             return $this->statusPage($request, 'revoked', 'This invitation has been revoked.', 403, $invitation);
         }
 
+        if ($this->shouldUsePublicFlow($invitation)) {
+            return $this->publicPolicyRedirect($invitation);
+        }
+
         if ($invitation->isAccepted()) {
             if ($request->user()?->id === $invitation->candidate_user_id) {
                 return to_route('candidate.tests.show', $invitation->test);
@@ -63,6 +67,10 @@ class InvitationController extends Controller
 
         if ($invitation->isRevoked()) {
             return $this->statusPage($request, 'revoked', 'This invitation has been revoked.', 403, $invitation);
+        }
+
+        if ($this->shouldUsePublicFlow($invitation)) {
+            return $this->publicPolicyRedirect($invitation);
         }
 
         if ($invitation->isAccepted()) {
@@ -109,6 +117,24 @@ class InvitationController extends Controller
             'message' => $message,
             'invitation' => $invitation ? $this->invitationPayload($invitation) : null,
         ])->toResponse($request)->setStatusCode($statusCode);
+    }
+
+    private function shouldUsePublicFlow(Invitation $invitation): bool
+    {
+        return filled($invitation->test->public_token)
+            && (
+                ! $invitation->isAccepted()
+                || $invitation->policy_accepted_at === null
+                || blank($invitation->candidate_profile)
+            );
+    }
+
+    private function publicPolicyRedirect(Invitation $invitation): RedirectResponse
+    {
+        return to_route('candidate.public-tests.policy', [
+            'publicToken' => $invitation->test->public_token,
+            'email' => $invitation->email,
+        ]);
     }
 
     /**

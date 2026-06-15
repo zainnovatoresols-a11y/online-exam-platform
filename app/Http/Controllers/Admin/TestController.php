@@ -59,6 +59,7 @@ class TestController extends Controller
             ...$request->validated(),
             'organization_id' => $request->user()->organization_id,
             'created_by_id' => $request->user()->id,
+            'public_token' => Test::newPublicToken(),
             'status' => TestStatus::Draft->value,
         ]);
 
@@ -71,7 +72,7 @@ class TestController extends Controller
         Gate::authorize('view', $test);
 
         return Inertia::render('Admin/Tests/Show', [
-            'test' => $test->loadCount('questions'),
+            'test' => $this->testPayload($test->loadCount('questions')),
         ]);
     }
 
@@ -80,7 +81,7 @@ class TestController extends Controller
         Gate::authorize('update', $test);
 
         return Inertia::render('Admin/Tests/Edit', [
-            'test' => $test,
+            'test' => $this->testPayload($test),
         ]);
     }
 
@@ -102,5 +103,29 @@ class TestController extends Controller
 
         return to_route('admin.tests.index')
             ->with('success', 'Test deleted successfully.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function testPayload(Test $test): array
+    {
+        return [
+            'id' => $test->id,
+            'title' => $test->title,
+            'description' => $test->description,
+            'duration_minutes' => $test->duration_minutes,
+            'pass_mark' => $test->pass_mark,
+            'starts_at' => $test->starts_at?->toISOString(),
+            'status' => $test->status,
+            'questions_count' => $test->questions_count ?? null,
+            'public_token' => $test->public_token,
+            'public_url' => $test->public_token
+                ? route('candidate.public-tests.policy', $test->public_token)
+                : null,
+            'public_access_enabled' => $test->public_access_enabled,
+            'candidate_fields' => $test->candidateRegistrationFields(),
+            'policy_text' => $test->policyText(),
+        ];
     }
 }

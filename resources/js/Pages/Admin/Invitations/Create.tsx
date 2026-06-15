@@ -24,6 +24,7 @@ type Candidate = {
 
 type Props = {
     test: Test;
+    public_url: string | null;
     candidates: Candidate[];
     stacks: string[];
     filters: {
@@ -33,12 +34,14 @@ type Props = {
 
 type InvitationForm = {
     candidate_ids: number[];
+    emails: string;
     starts_at: string;
     expires_at: string;
 };
 
 export default function Create({
     test,
+    public_url,
     candidates,
     stacks,
     filters,
@@ -46,6 +49,7 @@ export default function Create({
     const { data, setData, post, processing, errors } =
         useForm<InvitationForm>({
             candidate_ids: [],
+            emails: '',
             starts_at: '',
             expires_at: '',
         });
@@ -254,6 +258,33 @@ export default function Create({
                             </div>
 
                             <div className="space-y-6">
+                                <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                                    <p className="font-medium text-gray-900">
+                                        Public test URL
+                                    </p>
+                                    <p className="mt-1 break-all">
+                                        {public_url ?? 'Not generated yet'}
+                                    </p>
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        Emailed candidates receive this same
+                                        public link. If public access is off,
+                                        only invited emails can register.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <InputLabel htmlFor="emails" value="Bulk emails" />
+                                    <textarea
+                                        id="emails"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        rows={6}
+                                        value={data.emails}
+                                        onChange={(event) => setData('emails', event.target.value)}
+                                        placeholder="candidate1@example.com&#10;candidate2@example.com"
+                                    />
+                                    <InputError message={errors.emails} className="mt-2" />
+                                </div>
+
                                 <div>
                                     <InputLabel
                                         htmlFor="starts_at"
@@ -312,7 +343,8 @@ export default function Create({
                                     <PrimaryButton
                                         disabled={
                                             processing ||
-                                            data.candidate_ids.length === 0
+                                            (data.candidate_ids.length === 0 &&
+                                                data.emails.trim() === '')
                                         }
                                     >
                                         Queue invitations

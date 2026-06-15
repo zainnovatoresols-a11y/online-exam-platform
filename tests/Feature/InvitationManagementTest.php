@@ -225,7 +225,10 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->get(route('candidate.invitations.show', $invitation->token));
 
-        $response->assertOk();
+        $response->assertRedirect(route('candidate.public-tests.policy', [
+            'publicToken' => $test->public_token,
+            'email' => $invitation->email,
+        ]));
     }
 
     public function test_invalid_token_shows_not_found_or_invalid_page(): void
@@ -261,7 +264,7 @@ class InvitationManagementTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_candidate_role_is_assigned_when_accepting_invite(): void
+    public function test_legacy_invitation_accept_redirects_to_public_policy_flow(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest();
         $invitation = $this->pendingInvitation($test, $admin, [
@@ -270,10 +273,10 @@ class InvitationManagementTest extends TestCase
 
         $response = $this->post(route('candidate.invitations.accept', $invitation->token));
 
-        $candidate = User::where('email', 'new-candidate@example.com')->firstOrFail();
-
-        $response->assertRedirect(route('candidate.tests.show', $test));
-        $this->assertTrue($candidate->hasRole(UserRole::Candidate->value));
+        $response->assertRedirect(route('candidate.public-tests.policy', [
+            'publicToken' => $test->public_token,
+            'email' => $invitation->email,
+        ]));
     }
 
     public function test_accepted_invitation_stores_candidate_user_id_and_accepted_at(): void
@@ -283,7 +286,15 @@ class InvitationManagementTest extends TestCase
             'email' => 'accepted-candidate@example.com',
         ]);
 
-        $this->post(route('candidate.invitations.accept', $invitation->token));
+        $this->post(route('candidate.public-tests.policy.accept', $test->public_token), [
+            'email' => $invitation->email,
+        ]);
+        $this->post(route('candidate.public-tests.register.store', $test->public_token), [
+            'name' => 'Accepted Candidate',
+            'email' => $invitation->email,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
 
         $invitation->refresh();
         $candidate = User::where('email', 'accepted-candidate@example.com')->firstOrFail();
@@ -399,7 +410,7 @@ class InvitationManagementTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function pendingInvitation(Test $test, User $admin, array $overrides = []): Invitation
     {

@@ -6,6 +6,7 @@ use App\Enums\TestStatus;
 use App\Models\Organization;
 use App\Models\Test;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Test>
@@ -27,6 +28,10 @@ class TestFactory extends Factory
             'duration_minutes' => 60,
             'pass_mark' => 50,
             'starts_at' => null,
+            'public_token' => Str::random(48),
+            'public_access_enabled' => false,
+            'candidate_fields' => [],
+            'policy_text' => null,
             'status' => TestStatus::Draft->value,
         ];
     }
