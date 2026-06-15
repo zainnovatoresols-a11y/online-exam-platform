@@ -29,11 +29,6 @@ class TestLandingController extends Controller
                 'test_id',
                 'candidate_user_id',
                 'status',
-                'score',
-                'max_score',
-                'total_marks',
-                'percentage',
-                'passed',
                 'submitted_at',
                 'expires_at',
             ]);
@@ -49,11 +44,6 @@ class TestLandingController extends Controller
             'attempt' => $attempt ? [
                 'id' => $attempt->id,
                 'status' => $attempt->status->value,
-                'score' => $attempt->score,
-                'max_score' => $attempt->max_score,
-                'total_marks' => $attempt->total_marks,
-                'percentage' => $attempt->percentage,
-                'passed' => $attempt->passed,
                 'submitted_at' => $attempt->submitted_at?->toISOString(),
                 'expires_at' => $attempt->expires_at?->toISOString(),
             ] : null,

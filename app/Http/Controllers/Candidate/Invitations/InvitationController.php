@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\Candidate\Invitations;
 
-use App\Actions\Invitations\AcceptInvitation;
 use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Candidate\Invitations\AcceptInvitationRequest;
 use App\Models\Invitation;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +22,7 @@ class InvitationController extends Controller
             return $this->statusPage($request, 'invalid', 'Invalid invitation link.', 404);
         }
 
-        $invitation->load(['test.organization:id,name', 'test.creator:id,name,email', 'organization:id,name', 'inviter:id,name,email']);
+        $invitation->load(['test.organization:id,name', 'test.creator:id,name,email', 'organization:id,name', 'inviter:id,name,email', 'candidateDetail', 'attempt']);
 
         if ($this->markExpiredIfNeeded($invitation)) {
             return $this->statusPage($request, 'expired', 'This invitation has expired.', 403, $invitation);
@@ -34,24 +32,14 @@ class InvitationController extends Controller
             return $this->statusPage($request, 'revoked', 'This invitation has been revoked.', 403, $invitation);
         }
 
-        if ($this->shouldUsePublicFlow($invitation)) {
-            return $this->publicPolicyRedirect($invitation);
+        if ($this->hasPublicFlow($invitation)) {
+            return $this->publicFlowRedirect($invitation);
         }
 
-        if ($invitation->isAccepted()) {
-            if ($request->user()?->id === $invitation->candidate_user_id) {
-                return to_route('candidate.tests.show', $invitation->test);
-            }
-
-            return $this->statusPage($request, 'accepted', 'This invitation has already been accepted.', 200, $invitation);
-        }
-
-        return Inertia::render('Candidate/Invitations/Show', [
-            'invitation' => $this->invitationPayload($invitation),
-        ]);
+        return $this->statusPage($request, 'unavailable', 'This invitation is not configured for public candidate access.', 403, $invitation);
     }
 
-    public function accept(AcceptInvitationRequest $request, string $token, AcceptInvitation $acceptInvitation): Response|HttpResponse|RedirectResponse
+    public function accept(AcceptInvitationRequest $request, string $token): Response|HttpResponse|RedirectResponse
     {
         $invitation = $this->findInvitation($token);
 
@@ -59,7 +47,7 @@ class InvitationController extends Controller
             return $this->statusPage($request, 'invalid', 'Invalid invitation link.', 404);
         }
 
-        $invitation->load(['test.organization:id,name', 'test.creator:id,name,email', 'organization:id,name', 'inviter:id,name,email']);
+        $invitation->load(['test.organization:id,name', 'test.creator:id,name,email', 'organization:id,name', 'inviter:id,name,email', 'candidateDetail', 'attempt']);
 
         if ($this->markExpiredIfNeeded($invitation)) {
             return $this->statusPage($request, 'expired', 'This invitation has expired.', 403, $invitation);
@@ -69,25 +57,11 @@ class InvitationController extends Controller
             return $this->statusPage($request, 'revoked', 'This invitation has been revoked.', 403, $invitation);
         }
 
-        if ($this->shouldUsePublicFlow($invitation)) {
-            return $this->publicPolicyRedirect($invitation);
+        if ($this->hasPublicFlow($invitation)) {
+            return $this->publicFlowRedirect($invitation);
         }
 
-        if ($invitation->isAccepted()) {
-            if ($request->user()?->id === $invitation->candidate_user_id) {
-                return to_route('candidate.tests.show', $invitation->test);
-            }
-
-            return $this->statusPage($request, 'accepted', 'This invitation has already been accepted.', 200, $invitation);
-        }
-
-        try {
-            $acceptInvitation->handle($invitation, $request->user());
-        } catch (AuthorizationException) {
-            abort(403);
-        }
-
-        return to_route('candidate.tests.show', $invitation->test);
+        return $this->statusPage($request, 'unavailable', 'This invitation is not configured for public candidate access.', 403, $invitation);
     }
 
     private function findInvitation(string $token): ?Invitation
@@ -119,14 +93,22 @@ class InvitationController extends Controller
         ])->toResponse($request)->setStatusCode($statusCode);
     }
 
-    private function shouldUsePublicFlow(Invitation $invitation): bool
+    private function hasPublicFlow(Invitation $invitation): bool
     {
-        return filled($invitation->test->public_token)
-            && (
-                ! $invitation->isAccepted()
-                || $invitation->policy_accepted_at === null
-                || blank($invitation->candidate_profile)
-            );
+        return filled($invitation->test->public_token);
+    }
+
+    private function publicFlowRedirect(Invitation $invitation): RedirectResponse
+    {
+        if (
+            $invitation->isAccepted()
+            && $invitation->policy_accepted_at !== null
+            && $invitation->candidateDetail
+        ) {
+            return to_route('candidate.public-attempts.show', $invitation->token);
+        }
+
+        return $this->publicPolicyRedirect($invitation);
     }
 
     private function publicPolicyRedirect(Invitation $invitation): RedirectResponse
@@ -134,6 +116,7 @@ class InvitationController extends Controller
         return to_route('candidate.public-tests.policy', [
             'publicToken' => $invitation->test->public_token,
             'email' => $invitation->email,
+            'invite' => $invitation->token,
         ]);
     }
 

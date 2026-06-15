@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
 use App\Enums\UserRole;
 use App\Models\Invitation;
 use App\Models\Organization;
 use App\Models\Test;
+use App\Models\TestAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -88,6 +90,48 @@ class CandidateDashboardTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Candidate/Dashboard')
             ->has('invitations', 0));
+    }
+
+    public function test_candidate_dashboard_does_not_expose_submitted_scores(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        $test = Test::factory()->published()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+        ]);
+        $invitation = Invitation::factory()->create([
+            'organization_id' => $organization->id,
+            'test_id' => $test->id,
+            'invited_by' => $admin->id,
+            'candidate_user_id' => $candidate->id,
+            'email' => $candidate->email,
+            'status' => InvitationStatus::Accepted,
+            'accepted_at' => now(),
+        ]);
+        TestAttempt::factory()->create([
+            'test_id' => $test->id,
+            'invitation_id' => $invitation->id,
+            'candidate_user_id' => $candidate->id,
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+            'score' => 8,
+            'max_score' => 10,
+            'total_marks' => 10,
+            'percentage' => 80,
+            'passed' => true,
+        ]);
+
+        $this->actingAs($candidate)
+            ->get(route('candidate.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/Dashboard')
+                ->where('invitations.0.attempt.status', AttemptStatus::Submitted->value)
+                ->missing('invitations.0.attempt.score')
+                ->missing('invitations.0.attempt.max_score')
+                ->missing('invitations.0.attempt.percentage'));
     }
 
     private function userWithRole(UserRole $role, ?Organization $organization = null): User

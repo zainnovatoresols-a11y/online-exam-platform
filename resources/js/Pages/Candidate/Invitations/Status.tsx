@@ -1,5 +1,5 @@
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 
 type Invitation = {
     email: string;
@@ -34,9 +34,6 @@ export default function Status({ status, message, invitation }: Props) {
                     </p>
                 )}
 
-                <Link href={route('login')} className="text-sm text-gray-700 underline">
-                    Go to login
-                </Link>
             </div>
         </GuestLayout>
     );

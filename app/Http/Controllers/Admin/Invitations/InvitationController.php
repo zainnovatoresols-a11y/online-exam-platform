@@ -25,7 +25,7 @@ class InvitationController extends Controller
             'public_url' => $this->publicUrl($test),
             'canCreateInvitation' => Gate::allows('create', [Invitation::class, $test]),
             'invitations' => $test->invitations()
-                ->with(['candidate:id,name,email'])
+                ->with(['candidate:id,name,email', 'candidateDetail'])
                 ->whereNotNull('email')
                 ->latest('id')
                 ->paginate(10)
@@ -41,6 +41,17 @@ class InvitationController extends Controller
                         'id' => $invitation->candidate->id,
                         'name' => $invitation->candidate->name,
                         'email' => $invitation->candidate->email,
+                    ] : ($invitation->candidateDetail ? [
+                        'id' => null,
+                        'name' => $invitation->candidateDetail->name,
+                        'email' => $invitation->candidateDetail->email,
+                    ] : null),
+                    'candidate_detail' => $invitation->candidateDetail ? [
+                        'id' => $invitation->candidateDetail->id,
+                        'name' => $invitation->candidateDetail->name,
+                        'email' => $invitation->candidateDetail->email,
+                        'phone' => $invitation->candidateDetail->phone,
+                        'stack_name' => $invitation->candidateDetail->stack_name,
                     ] : null,
                 ])
                 ->withQueryString(),

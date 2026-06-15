@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\TestLifecycleController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
 use App\Http\Controllers\Candidate\Invitations\InvitationController as CandidateInvitationController;
+use App\Http\Controllers\Candidate\PublicTests\PublicAttemptController;
 use App\Http\Controllers\Candidate\PublicTests\PublicTestController;
 use App\Http\Controllers\Candidate\Tests\TestLandingController;
 use App\Http\Controllers\DashboardRedirectController;
@@ -36,6 +37,12 @@ Route::get('/public-tests/{publicToken}/register', [PublicTestController::class,
     ->name('candidate.public-tests.register');
 Route::post('/public-tests/{publicToken}/register', [PublicTestController::class, 'store'])
     ->name('candidate.public-tests.register.store');
+Route::get('/public-attempts/{attemptToken}', [PublicAttemptController::class, 'show'])
+    ->name('candidate.public-attempts.show');
+Route::post('/public-attempts/{attemptToken}/answers', [PublicAttemptController::class, 'save'])
+    ->name('candidate.public-attempts.answers.save');
+Route::post('/public-attempts/{attemptToken}/submit', [PublicAttemptController::class, 'submit'])
+    ->name('candidate.public-attempts.submit');
 
 Route::get('/invite/{token}', [CandidateInvitationController::class, 'show'])
     ->name('candidate.invitations.show');

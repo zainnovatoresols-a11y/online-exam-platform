@@ -34,7 +34,11 @@ class CandidateInvitationNotification extends Notification
         $test = $this->invitation->test;
         $owner = $test->organization?->name ?? $test->creator?->name ?? 'Exam Admin';
         $url = $test->public_token
-            ? route('candidate.public-tests.policy', ['publicToken' => $test->public_token, 'email' => $this->invitation->email])
+            ? route('candidate.public-tests.policy', [
+                'publicToken' => $test->public_token,
+                'email' => $this->invitation->email,
+                'invite' => $this->invitation->token,
+            ])
             : route('candidate.invitations.show', $this->invitation->token);
 
         $message = (new MailMessage)

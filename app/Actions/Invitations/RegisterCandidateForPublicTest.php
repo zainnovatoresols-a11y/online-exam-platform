@@ -3,28 +3,22 @@
 namespace App\Actions\Invitations;
 
 use App\Enums\InvitationStatus;
-use App\Enums\UserRole;
+use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
 use App\Models\Test;
-use App\Models\User;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
 
 class RegisterCandidateForPublicTest
 {
     /**
-     * Register a candidate through a test public link and accept/create their invitation.
+     * Store candidate details through a public test link and accept/create their invitation.
      *
-     * @param  array{name: string, email: string, password: string, phone?: string|null, stack_name?: string|null}  $data
+     * @param  array{name: string, email: string, invitation_token?: string|null, phone?: string|null, stack_name?: string|null}  $data
      *
-     * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function handle(Test $test, array $data, ?User $currentUser = null): User
+    public function handle(Test $test, array $data): Invitation
     {
         if (! $test->isPublished()) {
             throw ValidationException::withMessages([
@@ -33,16 +27,23 @@ class RegisterCandidateForPublicTest
         }
 
         $email = strtolower(trim($data['email']));
+        $invitationToken = trim((string) ($data['invitation_token'] ?? ''));
 
-        if ($currentUser && strtolower($currentUser->email) !== $email) {
-            throw new AuthorizationException('You are logged in with a different email address.');
+        $invitation = $invitationToken !== ''
+            ? $this->invitationForToken($test, $invitationToken)
+            : $this->invitationForEmail($test, $email);
+
+        if ($invitationToken !== '' && ! $invitation) {
+            throw ValidationException::withMessages([
+                'email' => 'This invitation link is invalid.',
+            ]);
         }
 
-        $invitation = Invitation::query()
-            ->where('test_id', $test->id)
-            ->where('email', $email)
-            ->latest('id')
-            ->first();
+        if ($invitation && strtolower($invitation->email) !== $email) {
+            throw ValidationException::withMessages([
+                'email' => 'Please use the email address that received this invitation.',
+            ]);
+        }
 
         if ($invitation?->isRevoked()) {
             throw ValidationException::withMessages([
@@ -82,69 +83,53 @@ class RegisterCandidateForPublicTest
             ]);
         }
 
-        if ($currentUser) {
-            $candidate = $currentUser;
-        } else {
-            $candidate = User::query()->where('email', $email)->first();
-
-            if ($candidate && ! Hash::check((string) $data['password'], $candidate->password)) {
-                throw ValidationException::withMessages([
-                    'password' => 'The provided password is incorrect for this email.',
-                ]);
-            }
-
-            if (! $candidate) {
-                $candidate = User::create([
-                    'name' => $data['name'],
-                    'email' => $email,
-                    'password' => Hash::make((string) $data['password']),
-                    'email_verified_at' => now(),
-                ]);
-            }
-        }
-
-        $candidate->forceFill([
-            'name' => $data['name'],
-            'phone' => $data['phone'] ?? $candidate->phone,
-            'stack_name' => $data['stack_name'] ?? $candidate->stack_name,
-            'email_verified_at' => $candidate->email_verified_at ?? now(),
-        ])->save();
-
-        Role::findOrCreate(UserRole::Candidate->value, 'web');
-
-        if (! $candidate->hasRole(UserRole::Candidate->value)) {
-            $candidate->assignRole(UserRole::Candidate->value);
-        }
-
-        if ($candidate->organization_id === null && $test->organization_id !== null) {
-            $candidate->update([
-                'organization_id' => $test->organization_id,
-            ]);
-        }
-
-        if ($candidate->organization_id === null && $test->organization_id === null && $candidate->created_by_id === null) {
-            $candidate->update([
-                'created_by_id' => $test->created_by_id,
-            ]);
-        }
-
         $invitation->update([
-            'candidate_user_id' => $candidate->id,
             'name' => $data['name'],
+            'email' => $email,
             'status' => InvitationStatus::Accepted,
             'accepted_at' => $invitation->accepted_at ?? now(),
-            'policy_accepted_at' => now(),
-            'candidate_profile' => [
+            'policy_accepted_at' => $invitation->policy_accepted_at ?? now(),
+        ]);
+
+        CandidateTestDetail::updateOrCreate(
+            ['invitation_id' => $invitation->id],
+            [
+                'organization_id' => $test->organization_id,
+                'test_id' => $test->id,
+                'test_attempt_id' => $invitation->attempt?->id,
                 'name' => $data['name'],
                 'email' => $email,
                 'phone' => $data['phone'] ?? null,
                 'stack_name' => $data['stack_name'] ?? null,
+                'fields' => [
+                    'name' => $data['name'],
+                    'email' => $email,
+                    'phone' => $data['phone'] ?? null,
+                    'stack_name' => $data['stack_name'] ?? null,
+                ],
+                'submitted_at' => now(),
             ],
-        ]);
+        );
 
-        Auth::login($candidate);
+        return $invitation->refresh()->load(['candidateDetail', 'attempt']);
+    }
 
-        return $candidate;
+    private function invitationForToken(Test $test, string $token): ?Invitation
+    {
+        return Invitation::query()
+            ->where('test_id', $test->id)
+            ->where('token', $token)
+            ->latest('id')
+            ->first();
+    }
+
+    private function invitationForEmail(Test $test, string $email): ?Invitation
+    {
+        return Invitation::query()
+            ->where('test_id', $test->id)
+            ->where('email', $email)
+            ->latest('id')
+            ->first();
     }
 
     private function token(): string

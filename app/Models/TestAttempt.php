@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'test_id',
@@ -95,6 +96,16 @@ class TestAttempt extends Model
     public function answers(): HasMany
     {
         return $this->hasMany(AttemptAnswer::class);
+    }
+
+    /**
+     * Get the public candidate details attached to the attempt.
+     *
+     * @return HasOne<CandidateTestDetail, $this>
+     */
+    public function candidateDetail(): HasOne
+    {
+        return $this->hasOne(CandidateTestDetail::class);
     }
 
     public function isSubmitted(): bool

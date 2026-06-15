@@ -20,6 +20,12 @@ class PublicTestRegistrationRequest extends FormRequest
                 'email' => strtolower(trim((string) $this->input('email'))),
             ]);
         }
+
+        if ($this->has('invitation_token')) {
+            $this->merge([
+                'invitation_token' => trim((string) $this->input('invitation_token')),
+            ]);
+        }
     }
 
     /**
@@ -32,7 +38,7 @@ class PublicTestRegistrationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'invitation_token' => ['nullable', 'string', 'max:255'],
             'phone' => [
                 Rule::requiredIf(in_array('phone', $requiredFields, true)),
                 'nullable',

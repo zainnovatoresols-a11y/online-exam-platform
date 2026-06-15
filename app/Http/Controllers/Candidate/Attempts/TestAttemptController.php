@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Candidate\Attempts;
 
-use App\Actions\Attempts\StartMcqAttempt;
 use App\Actions\Attempts\SaveMcqAnswers;
+use App\Actions\Attempts\StartMcqAttempt;
 use App\Actions\Attempts\SubmitMcqAttempt;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Candidate\Attempts\SaveMcqAnswersRequest;
@@ -105,38 +105,17 @@ class TestAttemptController extends Controller
         $attempt->load([
             'test.organization:id,name',
             'test.creator:id,name,email',
-            'answers.question:id,body,marks',
-            'answers.selectedOption:id,body',
         ]);
 
         return Inertia::render('Candidate/Attempts/Result', [
             'attempt' => [
                 'id' => $attempt->id,
                 'status' => $attempt->status->value,
-                'score' => $attempt->score,
-                'max_score' => $attempt->max_score,
-                'total_marks' => $attempt->total_marks,
-                'percentage' => $attempt->percentage,
-                'passed' => $attempt->passed,
                 'started_at' => $attempt->started_at?->toISOString(),
                 'submitted_at' => $attempt->submitted_at?->toISOString(),
                 'expires_at' => $attempt->expires_at?->toISOString(),
             ],
             'test' => $this->testPayload($attempt),
-            'answers' => $attempt->answers->map(fn ($answer): array => [
-                'id' => $answer->id,
-                'question' => [
-                    'id' => $answer->question->id,
-                    'body' => $answer->question->body,
-                    'marks' => $answer->question->marks,
-                ],
-                'selected_option' => $answer->selectedOption ? [
-                    'id' => $answer->selectedOption->id,
-                    'body' => $answer->selectedOption->body,
-                ] : null,
-                'is_correct' => $answer->is_correct,
-                'score' => $answer->score,
-            ])->values(),
         ]);
     }
 

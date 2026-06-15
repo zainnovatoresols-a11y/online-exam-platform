@@ -99,6 +99,16 @@ class Invitation extends Model
         return $this->hasOne(TestAttempt::class);
     }
 
+    /**
+     * Get the candidate details submitted for this public assessment.
+     *
+     * @return HasOne<CandidateTestDetail, $this>
+     */
+    public function candidateDetail(): HasOne
+    {
+        return $this->hasOne(CandidateTestDetail::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === InvitationStatus::Pending;

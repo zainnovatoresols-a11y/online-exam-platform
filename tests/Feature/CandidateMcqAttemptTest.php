@@ -355,6 +355,29 @@ class CandidateMcqAttemptTest extends TestCase
             'is_correct' => true,
             'score' => 2,
         ]);
+
+        $this->actingAs($candidate)
+            ->get(route('candidate.attempts.show', $attempt->refresh()))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/Attempts/Result')
+                ->where('attempt.status', AttemptStatus::Submitted->value)
+                ->missing('attempt.score')
+                ->missing('attempt.max_score')
+                ->missing('attempt.percentage')
+                ->missing('attempt.passed')
+                ->missing('answers'));
+
+        $this->actingAs($candidate)
+            ->get(route('candidate.tests.show', $test))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/Tests/Show')
+                ->where('attempt.status', AttemptStatus::Submitted->value)
+                ->missing('attempt.score')
+                ->missing('attempt.max_score')
+                ->missing('attempt.percentage')
+                ->missing('attempt.passed'));
     }
 
     public function test_candidate_gets_zero_for_wrong_mcq_answer(): void
@@ -469,9 +492,8 @@ class CandidateMcqAttemptTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $testOverrides
-     * @param array<string, mixed> $invitationOverrides
-     *
+     * @param  array<string, mixed>  $testOverrides
+     * @param  array<string, mixed>  $invitationOverrides
      * @return array{0: User, 1: Test, 2: Invitation}
      */
     private function acceptedOrganizationInvitation(array $testOverrides = [], array $invitationOverrides = []): array

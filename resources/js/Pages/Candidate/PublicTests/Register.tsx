@@ -20,16 +20,17 @@ type Test = {
 export default function Register({
     test,
     email,
+    invitation_token,
 }: {
     test: Test;
     email: string;
+    invitation_token: string | null;
 }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         email,
+        invitation_token: invitation_token ?? '',
         phone: '',
-        password: '',
-        password_confirmation: '',
         stack_name: '',
     });
 
@@ -98,41 +99,13 @@ export default function Register({
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                <div>
-                    <InputLabel htmlFor="password" value="Password" />
-                    <TextInput
-                        id="password"
-                        type="password"
-                        className="mt-1 block w-full"
-                        value={data.password}
-                        onChange={(event) =>
-                            setData('password', event.target.value)
-                        }
-                        required
-                    />
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Confirm password"
-                    />
-                    <TextInput
-                        id="password_confirmation"
-                        type="password"
-                        className="mt-1 block w-full"
-                        value={data.password_confirmation}
-                        onChange={(event) =>
-                            setData('password_confirmation', event.target.value)
-                        }
-                        required
-                    />
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
-                </div>
+                <input
+                    type="hidden"
+                    value={data.invitation_token}
+                    onChange={(event) =>
+                        setData('invitation_token', event.target.value)
+                    }
+                />
 
                 <div>
                     <InputLabel

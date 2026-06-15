@@ -2,11 +2,21 @@ import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PublicAssessmentLayout from '@/Layouts/PublicAssessmentLayout';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import {
+    FormEventHandler,
+    PropsWithChildren,
+    ReactNode,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 
 type Attempt = {
     id: number;
+    access_token?: string | null;
+    is_public?: boolean;
     status: string;
     started_at: string | null;
     expires_at: string | null;
@@ -73,11 +83,11 @@ export default function Show({
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
-        post(route('candidate.attempts.submit', attempt.id));
+        post(attemptRoute(attempt, 'submit'));
     };
 
     const save = () => {
-        post(route('candidate.attempts.answers.save', attempt.id), {
+        post(attemptRoute(attempt, 'save'), {
             preserveScroll: true,
         });
     };
@@ -90,7 +100,8 @@ export default function Show({
     };
 
     return (
-        <AuthenticatedLayout
+        <AssessmentLayout
+            isPublic={Boolean(attempt.is_public)}
             header={
                 <h2 className="text-xl font-semibold leading-tight text-gray-800">
                     {test.title}
@@ -230,8 +241,36 @@ export default function Show({
                     </form>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AssessmentLayout>
     );
+}
+
+function AssessmentLayout({
+    isPublic,
+    header,
+    children,
+}: PropsWithChildren<{ isPublic: boolean; header?: ReactNode }>) {
+    if (isPublic) {
+        return (
+            <PublicAssessmentLayout header={header}>
+                {children}
+            </PublicAssessmentLayout>
+        );
+    }
+
+    return <AuthenticatedLayout header={header}>{children}</AuthenticatedLayout>;
+}
+
+function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {
+    if (attempt.is_public && attempt.access_token) {
+        return action === 'save'
+            ? route('candidate.public-attempts.answers.save', attempt.access_token)
+            : route('candidate.public-attempts.submit', attempt.access_token);
+    }
+
+    return action === 'save'
+        ? route('candidate.attempts.answers.save', attempt.id)
+        : route('candidate.attempts.submit', attempt.id);
 }
 
 function secondsUntilExpiry(

@@ -2,11 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
 use App\Enums\UserRole;
+use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
 use App\Models\Organization;
+use App\Models\Question;
+use App\Models\QuestionOption;
 use App\Models\Test;
+use App\Models\TestAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -31,13 +36,18 @@ class PublicCandidateRegistrationTest extends TestCase
             ->where('test.title', $test->title));
     }
 
-    public function test_public_policy_page_is_not_available_for_unpublished_test(): void
+    public function test_public_policy_page_shows_status_for_unpublished_test(): void
     {
         $test = Test::factory()->create();
 
         $response = $this->get(route('candidate.public-tests.policy', $test->public_token));
 
-        $response->assertNotFound();
+        $response->assertForbidden();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Candidate/PublicTests/Status')
+            ->where('status', 'not_published')
+            ->where('message', 'This test has not been published yet.')
+            ->where('test.title', $test->title));
     }
 
     public function test_admin_can_queue_bulk_email_invitations_that_use_public_test_link(): void
@@ -96,11 +106,12 @@ class PublicCandidateRegistrationTest extends TestCase
         $response->assertSessionHasErrors('emails');
     }
 
-    public function test_invited_email_can_accept_policy_register_and_reach_test_landing(): void
+    public function test_invited_email_can_accept_policy_submit_details_and_complete_test_without_authentication(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest([
             'candidate_fields' => ['phone', 'stack_name'],
         ]);
+        [, $correctOption] = $this->questionWithOptions($test);
         Invitation::factory()->create([
             'organization_id' => $test->organization_id,
             'test_id' => $test->id,
@@ -121,21 +132,61 @@ class PublicCandidateRegistrationTest extends TestCase
             'name' => 'Invited Candidate',
             'email' => 'invited@example.com',
             'phone' => '123456789',
-            'password' => 'password',
-            'password_confirmation' => 'password',
             'stack_name' => 'Laravel',
         ]);
 
-        $candidate = User::where('email', 'invited@example.com')->firstOrFail();
         $invitation = Invitation::where('email', 'invited@example.com')->firstOrFail();
+        $attempt = TestAttempt::where('invitation_id', $invitation->id)->firstOrFail();
 
-        $response->assertRedirect(route('candidate.tests.show', $test));
-        $this->assertTrue($candidate->hasRole(UserRole::Candidate->value));
+        $response->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+        $this->assertGuest();
         $this->assertSame(InvitationStatus::Accepted, $invitation->status);
-        $this->assertSame($candidate->id, $invitation->candidate_user_id);
+        $this->assertNull($invitation->candidate_user_id);
         $this->assertNotNull($invitation->policy_accepted_at);
-        $this->assertSame('123456789', $candidate->phone);
-        $this->assertSame('Laravel', $candidate->stack_name);
+        $this->assertDatabaseMissing('users', [
+            'email' => 'invited@example.com',
+        ]);
+        $this->assertDatabaseHas('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'test_attempt_id' => $attempt->id,
+            'name' => 'Invited Candidate',
+            'email' => 'invited@example.com',
+            'phone' => '123456789',
+            'stack_name' => 'Laravel',
+        ]);
+        $this->assertDatabaseHas('test_attempts', [
+            'id' => $attempt->id,
+            'test_id' => $test->id,
+            'candidate_user_id' => null,
+            'status' => AttemptStatus::InProgress->value,
+        ]);
+
+        $this->get(route('candidate.public-attempts.show', $invitation->token))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/Attempts/Show')
+                ->where('attempt.is_public', true)
+                ->where('attempt.access_token', $invitation->token));
+
+        $this->post(route('candidate.public-attempts.submit', $invitation->token), [
+            'answers' => [
+                $correctOption->question_id => $correctOption->id,
+            ],
+        ])->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+
+        $this->assertSame(AttemptStatus::Submitted, $attempt->refresh()->status);
+
+        $this->get(route('candidate.public-attempts.show', $invitation->token))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/Attempts/Result')
+                ->where('attempt.is_public', true)
+                ->where('attempt.status', AttemptStatus::Submitted->value)
+                ->missing('attempt.score')
+                ->missing('attempt.max_score')
+                ->missing('attempt.percentage')
+                ->missing('attempt.passed')
+                ->missing('answers'));
     }
 
     public function test_public_access_enabled_allows_any_email_to_register(): void
@@ -149,22 +200,113 @@ class PublicCandidateRegistrationTest extends TestCase
         $response = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
             'name' => 'Open Candidate',
             'email' => 'open@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
             'phone' => null,
             'stack_name' => null,
         ]);
 
-        $candidate = User::where('email', 'open@example.com')->firstOrFail();
+        $invitation = Invitation::where('email', 'open@example.com')->firstOrFail();
 
-        $response->assertRedirect(route('candidate.tests.show', $test));
+        $response->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', [
+            'email' => 'open@example.com',
+        ]);
         $this->assertDatabaseHas('invitations', [
             'test_id' => $test->id,
             'organization_id' => null,
             'email' => 'open@example.com',
-            'candidate_user_id' => $candidate->id,
+            'candidate_user_id' => null,
             'status' => InvitationStatus::Accepted->value,
         ]);
+        $this->assertDatabaseHas('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'name' => 'Open Candidate',
+            'email' => 'open@example.com',
+        ]);
+    }
+
+    public function test_candidate_sees_countdown_before_details_form_until_invitation_start_time(): void
+    {
+        [$admin, $test] = $this->publishedOrganizationTest();
+        $startsAt = now()->addMinutes(10)->setMicrosecond(0);
+        $invitation = Invitation::factory()->create([
+            'organization_id' => $test->organization_id,
+            'test_id' => $test->id,
+            'invited_by' => $admin->id,
+            'email' => 'future@example.com',
+            'status' => InvitationStatus::Sent,
+            'starts_at' => $startsAt,
+        ]);
+
+        $this->post(route('candidate.public-tests.policy.accept', $test->public_token), [
+            'email' => 'future@example.com',
+        ])->assertRedirect(route('candidate.public-tests.register', [
+            'publicToken' => $test->public_token,
+            'email' => 'future@example.com',
+        ]));
+
+        $this->get(route('candidate.public-tests.register', [
+            'publicToken' => $test->public_token,
+            'email' => 'future@example.com',
+        ]))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Candidate/PublicTests/Status')
+                ->where('status', 'not_started')
+                ->where('message', 'This invitation has not started yet.')
+                ->where('available_at', $startsAt->toISOString())
+                ->where('action_url', route('candidate.public-tests.register', [
+                    'publicToken' => $test->public_token,
+                    'email' => 'future@example.com',
+                    'invite' => $invitation->token,
+                ])));
+
+        $this->post(route('candidate.public-tests.register.store', $test->public_token), [
+            'name' => 'Future Candidate',
+            'email' => 'future@example.com',
+        ])->assertRedirect(route('candidate.public-tests.register', [
+            'publicToken' => $test->public_token,
+            'email' => 'future@example.com',
+            'invite' => $invitation->token,
+        ]));
+
+        $this->assertDatabaseMissing('candidate_test_details', [
+            'email' => 'future@example.com',
+        ]);
+        $this->assertDatabaseMissing('test_attempts', [
+            'invitation_id' => $invitation->id,
+        ]);
+    }
+
+    public function test_candidate_can_reopen_public_link_without_login_form(): void
+    {
+        [$admin, $test] = $this->publishedOrganizationTest();
+        $invitation = Invitation::factory()->create([
+            'organization_id' => $test->organization_id,
+            'test_id' => $test->id,
+            'invited_by' => $admin->id,
+            'candidate_user_id' => null,
+            'email' => 'resume@example.com',
+            'name' => 'Resume Candidate',
+            'status' => InvitationStatus::Accepted,
+            'accepted_at' => now(),
+            'policy_accepted_at' => now(),
+        ]);
+        CandidateTestDetail::create([
+            'organization_id' => $test->organization_id,
+            'test_id' => $test->id,
+            'invitation_id' => $invitation->id,
+            'name' => 'Resume Candidate',
+            'email' => 'resume@example.com',
+        ]);
+
+        $response = $this->get(route('candidate.public-tests.policy', [
+            'publicToken' => $test->public_token,
+            'email' => 'resume@example.com',
+            'invite' => $invitation->token,
+        ]));
+
+        $response->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+        $this->assertGuest();
     }
 
     public function test_revoked_invitation_blocks_public_registration_even_when_public_access_is_open(): void
@@ -187,12 +329,17 @@ class PublicCandidateRegistrationTest extends TestCase
         $response = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
             'name' => 'Revoked Candidate',
             'email' => 'revoked@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
         ]);
 
-        $response->assertSessionHasErrors('email');
+        $response->assertForbidden();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Candidate/PublicTests/Status')
+            ->where('status', 'revoked')
+            ->where('message', 'This invitation has been revoked.'));
         $this->assertDatabaseMissing('users', [
+            'email' => 'revoked@example.com',
+        ]);
+        $this->assertDatabaseMissing('candidate_test_details', [
             'email' => 'revoked@example.com',
         ]);
     }
@@ -208,8 +355,6 @@ class PublicCandidateRegistrationTest extends TestCase
         $response = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
             'name' => 'Blocked Candidate',
             'email' => 'blocked@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
         ]);
 
         $response->assertSessionHasErrors('email');
@@ -236,34 +381,63 @@ class PublicCandidateRegistrationTest extends TestCase
         $response = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
             'name' => 'Needs Phone',
             'email' => 'needs-phone@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
         ]);
 
         $response->assertSessionHasErrors('phone');
     }
 
-    public function test_public_registration_requires_password_confirmation(): void
+    public function test_public_registration_does_not_require_candidate_password(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest();
         Invitation::factory()->create([
             'organization_id' => $test->organization_id,
             'test_id' => $test->id,
             'invited_by' => $admin->id,
-            'email' => 'password-required@example.com',
+            'email' => 'passwordless@example.com',
             'status' => InvitationStatus::Sent,
         ]);
 
         $this->post(route('candidate.public-tests.policy.accept', $test->public_token));
 
         $response = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
-            'name' => 'Password Required',
-            'email' => 'password-required@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'different',
+            'name' => 'Passwordless Candidate',
+            'email' => 'passwordless@example.com',
         ]);
 
-        $response->assertSessionHasErrors('password');
+        $invitation = Invitation::where('email', 'passwordless@example.com')->firstOrFail();
+
+        $response->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', [
+            'email' => 'passwordless@example.com',
+        ]);
+        $this->assertDatabaseHas('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'name' => 'Passwordless Candidate',
+            'email' => 'passwordless@example.com',
+        ]);
+    }
+
+    /**
+     * @return array{0: Question, 1: QuestionOption, 2: QuestionOption}
+     */
+    private function questionWithOptions(Test $test): array
+    {
+        $question = Question::factory()->create([
+            'test_id' => $test->id,
+            'body' => 'What is Laravel?',
+            'marks' => 2,
+        ]);
+        $correctOption = $question->options()->create([
+            'body' => 'A PHP framework',
+            'is_correct' => true,
+        ]);
+        $wrongOption = $question->options()->create([
+            'body' => 'A database server',
+            'is_correct' => false,
+        ]);
+
+        return [$question, $correctOption, $wrongOption];
     }
 
     /**

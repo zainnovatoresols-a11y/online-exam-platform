@@ -115,6 +115,16 @@ POLICY;
         return $this->hasMany(TestAttempt::class);
     }
 
+    /**
+     * Get public candidate detail records submitted for this test.
+     *
+     * @return HasMany<CandidateTestDetail, $this>
+     */
+    public function candidateDetails(): HasMany
+    {
+        return $this->hasMany(CandidateTestDetail::class);
+    }
+
     public function isOrganizationTest(): bool
     {
         return $this->organization_id !== null;

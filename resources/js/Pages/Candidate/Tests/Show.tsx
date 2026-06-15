@@ -17,11 +17,6 @@ type Test = {
 type Attempt = {
     id: number;
     status: string;
-    score: number;
-    max_score: number;
-    total_marks: number;
-    percentage: string | number | null;
-    passed: boolean | null;
     submitted_at: string | null;
     expires_at: string | null;
 };
@@ -150,9 +145,9 @@ export default function Show({
                                             Submitted
                                         </p>
                                         <p className="mt-1 text-sm text-gray-600">
-                                            Score: {attempt.score} /{' '}
-                                            {attempt.max_score ||
-                                                attempt.total_marks}
+                                            Your assessment has been submitted.
+                                            HR will contact you if your profile
+                                            meets the requirements.
                                         </p>
                                     </div>
                                     <Link
@@ -162,7 +157,7 @@ export default function Show({
                                         )}
                                         className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
                                     >
-                                        View result
+                                        View submission
                                     </Link>
                                 </div>
                             ) : attempt ? (

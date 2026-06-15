@@ -23,7 +23,7 @@ class DashboardController extends Controller
             ->where('email', $user->email)
             ->where('status', InvitationStatus::Accepted->value)
             ->with([
-                'attempt:id,test_id,invitation_id,status,score,max_score,total_marks,percentage,submitted_at',
+                'attempt:id,test_id,invitation_id,status,submitted_at',
                 'test' => fn ($query) => $query
                     ->with(['organization:id,name', 'creator:id,name,email'])
                     ->withCount('questions'),
@@ -53,10 +53,6 @@ class DashboardController extends Controller
                 'attempt' => $invitation->attempt ? [
                     'id' => $invitation->attempt->id,
                     'status' => $invitation->attempt->status->value,
-                    'score' => $invitation->attempt->score,
-                    'max_score' => $invitation->attempt->max_score,
-                    'total_marks' => $invitation->attempt->total_marks,
-                    'percentage' => $invitation->attempt->percentage,
                     'submitted_at' => $invitation->attempt->submitted_at?->toISOString(),
                 ] : null,
             ]);

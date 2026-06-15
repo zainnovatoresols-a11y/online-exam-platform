@@ -17,10 +17,6 @@ type Invitation = {
     attempt: {
         id: number;
         status: string;
-        score: number;
-        max_score: number;
-        total_marks: number;
-        percentage: string | number | null;
         submitted_at: string | null;
     } | null;
 };
@@ -120,7 +116,7 @@ export default function Dashboard({
                                                         {invitation.attempt
                                                             .status ===
                                                         'submitted'
-                                                            ? 'View result'
+                                                            ? 'View submission'
                                                             : 'Resume test'}
                                                     </Link>
                                                 ) : (

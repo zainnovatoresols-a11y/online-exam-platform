@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Candidate\Attempts;
 
+use App\Models\Invitation;
+use App\Models\TestAttempt;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -31,7 +33,7 @@ class SubmitMcqAttemptRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $attempt = $this->route('attempt');
+            $attempt = $this->attempt();
 
             if (! $attempt) {
                 return;
@@ -46,6 +48,7 @@ class SubmitMcqAttemptRequest extends FormRequest
 
                 if (! $selectedOptionId) {
                     $validator->errors()->add("answers.{$question->id}", 'Please select an answer.');
+
                     continue;
                 }
 
@@ -57,5 +60,26 @@ class SubmitMcqAttemptRequest extends FormRequest
                 }
             }
         });
+    }
+
+    private function attempt(): ?TestAttempt
+    {
+        $attempt = $this->route('attempt');
+
+        if ($attempt instanceof TestAttempt) {
+            return $attempt;
+        }
+
+        $attemptToken = $this->route('attemptToken');
+
+        if (! is_string($attemptToken)) {
+            return null;
+        }
+
+        return Invitation::query()
+            ->with('attempt')
+            ->where('token', $attemptToken)
+            ->first()
+            ?->attempt;
     }
 }

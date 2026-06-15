@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\InvitationStatus;
 use App\Enums\TestStatus;
 use App\Enums\UserRole;
+use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
 use App\Models\Organization;
 use App\Models\Test;
@@ -228,6 +229,7 @@ class InvitationManagementTest extends TestCase
         $response->assertRedirect(route('candidate.public-tests.policy', [
             'publicToken' => $test->public_token,
             'email' => $invitation->email,
+            'invite' => $invitation->token,
         ]));
     }
 
@@ -276,10 +278,11 @@ class InvitationManagementTest extends TestCase
         $response->assertRedirect(route('candidate.public-tests.policy', [
             'publicToken' => $test->public_token,
             'email' => $invitation->email,
+            'invite' => $invitation->token,
         ]));
     }
 
-    public function test_accepted_invitation_stores_candidate_user_id_and_accepted_at(): void
+    public function test_public_invitation_acceptance_stores_candidate_details_without_user_account(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest();
         $invitation = $this->pendingInvitation($test, $admin, [
@@ -288,20 +291,28 @@ class InvitationManagementTest extends TestCase
 
         $this->post(route('candidate.public-tests.policy.accept', $test->public_token), [
             'email' => $invitation->email,
+            'invitation_token' => $invitation->token,
         ]);
         $this->post(route('candidate.public-tests.register.store', $test->public_token), [
             'name' => 'Accepted Candidate',
             'email' => $invitation->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'invitation_token' => $invitation->token,
         ]);
 
         $invitation->refresh();
-        $candidate = User::where('email', 'accepted-candidate@example.com')->firstOrFail();
 
         $this->assertSame(InvitationStatus::Accepted, $invitation->status);
-        $this->assertSame($candidate->id, $invitation->candidate_user_id);
+        $this->assertNull($invitation->candidate_user_id);
         $this->assertNotNull($invitation->accepted_at);
+        $this->assertDatabaseMissing('users', [
+            'email' => 'accepted-candidate@example.com',
+        ]);
+        $this->assertDatabaseHas('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'name' => 'Accepted Candidate',
+            'email' => 'accepted-candidate@example.com',
+        ]);
+        $this->assertNotNull(CandidateTestDetail::where('invitation_id', $invitation->id)->first()?->test_attempt_id);
     }
 
     public function test_candidate_can_view_organization_test_landing_page_after_accepted_invitation(): void

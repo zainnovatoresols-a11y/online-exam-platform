@@ -15,9 +15,18 @@ type Test = {
     creator: { id: number; name: string; email: string } | null;
 };
 
-export default function Policy({ test, email }: { test: Test; email: string }) {
+export default function Policy({
+    test,
+    email,
+    invitation_token,
+}: {
+    test: Test;
+    email: string;
+    invitation_token: string | null;
+}) {
     const { data, setData, post, processing } = useForm({
         email,
+        invitation_token: invitation_token ?? '',
     });
 
     const submit: FormEventHandler = (event) => {
@@ -78,6 +87,13 @@ export default function Policy({ test, email }: { test: Test; email: string }) {
                     type="hidden"
                     value={data.email}
                     onChange={(event) => setData('email', event.target.value)}
+                />
+                <input
+                    type="hidden"
+                    value={data.invitation_token}
+                    onChange={(event) =>
+                        setData('invitation_token', event.target.value)
+                    }
                 />
 
                 <PrimaryButton disabled={processing}>
