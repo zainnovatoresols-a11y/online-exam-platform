@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
+use App\Http\Controllers\Candidate\Attempts\RunCodingQuestionController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
 use App\Http\Controllers\Candidate\Invitations\InvitationController as CandidateInvitationController;
@@ -45,6 +46,9 @@ Route::post('/public-attempts/{attemptToken}/answers', [PublicAttemptController:
     ->name('candidate.public-attempts.answers.save');
 Route::post('/public-attempts/{attemptToken}/coding-answers', [PublicAttemptController::class, 'saveCoding'])
     ->name('candidate.public-attempts.coding-answers.save');
+Route::post('/public-attempts/{attemptToken}/coding-questions/run', [RunCodingQuestionController::class, 'storePublic'])
+    ->middleware('throttle:30,1')
+    ->name('candidate.public-attempts.coding-questions.run');
 Route::post('/public-attempts/{attemptToken}/submit', [PublicAttemptController::class, 'submit'])
     ->name('candidate.public-attempts.submit');
 
@@ -133,6 +137,9 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
             ->name('attempts.answers.save');
         Route::post('/attempts/{attempt}/coding-answers', [TestAttemptController::class, 'saveCoding'])
             ->name('attempts.coding-answers.save');
+        Route::post('/attempts/{attempt}/coding-questions/run', [RunCodingQuestionController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('attempts.coding-questions.run');
         Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
             ->name('attempts.submit');
     });

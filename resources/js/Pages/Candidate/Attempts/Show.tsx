@@ -262,6 +262,7 @@ function QuestionPanel({
                 question={question}
                 questionNumber={questionNumber}
                 saveUrl={codingAnswerRoute(attempt)}
+                runUrl={codingRunRoute(attempt)}
                 disabled={expired}
                 registerSave={registerCodingSave}
             />
@@ -351,6 +352,17 @@ function codingAnswerRoute(attempt: Attempt): string {
     }
 
     return route('candidate.attempts.coding-answers.save', attempt.id);
+}
+
+function codingRunRoute(attempt: Attempt): string {
+    if (attempt.is_public && attempt.access_token) {
+        return route(
+            'candidate.public-attempts.coding-questions.run',
+            attempt.access_token,
+        );
+    }
+
+    return route('candidate.attempts.coding-questions.run', attempt.id);
 }
 
 function secondsUntilExpiry(

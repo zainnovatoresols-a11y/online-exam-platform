@@ -10,14 +10,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'test_attempt_id',
     'question_id',
-    'selected_option_id',
+    'attempt_answer_id',
+    'candidate_user_id',
     'language',
-    'submitted_code',
-    'is_correct',
-    'score',
-    'answered_at',
+    'status',
+    'source_code',
+    'result_summary',
+    'started_at',
+    'finished_at',
 ])]
-class AttemptAnswer extends Model
+class CodeExecutionRun extends Model
 {
     /**
      * Get the attributes that should be cast.
@@ -27,14 +29,13 @@ class AttemptAnswer extends Model
     protected function casts(): array
     {
         return [
-            'is_correct' => 'boolean',
-            'answered_at' => 'datetime',
+            'result_summary' => 'array',
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
         ];
     }
 
     /**
-     * Get the attempt this answer belongs to.
-     *
      * @return BelongsTo<TestAttempt, $this>
      */
     public function attempt(): BelongsTo
@@ -43,8 +44,6 @@ class AttemptAnswer extends Model
     }
 
     /**
-     * Get the question this answer belongs to.
-     *
      * @return BelongsTo<Question, $this>
      */
     public function question(): BelongsTo
@@ -53,22 +52,26 @@ class AttemptAnswer extends Model
     }
 
     /**
-     * Get the selected answer option.
-     *
-     * @return BelongsTo<QuestionOption, $this>
+     * @return BelongsTo<AttemptAnswer, $this>
      */
-    public function selectedOption(): BelongsTo
+    public function attemptAnswer(): BelongsTo
     {
-        return $this->belongsTo(QuestionOption::class, 'selected_option_id');
+        return $this->belongsTo(AttemptAnswer::class);
     }
 
     /**
-     * Get code execution runs connected to this answer.
-     *
-     * @return HasMany<CodeExecutionRun, $this>
+     * @return BelongsTo<User, $this>
      */
-    public function codeExecutionRuns(): HasMany
+    public function candidate(): BelongsTo
     {
-        return $this->hasMany(CodeExecutionRun::class);
+        return $this->belongsTo(User::class, 'candidate_user_id');
+    }
+
+    /**
+     * @return HasMany<CodeExecutionTestCaseResult, $this>
+     */
+    public function testCaseResults(): HasMany
+    {
+        return $this->hasMany(CodeExecutionTestCaseResult::class);
     }
 }

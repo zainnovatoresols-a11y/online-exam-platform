@@ -99,6 +99,16 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get code execution runs for this attempt.
+     *
+     * @return HasMany<CodeExecutionRun, $this>
+     */
+    public function codeExecutionRuns(): HasMany
+    {
+        return $this->hasMany(CodeExecutionRun::class);
+    }
+
+    /**
      * Get the public candidate details attached to the attempt.
      *
      * @return HasOne<CandidateTestDetail, $this>

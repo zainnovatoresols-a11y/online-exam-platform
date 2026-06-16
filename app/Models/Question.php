@@ -78,4 +78,14 @@ class Question extends Model
     {
         return $this->hasMany(QuestionTestCase::class);
     }
+
+    /**
+     * Get code execution runs for this coding question.
+     *
+     * @return HasMany<CodeExecutionRun, $this>
+     */
+    public function codeExecutionRuns(): HasMany
+    {
+        return $this->hasMany(CodeExecutionRun::class);
+    }
 }
