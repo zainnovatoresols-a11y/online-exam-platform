@@ -10,8 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'test_attempt_id',
     'question_id',
     'selected_option_id',
+    'language',
+    'submitted_code',
     'is_correct',
     'score',
+    'answered_at',
 ])]
 class AttemptAnswer extends Model
 {
@@ -24,6 +27,7 @@ class AttemptAnswer extends Model
     {
         return [
             'is_correct' => 'boolean',
+            'answered_at' => 'datetime',
         ];
     }
 

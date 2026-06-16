@@ -1,4 +1,7 @@
 import InputError from '@/Components/InputError';
+import CodingQuestionPanel, {
+    CodingQuestion,
+} from '@/Components/Attempts/CodingQuestionPanel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -8,8 +11,10 @@ import {
     FormEventHandler,
     PropsWithChildren,
     ReactNode,
+    useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 
@@ -33,8 +38,9 @@ type Test = {
     creator: { id: number; name: string; email: string } | null;
 };
 
-type Question = {
+type McqQuestion = {
     id: number;
+    type: 'mcq';
     body: string;
     marks: number;
     options: {
@@ -42,6 +48,8 @@ type Question = {
         body: string;
     }[];
 };
+
+type Question = McqQuestion | CodingQuestion;
 
 type AttemptForm = {
     answers: Record<string, number | string>;
@@ -63,6 +71,10 @@ export default function Show({
     });
 
     const formErrors = errors as Record<string, string>;
+    const codingSaveHandlers = useRef<Map<number, () => Promise<void>>>(
+        new Map(),
+    );
+    const [submitting, setSubmitting] = useState(false);
     const [remainingSeconds, setRemainingSeconds] = useState(() =>
         secondsUntilExpiry(attempt.expires_at, attempt.server_now),
     );
@@ -80,10 +92,31 @@ export default function Show({
         return () => window.clearInterval(timer);
     }, []);
 
-    const submit: FormEventHandler = (event) => {
+    const registerCodingSave = useCallback(
+        (questionId: number, saveHandler: () => Promise<void>) => {
+            codingSaveHandlers.current.set(questionId, saveHandler);
+        },
+        [],
+    );
+
+    const submit: FormEventHandler = async (event) => {
         event.preventDefault();
 
-        post(attemptRoute(attempt, 'submit'));
+        setSubmitting(true);
+
+        try {
+            await Promise.all(
+                Array.from(codingSaveHandlers.current.values()).map(
+                    (saveHandler) => saveHandler(),
+                ),
+            );
+
+            post(attemptRoute(attempt, 'submit'), {
+                onFinish: () => setSubmitting(false),
+            });
+        } catch {
+            setSubmitting(false);
+        }
     };
 
     const save = () => {
@@ -114,7 +147,7 @@ export default function Show({
                 <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
                     <div className="bg-white p-6 shadow-sm sm:rounded-lg">
                         <p className="text-sm font-medium uppercase text-gray-500">
-                            MCQ attempt
+                            Assessment attempt
                         </p>
                         <h1 className="mt-2 text-2xl font-semibold text-gray-900">
                             {test.title}
@@ -164,60 +197,17 @@ export default function Show({
 
                     <form onSubmit={submit} className="space-y-6">
                         {questions.map((question, questionIndex) => (
-                            <div
+                            <QuestionPanel
                                 key={question.id}
-                                className="bg-white p-6 shadow-sm sm:rounded-lg"
-                            >
-                                <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <h3 className="text-base font-semibold text-gray-900">
-                                        Question {questionIndex + 1}
-                                    </h3>
-                                    <span className="text-sm text-gray-500">
-                                        {question.marks} marks
-                                    </span>
-                                </div>
-
-                                <p className="mt-3 whitespace-pre-line text-sm text-gray-800">
-                                    {question.body}
-                                </p>
-
-                                <div className="mt-5 space-y-3">
-                                    {question.options.map((option) => (
-                                        <label
-                                            key={option.id}
-                                            className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-800"
-                                        >
-                                            <input
-                                                type="radio"
-                                                name={`answers.${question.id}`}
-                                                value={option.id}
-                                                checked={
-                                                    data.answers[
-                                                        question.id
-                                                    ] === option.id
-                                                }
-                                                onChange={() =>
-                                                    selectAnswer(
-                                                        question.id,
-                                                        option.id,
-                                                    )
-                                                }
-                                                className="mt-1"
-                                            />
-                                            <span>{option.body}</span>
-                                        </label>
-                                    ))}
-                                </div>
-
-                                <InputError
-                                    message={
-                                        formErrors[
-                                            `answers.${question.id}`
-                                        ] ?? formErrors.answers
-                                    }
-                                    className="mt-3"
-                                />
-                            </div>
+                                attempt={attempt}
+                                question={question}
+                                questionNumber={questionIndex + 1}
+                                selectedAnswer={data.answers[question.id]}
+                                formErrors={formErrors}
+                                expired={expired}
+                                registerCodingSave={registerCodingSave}
+                                onSelectAnswer={selectAnswer}
+                            />
                         ))}
 
                         <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
@@ -229,11 +219,13 @@ export default function Show({
                                 <SecondaryButton
                                     type="button"
                                     onClick={save}
-                                    disabled={processing || expired}
+                                    disabled={processing || submitting || expired}
                                 >
-                                    Save answers
+                                    Save MCQ answers
                                 </SecondaryButton>
-                                <PrimaryButton disabled={processing || expired}>
+                                <PrimaryButton
+                                    disabled={processing || submitting || expired}
+                                >
                                     Submit test
                                 </PrimaryButton>
                             </div>
@@ -242,6 +234,83 @@ export default function Show({
                 </div>
             </div>
         </AssessmentLayout>
+    );
+}
+
+function QuestionPanel({
+    attempt,
+    question,
+    questionNumber,
+    selectedAnswer,
+    formErrors,
+    expired,
+    registerCodingSave,
+    onSelectAnswer,
+}: {
+    attempt: Attempt;
+    question: Question;
+    questionNumber: number;
+    selectedAnswer: number | string | undefined;
+    formErrors: Record<string, string>;
+    expired: boolean;
+    registerCodingSave: (questionId: number, saveHandler: () => Promise<void>) => void;
+    onSelectAnswer: (questionId: number, optionId: number) => void;
+}) {
+    if (question.type === 'coding') {
+        return (
+            <CodingQuestionPanel
+                question={question}
+                questionNumber={questionNumber}
+                saveUrl={codingAnswerRoute(attempt)}
+                disabled={expired}
+                registerSave={registerCodingSave}
+            />
+        );
+    }
+
+    return (
+        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <h3 className="text-base font-semibold text-gray-900">
+                    Question {questionNumber}
+                </h3>
+                <span className="text-sm text-gray-500">
+                    {question.marks} marks
+                </span>
+            </div>
+
+            <p className="mt-3 whitespace-pre-line text-sm text-gray-800">
+                {question.body}
+            </p>
+
+            <div className="mt-5 space-y-3">
+                {question.options.map((option) => (
+                    <label
+                        key={option.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-800"
+                    >
+                        <input
+                            type="radio"
+                            name={`answers.${question.id}`}
+                            value={option.id}
+                            checked={selectedAnswer === option.id}
+                            onChange={() =>
+                                onSelectAnswer(question.id, option.id)
+                            }
+                            className="mt-1"
+                        />
+                        <span>{option.body}</span>
+                    </label>
+                ))}
+            </div>
+
+            <InputError
+                message={
+                    formErrors[`answers.${question.id}`] ?? formErrors.answers
+                }
+                className="mt-3"
+            />
+        </div>
     );
 }
 
@@ -271,6 +340,17 @@ function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {
     return action === 'save'
         ? route('candidate.attempts.answers.save', attempt.id)
         : route('candidate.attempts.submit', attempt.id);
+}
+
+function codingAnswerRoute(attempt: Attempt): string {
+    if (attempt.is_public && attempt.access_token) {
+        return route(
+            'candidate.public-attempts.coding-answers.save',
+            attempt.access_token,
+        );
+    }
+
+    return route('candidate.attempts.coding-answers.save', attempt.id);
 }
 
 function secondsUntilExpiry(

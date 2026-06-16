@@ -32,7 +32,9 @@ class SubmitMcqAttempt
             $score = 0;
             $maxScore = 0;
 
-            $attempt->answers()->delete();
+            $attempt->answers()
+                ->whereHas('question', fn ($query) => $query->where('type', QuestionType::Mcq->value))
+                ->delete();
 
             foreach ($attempt->test->questions as $question) {
                 $selectedOptionId = (int) ($answers[$question->id] ?? $answers[(string) $question->id]);

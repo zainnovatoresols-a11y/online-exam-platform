@@ -26,7 +26,7 @@ class SaveMcqAnswersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'answers' => ['required', 'array'],
+            'answers' => ['present', 'array'],
             'answers.*' => ['nullable', 'integer', 'exists:question_options,id'],
         ];
     }

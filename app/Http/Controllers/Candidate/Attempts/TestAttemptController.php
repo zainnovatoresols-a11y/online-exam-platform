@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Candidate\Attempts;
 
+use App\Actions\Attempts\SaveCodingAnswer;
 use App\Actions\Attempts\SaveMcqAnswers;
 use App\Actions\Attempts\StartMcqAttempt;
 use App\Actions\Attempts\SubmitMcqAttempt;
 use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Candidate\Attempts\SaveCodingAnswerRequest;
 use App\Http\Requests\Candidate\Attempts\SaveMcqAnswersRequest;
 use App\Http\Requests\Candidate\Attempts\SubmitMcqAttemptRequest;
 use App\Models\Invitation;
+use App\Models\Question;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -45,12 +48,17 @@ class TestAttemptController extends Controller
             'test.organization:id,name',
             'test.creator:id,name,email',
             'test.questions' => fn ($query) => $query
-                ->where('type', QuestionType::Mcq->value)
                 ->orderBy('order')
                 ->orderBy('id'),
             'test.questions.options:id,question_id,body',
-            'answers:id,test_attempt_id,question_id,selected_option_id',
+            'test.questions.testCases' => fn ($query) => $query
+                ->where('is_hidden', false)
+                ->orderBy('sort_order')
+                ->orderBy('id'),
+            'answers:id,test_attempt_id,question_id,selected_option_id,language,submitted_code',
         ]);
+
+        $answersByQuestion = $attempt->answers->keyBy('question_id');
 
         return Inertia::render('Candidate/Attempts/Show', [
             'attempt' => [
@@ -61,15 +69,9 @@ class TestAttemptController extends Controller
                 'server_now' => now()->toISOString(),
             ],
             'test' => $this->testPayload($attempt),
-            'questions' => $attempt->test->questions->map(fn ($question): array => [
-                'id' => $question->id,
-                'body' => $question->body,
-                'marks' => $question->marks,
-                'options' => $question->options->map(fn ($option): array => [
-                    'id' => $option->id,
-                    'body' => $option->body,
-                ])->values(),
-            ])->values(),
+            'questions' => $attempt->test->questions
+                ->map(fn (Question $question): array => $this->questionPayload($question, $answersByQuestion->get($question->id)))
+                ->values(),
             'saved_answers' => $attempt->answers
                 ->filter(fn ($answer): bool => $answer->selected_option_id !== null)
                 ->mapWithKeys(fn ($answer): array => [
@@ -89,6 +91,26 @@ class TestAttemptController extends Controller
         $saveMcqAnswers->handle($attempt, $request->validated('answers'));
 
         return back()->with('success', 'Answers saved successfully.');
+    }
+
+    public function saveCoding(
+        SaveCodingAnswerRequest $request,
+        TestAttempt $attempt,
+        SaveCodingAnswer $saveCodingAnswer,
+    ): RedirectResponse {
+        Gate::authorize('save', $attempt);
+
+        $validated = $request->validated();
+        $question = Question::query()->findOrFail($validated['question_id']);
+
+        $saveCodingAnswer->handle(
+            $attempt,
+            $question,
+            $validated['language'],
+            $validated['submitted_code'] ?? null,
+        );
+
+        return back()->with('success', 'Coding answer saved successfully.');
     }
 
     public function submit(
@@ -143,6 +165,45 @@ class TestAttemptController extends Controller
                 'name' => $attempt->test->creator->name,
                 'email' => $attempt->test->creator->email,
             ] : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function questionPayload(Question $question, mixed $savedAnswer): array
+    {
+        if ($question->type === QuestionType::Coding->value) {
+            return [
+                'id' => $question->id,
+                'type' => $question->type,
+                'body' => $question->body,
+                'marks' => $question->marks,
+                'difficulty' => $question->difficulty,
+                'supported_languages' => $question->supported_languages ?? [],
+                'starter_code' => $question->starter_code ?? [],
+                'visible_test_cases' => $question->testCases->map(fn ($testCase): array => [
+                    'id' => $testCase->id,
+                    'input' => $testCase->input,
+                    'expected_output' => $testCase->expected_output,
+                ])->values(),
+                'saved_answer' => $savedAnswer ? [
+                    'language' => $savedAnswer->language,
+                    'submitted_code' => $savedAnswer->submitted_code,
+                ] : null,
+                'options' => [],
+            ];
+        }
+
+        return [
+            'id' => $question->id,
+            'type' => $question->type,
+            'body' => $question->body,
+            'marks' => $question->marks,
+            'options' => $question->options->map(fn ($option): array => [
+                'id' => $option->id,
+                'body' => $option->body,
+            ])->values(),
         ];
     }
 }

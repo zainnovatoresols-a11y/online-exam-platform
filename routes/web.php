@@ -43,6 +43,8 @@ Route::get('/public-attempts/{attemptToken}', [PublicAttemptController::class, '
     ->name('candidate.public-attempts.show');
 Route::post('/public-attempts/{attemptToken}/answers', [PublicAttemptController::class, 'save'])
     ->name('candidate.public-attempts.answers.save');
+Route::post('/public-attempts/{attemptToken}/coding-answers', [PublicAttemptController::class, 'saveCoding'])
+    ->name('candidate.public-attempts.coding-answers.save');
 Route::post('/public-attempts/{attemptToken}/submit', [PublicAttemptController::class, 'submit'])
     ->name('candidate.public-attempts.submit');
 
@@ -129,6 +131,8 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
             ->name('attempts.show');
         Route::post('/attempts/{attempt}/answers', [TestAttemptController::class, 'save'])
             ->name('attempts.answers.save');
+        Route::post('/attempts/{attempt}/coding-answers', [TestAttemptController::class, 'saveCoding'])
+            ->name('attempts.coding-answers.save');
         Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
             ->name('attempts.submit');
     });
