@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Candidate\Attempts;
 
+use App\Enums\QuestionType;
 use App\Models\Invitation;
 use App\Models\TestAttempt;
 use Illuminate\Foundation\Http\FormRequest;
@@ -39,7 +40,10 @@ class SubmitMcqAttemptRequest extends FormRequest
                 return;
             }
 
-            $attempt->load('test.questions.options');
+            $attempt->load([
+                'test.questions' => fn ($query) => $query->where('type', QuestionType::Mcq->value),
+                'test.questions.options',
+            ]);
             $answers = collect($this->input('answers', []));
 
             foreach ($attempt->test->questions as $question) {

@@ -22,11 +22,29 @@ class QuestionController extends Controller
         return Inertia::render('Admin/Questions/Index', [
             'test' => $test,
             'canManageQuestions' => Gate::allows('create', [Question::class, $test]),
+            'canManageCodingQuestions' => Gate::allows('create', [Question::class, $test]) && ! $test->isPublished(),
             'questions' => $test->questions()
                 ->with('options:id,question_id,body,is_correct')
+                ->withCount(['options', 'testCases'])
                 ->orderBy('order')
                 ->orderBy('id')
-                ->get(),
+                ->get()
+                ->map(fn (Question $question): array => [
+                    'id' => $question->id,
+                    'type' => $question->type,
+                    'body' => $question->body,
+                    'marks' => $question->marks,
+                    'order' => $question->order,
+                    'difficulty' => $question->difficulty,
+                    'supported_languages' => $question->supported_languages ?? [],
+                    'options_count' => $question->options_count,
+                    'test_cases_count' => $question->test_cases_count,
+                    'options' => $question->options->map(fn ($option): array => [
+                        'id' => $option->id,
+                        'body' => $option->body,
+                        'is_correct' => $option->is_correct,
+                    ])->values(),
+                ]),
         ]);
     }
 
@@ -62,7 +80,7 @@ class QuestionController extends Controller
 
     public function edit(Test $test, Question $question): Response
     {
-        $this->ensureQuestionBelongsToTest($test, $question);
+        $this->ensureMcqQuestionBelongsToTest($test, $question);
         Gate::authorize('update', $question);
 
         return Inertia::render('Admin/Questions/Edit', [
@@ -73,7 +91,7 @@ class QuestionController extends Controller
 
     public function update(McqQuestionRequest $request, Test $test, Question $question): RedirectResponse
     {
-        $this->ensureQuestionBelongsToTest($test, $question);
+        $this->ensureMcqQuestionBelongsToTest($test, $question);
         Gate::authorize('update', $question);
 
         $validated = $request->validated();
@@ -94,7 +112,7 @@ class QuestionController extends Controller
 
     public function destroy(Test $test, Question $question): RedirectResponse
     {
-        $this->ensureQuestionBelongsToTest($test, $question);
+        $this->ensureMcqQuestionBelongsToTest($test, $question);
         Gate::authorize('delete', $question);
 
         $question->delete();
@@ -104,7 +122,7 @@ class QuestionController extends Controller
     }
 
     /**
-     * @param array<int, array{body: string, is_correct: bool}> $options
+     * @param  array<int, array{body: string, is_correct: bool}>  $options
      */
     private function syncOptions(Question $question, array $options): void
     {
@@ -116,8 +134,9 @@ class QuestionController extends Controller
         }
     }
 
-    private function ensureQuestionBelongsToTest(Test $test, Question $question): void
+    private function ensureMcqQuestionBelongsToTest(Test $test, Question $question): void
     {
         abort_unless($question->test_id === $test->id, 404);
+        abort_unless($question->type === QuestionType::Mcq->value, 404);
     }
 }

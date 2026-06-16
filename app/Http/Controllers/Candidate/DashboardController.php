@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Candidate;
 
 use App\Enums\InvitationStatus;
+use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Models\Invitation;
 use Illuminate\Http\Request;
@@ -26,7 +27,9 @@ class DashboardController extends Controller
                 'attempt:id,test_id,invitation_id,status,submitted_at',
                 'test' => fn ($query) => $query
                     ->with(['organization:id,name', 'creator:id,name,email'])
-                    ->withCount('questions'),
+                    ->withCount([
+                        'questions as questions_count' => fn ($query) => $query->where('type', QuestionType::Mcq->value),
+                    ]),
             ])
             ->latest('accepted_at')
             ->get()

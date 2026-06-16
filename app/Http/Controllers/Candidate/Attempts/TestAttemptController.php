@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Candidate\Attempts;
 use App\Actions\Attempts\SaveMcqAnswers;
 use App\Actions\Attempts\StartMcqAttempt;
 use App\Actions\Attempts\SubmitMcqAttempt;
+use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Candidate\Attempts\SaveMcqAnswersRequest;
 use App\Http\Requests\Candidate\Attempts\SubmitMcqAttemptRequest;
@@ -43,7 +44,10 @@ class TestAttemptController extends Controller
         $attempt->load([
             'test.organization:id,name',
             'test.creator:id,name,email',
-            'test.questions' => fn ($query) => $query->orderBy('order')->orderBy('id'),
+            'test.questions' => fn ($query) => $query
+                ->where('type', QuestionType::Mcq->value)
+                ->orderBy('order')
+                ->orderBy('id'),
             'test.questions.options:id,question_id,body',
             'answers:id,test_attempt_id,question_id,selected_option_id',
         ]);

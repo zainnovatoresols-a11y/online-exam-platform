@@ -3,6 +3,7 @@
 namespace App\Actions\Attempts;
 
 use App\Enums\AttemptStatus;
+use App\Enums\QuestionType;
 use App\Models\TestAttempt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,7 +13,7 @@ class SubmitMcqAttempt
     /**
      * Submit and score an MCQ attempt.
      *
-     * @param array<int|string, int|string> $answers
+     * @param  array<int|string, int|string>  $answers
      */
     public function handle(TestAttempt $attempt, array $answers): TestAttempt
     {
@@ -23,7 +24,10 @@ class SubmitMcqAttempt
         }
 
         return DB::transaction(function () use ($attempt, $answers): TestAttempt {
-            $attempt->load('test.questions.options');
+            $attempt->load([
+                'test.questions' => fn ($query) => $query->where('type', QuestionType::Mcq->value),
+                'test.questions.options',
+            ]);
 
             $score = 0;
             $maxScore = 0;

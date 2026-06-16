@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\CodingQuestionController as AdminCodingQuestionController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
@@ -99,6 +100,17 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                     ->name('results.index');
                 Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
                     ->name('results.show');
+
+                Route::get('coding-questions/create', [AdminCodingQuestionController::class, 'create'])
+                    ->name('coding-questions.create');
+                Route::post('coding-questions', [AdminCodingQuestionController::class, 'store'])
+                    ->name('coding-questions.store');
+                Route::get('coding-questions/{question}/edit', [AdminCodingQuestionController::class, 'edit'])
+                    ->name('coding-questions.edit');
+                Route::patch('coding-questions/{question}', [AdminCodingQuestionController::class, 'update'])
+                    ->name('coding-questions.update');
+                Route::delete('coding-questions/{question}', [AdminCodingQuestionController::class, 'destroy'])
+                    ->name('coding-questions.destroy');
 
                 Route::resource('questions', AdminQuestionController::class)
                     ->except(['show']);

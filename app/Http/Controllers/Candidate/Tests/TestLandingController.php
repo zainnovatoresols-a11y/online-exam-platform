@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Candidate\Tests;
 
 use App\Enums\InvitationStatus;
+use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Models\Invitation;
 use App\Models\Test;
@@ -35,7 +36,9 @@ class TestLandingController extends Controller
 
         return Inertia::render('Candidate/Tests/Show', [
             'test' => $test->load(['organization:id,name', 'creator:id,name,email'])
-                ->loadCount('questions'),
+                ->loadCount([
+                    'questions as questions_count' => fn ($query) => $query->where('type', QuestionType::Mcq->value),
+                ]),
             'invitation' => [
                 'id' => $invitation->id,
                 'starts_at' => ($invitation->starts_at ?? $test->starts_at)?->toISOString(),

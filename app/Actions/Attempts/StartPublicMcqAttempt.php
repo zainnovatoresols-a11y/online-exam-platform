@@ -4,6 +4,7 @@ namespace App\Actions\Attempts;
 
 use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
+use App\Enums\QuestionType;
 use App\Models\Invitation;
 use App\Models\TestAttempt;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -51,7 +52,9 @@ class StartPublicMcqAttempt
 
         return DB::transaction(function () use ($invitation, $test): TestAttempt {
             $startedAt = now();
-            $maxScore = (int) $test->questions()->sum('marks');
+            $maxScore = (int) $test->questions()
+                ->where('type', QuestionType::Mcq->value)
+                ->sum('marks');
 
             $attempt = TestAttempt::firstOrCreate(
                 [
