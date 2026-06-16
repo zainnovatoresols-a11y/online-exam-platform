@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
+use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
@@ -93,6 +94,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                     ->name('invitations.resend');
                 Route::delete('invitations/{invitation}/revoke', [AdminInvitationController::class, 'revoke'])
                     ->name('invitations.revoke');
+
+                Route::get('results', [AdminTestResultController::class, 'index'])
+                    ->name('results.index');
+                Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
+                    ->name('results.show');
 
                 Route::resource('questions', AdminQuestionController::class)
                     ->except(['show']);
