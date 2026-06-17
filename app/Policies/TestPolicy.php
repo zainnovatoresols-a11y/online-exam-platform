@@ -15,7 +15,8 @@ class TestPolicy
 
     public function view(User $user, Test $test): bool
     {
-        return $this->ownsTest($user, $test);
+        return $this->isSuperAdmin($user)
+            || $this->ownsTest($user, $test);
     }
 
     public function create(User $user): bool
@@ -49,6 +50,11 @@ class TestPolicy
     private function isAdmin(User $user): bool
     {
         return $user->hasRole(UserRole::Admin->value);
+    }
+
+    private function isSuperAdmin(User $user): bool
+    {
+        return $user->hasRole(UserRole::SuperAdmin->value);
     }
 
     private function ownsTest(User $user, Test $test): bool

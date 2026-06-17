@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\AttemptStatus;
+use App\Enums\CodingDifficulty;
 use App\Enums\InvitationStatus;
+use App\Enums\QuestionType;
 use App\Enums\TestStatus;
 use App\Enums\UserRole;
 use App\Models\CandidateTestDetail;
+use App\Models\CodeExecutionRun;
 use App\Models\Invitation;
 use App\Models\Organization;
 use App\Models\Question;
@@ -85,6 +88,24 @@ class AdminTestResultsTest extends TestCase
             ->where('answers.0.score', 0));
     }
 
+    public function test_super_admin_can_view_any_attempt_result_detail(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $superAdmin = $this->userWithRole(UserRole::SuperAdmin);
+        $test = $this->assessmentForAdmin($admin, $organization);
+        [, $attempt] = $this->submittedPublicAttemptFor($test, $admin);
+
+        $response = $this->actingAs($superAdmin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('test.id', $test->id)
+            ->where('attempt.id', $attempt->id));
+    }
+
     public function test_solo_admin_can_view_results_for_their_solo_test(): void
     {
         $admin = $this->userWithRole(UserRole::Admin);
@@ -100,6 +121,22 @@ class AdminTestResultsTest extends TestCase
             ->where('test.id', $test->id)
             ->where('test.organization', null)
             ->where('results.data.0.candidate.email', 'ayesha@example.com'));
+    }
+
+    public function test_solo_admin_can_view_attempt_result_detail_for_their_solo_test(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = $this->assessmentForAdmin($admin);
+        [, $attempt] = $this->submittedPublicAttemptFor($test, $admin);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('test.organization', null)
+            ->where('attempt.id', $attempt->id));
     }
 
     public function test_admin_cannot_view_results_outside_their_scope(): void
@@ -133,6 +170,10 @@ class AdminTestResultsTest extends TestCase
         $this->actingAs($candidate)
             ->get(route('admin.tests.results.index', $test))
             ->assertForbidden();
+
+        $this->actingAs($candidate)
+            ->get(route('admin.tests.results.show', [$test, TestAttempt::factory()->create(['test_id' => $test->id])]))
+            ->assertForbidden();
     }
 
     public function test_admin_cannot_view_attempt_from_another_test_result_detail(): void
@@ -146,6 +187,86 @@ class AdminTestResultsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.tests.results.show', [$test, $otherAttempt]))
             ->assertNotFound();
+    }
+
+    public function test_admin_can_review_coding_answer_and_hidden_final_test_case_results(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = $this->assessmentForAdmin($admin, $organization);
+        [, $attempt] = $this->submittedPublicAttemptFor($test, $admin);
+        $this->codingAnswerWithFinalRun($test, $attempt);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('answers.0.type', QuestionType::Coding->value)
+            ->where('answers.0.question.body', 'Reverse a string.')
+            ->where('answers.0.language', 'javascript')
+            ->where('answers.0.submitted_code', 'console.log("cba");')
+            ->where('answers.0.score', 5)
+            ->where('answers.0.execution_run.run_type', 'final')
+            ->where('answers.0.execution_run.status', 'completed')
+            ->where('answers.0.execution_run.score_awarded', 5)
+            ->where('answers.0.execution_run.hidden_summary.total', 1)
+            ->where('answers.0.execution_run.hidden_summary.passed', 1)
+            ->where('answers.0.execution_run.test_case_results.1.is_hidden', true)
+            ->where('answers.0.execution_run.test_case_results.1.input', 'hidden-admin-input')
+            ->where('answers.0.execution_run.test_case_results.1.expected_output', 'hidden-output')
+            ->where('answers.0.execution_run.test_case_results.1.stdout', 'hidden-output')
+            ->where('answers.0.execution_run.test_case_results.1.stderr', 'debug stderr')
+            ->where('answers.0.execution_run.test_case_results.1.compile_output', 'compile note')
+            ->where('answers.0.execution_run.test_case_results.1.message', 'Accepted')
+            ->where('answers.0.execution_run.test_case_results.1.judge0_status_description', 'Accepted'));
+    }
+
+    public function test_candidate_result_page_still_does_not_expose_hidden_coding_result_details(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = $this->assessmentForAdmin($admin, $organization);
+        [$invitation, $attempt] = $this->submittedPublicAttemptFor($test, $admin);
+        $this->codingAnswerWithFinalRun($test, $attempt);
+
+        $response = $this->get(route('candidate.public-attempts.show', $invitation->token));
+
+        $response->assertOk()
+            ->assertDontSee('hidden-admin-input')
+            ->assertDontSee('hidden-output');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Candidate/Attempts/Result')
+            ->missing('answers')
+            ->missing('code_execution_runs'));
+    }
+
+    public function test_admin_result_page_handles_coding_answer_without_final_execution_run(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = $this->assessmentForAdmin($admin, $organization);
+        [, $attempt] = $this->submittedPublicAttemptFor($test, $admin);
+        $codingQuestion = $this->codingQuestion($test);
+
+        $attempt->answers()->create([
+            'question_id' => $codingQuestion->id,
+            'language' => 'javascript',
+            'submitted_code' => 'console.log("pending");',
+            'selected_option_id' => null,
+            'is_correct' => false,
+            'score' => 0,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('answers.0.type', QuestionType::Coding->value)
+            ->where('answers.0.execution_run', null));
     }
 
     private function assessmentForAdmin(User $admin, ?Organization $organization = null): Test
@@ -238,6 +359,105 @@ class AdminTestResultsTest extends TestCase
         ]);
 
         return [$question, $correctOption, $wrongOption];
+    }
+
+    private function codingQuestion(Test $test): Question
+    {
+        $question = $test->questions()->create([
+            'type' => QuestionType::Coding->value,
+            'body' => 'Reverse a string.',
+            'marks' => 5,
+            'order' => 1,
+            'difficulty' => CodingDifficulty::Easy->value,
+            'time_limit_ms' => 2000,
+            'memory_limit_kb' => 128000,
+            'supported_languages' => ['javascript', 'python'],
+            'starter_code' => [
+                'javascript' => 'function solve(input) {}',
+                'python' => 'def solve(input): pass',
+            ],
+        ]);
+
+        $question->testCases()->create([
+            'input' => 'abc',
+            'expected_output' => 'cba',
+            'is_hidden' => false,
+            'sort_order' => 1,
+        ]);
+        $question->testCases()->create([
+            'input' => 'hidden-admin-input',
+            'expected_output' => 'hidden-output',
+            'is_hidden' => true,
+            'sort_order' => 2,
+        ]);
+
+        return $question;
+    }
+
+    private function codingAnswerWithFinalRun(Test $test, TestAttempt $attempt): void
+    {
+        $question = $this->codingQuestion($test);
+        $answer = $attempt->answers()->create([
+            'question_id' => $question->id,
+            'language' => 'javascript',
+            'submitted_code' => 'console.log("cba");',
+            'selected_option_id' => null,
+            'is_correct' => true,
+            'score' => 5,
+        ]);
+        $run = CodeExecutionRun::create([
+            'test_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'attempt_answer_id' => $answer->id,
+            'candidate_user_id' => $attempt->candidate_user_id,
+            'language' => 'javascript',
+            'status' => 'completed',
+            'run_type' => 'final',
+            'source_code' => 'console.log("cba");',
+            'result_summary' => [
+                'status' => 'completed',
+                'total' => 2,
+                'passed' => 2,
+                'failed' => 0,
+            ],
+            'score_awarded' => 5,
+            'max_score' => 5,
+            'passed' => true,
+            'started_at' => now()->subMinute(),
+            'finished_at' => now(),
+        ]);
+        $visibleCase = $question->testCases()->where('is_hidden', false)->firstOrFail();
+        $hiddenCase = $question->testCases()->where('is_hidden', true)->firstOrFail();
+
+        $run->testCaseResults()->create([
+            'question_test_case_id' => $visibleCase->id,
+            'is_hidden' => false,
+            'status' => 'passed',
+            'passed' => true,
+            'input' => 'abc',
+            'expected_output' => 'cba',
+            'actual_output' => 'cba',
+            'stdout' => 'cba',
+            'judge0_status_id' => 3,
+            'judge0_status_description' => 'Accepted',
+        ]);
+        $run->testCaseResults()->create([
+            'question_test_case_id' => $hiddenCase->id,
+            'is_hidden' => true,
+            'status' => 'passed',
+            'passed' => true,
+            'input' => 'hidden-admin-input',
+            'expected_output' => 'hidden-output',
+            'actual_output' => 'hidden-output',
+            'stdout' => 'hidden-output',
+            'stderr' => 'debug stderr',
+            'compile_output' => 'compile note',
+            'message' => 'Accepted',
+            'time' => 0.012,
+            'memory' => 12000,
+            'judge0_status_id' => 3,
+            'judge0_status_description' => 'Accepted',
+        ]);
     }
 
     private function userWithRole(UserRole $role, ?Organization $organization = null): User

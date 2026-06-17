@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Admin\Results;
 
+use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Models\AttemptAnswer;
 use App\Models\CandidateTestDetail;
+use App\Models\CodeExecutionRun;
 use App\Models\Invitation;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,11 +55,21 @@ class TestResultController extends Controller
             'invitation.candidate:id,name,email,phone,stack_name',
             'invitation.candidateDetail',
             'answers' => fn ($query) => $query->with([
-                'question:id,test_id,body,marks,order',
+                'question:id,test_id,type,body,marks,order',
                 'question.options:id,question_id,body,is_correct',
                 'selectedOption:id,question_id,body,is_correct',
             ]),
+            'codeExecutionRuns' => fn ($query) => $query
+                ->where('run_type', 'final')
+                ->latest('created_at'),
+            'codeExecutionRuns.question:id,test_id,type,body,marks,order',
+            'codeExecutionRuns.attemptAnswer:id,test_attempt_id,question_id,language,submitted_code,is_correct,score',
+            'codeExecutionRuns.testCaseResults' => fn ($query) => $query->orderBy('id'),
         ]);
+
+        $finalRunsByQuestion = $attempt->codeExecutionRuns
+            ->groupBy('question_id')
+            ->map(fn (Collection $runs): ?CodeExecutionRun => $runs->first());
 
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
@@ -75,7 +88,10 @@ class TestResultController extends Controller
                     (int) ($answer->question?->order ?? 0),
                     (int) ($answer->question?->id ?? 0),
                 ))
-                ->map(fn (AttemptAnswer $answer): array => $this->answerPayload($answer))
+                ->map(fn (AttemptAnswer $answer): array => $this->answerPayload(
+                    $answer,
+                    $finalRunsByQuestion->get((int) $answer->question_id),
+                ))
                 ->values(),
         ]);
     }
@@ -182,12 +198,17 @@ class TestResultController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function answerPayload(AttemptAnswer $answer): array
+    private function answerPayload(AttemptAnswer $answer, ?CodeExecutionRun $executionRun = null): array
     {
+        $type = $answer->question?->type
+            ?? ($answer->submitted_code !== null ? QuestionType::Coding->value : QuestionType::Mcq->value);
+
         return [
             'id' => $answer->id,
+            'type' => $type,
             'question' => $answer->question ? [
                 'id' => $answer->question->id,
+                'type' => $type,
                 'body' => $answer->question->body,
                 'marks' => $answer->question->marks,
                 'order' => $answer->question->order,
@@ -206,6 +227,69 @@ class TestResultController extends Controller
                 ->values() ?? [],
             'is_correct' => $answer->is_correct,
             'score' => $answer->score,
+            'language' => $answer->language,
+            'submitted_code' => $answer->submitted_code,
+            'execution_run' => $executionRun
+                ? $this->codeExecutionRunPayload($executionRun)
+                : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function codeExecutionRunPayload(CodeExecutionRun $run): array
+    {
+        $visibleResults = $run->testCaseResults->where('is_hidden', false);
+        $hiddenResults = $run->testCaseResults->where('is_hidden', true);
+
+        return [
+            'id' => $run->id,
+            'status' => $run->status,
+            'run_type' => $run->run_type,
+            'language' => $run->language,
+            'score_awarded' => $run->score_awarded !== null ? (float) $run->score_awarded : null,
+            'max_score' => $run->max_score !== null ? (float) $run->max_score : null,
+            'passed' => $run->passed,
+            'result_summary' => $run->result_summary,
+            'error_message' => $run->error_message,
+            'visible_summary' => $this->testCaseSummary($visibleResults),
+            'hidden_summary' => $this->testCaseSummary($hiddenResults),
+            'started_at' => $run->started_at?->toISOString(),
+            'finished_at' => $run->finished_at?->toISOString(),
+            'test_case_results' => $run->testCaseResults
+                ->map(fn ($result): array => [
+                    'id' => $result->id,
+                    'question_test_case_id' => $result->question_test_case_id,
+                    'is_hidden' => $result->is_hidden,
+                    'status' => $result->status,
+                    'passed' => $result->passed,
+                    'input' => $result->input,
+                    'expected_output' => $result->expected_output,
+                    'actual_output' => $result->actual_output,
+                    'stdout' => $result->stdout,
+                    'stderr' => $result->stderr,
+                    'compile_output' => $result->compile_output,
+                    'message' => $result->message,
+                    'time' => $result->time,
+                    'memory' => $result->memory,
+                    'judge0_status_id' => $result->judge0_status_id,
+                    'judge0_status_description' => $result->judge0_status_description,
+                ])
+                ->values(),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $results
+     * @return array{total: int, passed: int, failed: int}
+     */
+    private function testCaseSummary(Collection $results): array
+    {
+        return [
+            'total' => $results->count(),
+            'passed' => $results->where('passed', true)->count(),
+            'failed' => $results->where('passed', false)->count(),
         ];
     }
 }

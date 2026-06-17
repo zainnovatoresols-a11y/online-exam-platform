@@ -75,6 +75,21 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])
             ->name('organizations.admins.store');
     });
 
+Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function (): void {
+        Route::scopeBindings()
+            ->prefix('tests/{test}')
+            ->name('tests.')
+            ->group(function (): void {
+                Route::get('results', [AdminTestResultController::class, 'index'])
+                    ->name('results.index');
+                Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
+                    ->name('results.show');
+            });
+    });
+
 Route::middleware(['auth', 'verified', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
@@ -101,11 +116,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                     ->name('invitations.resend');
                 Route::delete('invitations/{invitation}/revoke', [AdminInvitationController::class, 'revoke'])
                     ->name('invitations.revoke');
-
-                Route::get('results', [AdminTestResultController::class, 'index'])
-                    ->name('results.index');
-                Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
-                    ->name('results.show');
 
                 Route::get('coding-questions/create', [AdminCodingQuestionController::class, 'create'])
                     ->name('coding-questions.create');
