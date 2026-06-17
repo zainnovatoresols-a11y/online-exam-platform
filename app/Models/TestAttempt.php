@@ -109,6 +109,16 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get proctoring events recorded during this attempt.
+     *
+     * @return HasMany<ProctoringEvent, $this>
+     */
+    public function proctoringEvents(): HasMany
+    {
+        return $this->hasMany(ProctoringEvent::class);
+    }
+
+    /**
      * Get the public candidate details attached to the attempt.
      *
      * @return HasOne<CandidateTestDetail, $this>

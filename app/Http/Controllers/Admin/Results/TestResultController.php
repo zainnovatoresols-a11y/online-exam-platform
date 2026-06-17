@@ -8,6 +8,7 @@ use App\Models\AttemptAnswer;
 use App\Models\CandidateTestDetail;
 use App\Models\CodeExecutionRun;
 use App\Models\Invitation;
+use App\Models\ProctoringEvent;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
@@ -65,6 +66,9 @@ class TestResultController extends Controller
             'codeExecutionRuns.question:id,test_id,type,body,marks,order',
             'codeExecutionRuns.attemptAnswer:id,test_attempt_id,question_id,language,submitted_code,is_correct,score',
             'codeExecutionRuns.testCaseResults' => fn ($query) => $query->orderBy('id'),
+            'proctoringEvents' => fn ($query) => $query
+                ->orderBy('occurred_at')
+                ->orderBy('id'),
         ]);
 
         $finalRunsByQuestion = $attempt->codeExecutionRuns
@@ -92,6 +96,10 @@ class TestResultController extends Controller
                     $answer,
                     $finalRunsByQuestion->get((int) $answer->question_id),
                 ))
+                ->values(),
+            'proctoring_summary' => $this->proctoringSummary($attempt->proctoringEvents),
+            'proctoring_events' => $attempt->proctoringEvents
+                ->map(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event))
                 ->values(),
         ]);
     }
@@ -290,6 +298,44 @@ class TestResultController extends Controller
             'total' => $results->count(),
             'passed' => $results->where('passed', true)->count(),
             'failed' => $results->where('passed', false)->count(),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ProctoringEvent>  $events
+     * @return array<string, int>
+     */
+    private function proctoringSummary(Collection $events): array
+    {
+        return [
+            'total' => $events->count(),
+            'high' => $events->where('severity', 'high')->count(),
+            'medium' => $events->where('severity', 'medium')->count(),
+            'low' => $events->where('severity', 'low')->count(),
+            'tab_switches' => $events->where('event_type', 'tab_hidden')->count(),
+            'fullscreen_exits' => $events->where('event_type', 'fullscreen_exited')->count(),
+            'clipboard_attempts' => $events
+                ->whereIn('event_type', ['copy_attempt', 'paste_attempt', 'cut_attempt'])
+                ->count(),
+            'right_click_attempts' => $events->where('event_type', 'right_click_attempt')->count(),
+            'shortcut_attempts' => $events->where('event_type', 'shortcut_attempt')->count(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proctoringEventPayload(ProctoringEvent $event): array
+    {
+        return [
+            'id' => $event->id,
+            'event_type' => $event->event_type,
+            'severity' => $event->severity,
+            'occurred_at' => $event->occurred_at?->toISOString(),
+            'ip_address' => $event->ip_address,
+            'user_agent' => $event->user_agent,
+            'metadata' => $event->metadata ?? [],
+            'created_at' => $event->created_at?->toISOString(),
         ];
     }
 }

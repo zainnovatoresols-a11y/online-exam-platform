@@ -46,6 +46,29 @@ type Attempt = {
     expires_at: string | null;
 };
 
+type ProctoringSummary = {
+    total: number;
+    high: number;
+    medium: number;
+    low: number;
+    tab_switches: number;
+    fullscreen_exits: number;
+    clipboard_attempts: number;
+    right_click_attempts: number;
+    shortcut_attempts: number;
+};
+
+type ProctoringEvent = {
+    id: number;
+    event_type: string;
+    severity: 'low' | 'medium' | 'high' | string;
+    occurred_at: string | null;
+    ip_address: string | null;
+    user_agent: string | null;
+    metadata: Record<string, unknown>;
+    created_at: string | null;
+};
+
 type Question = {
     id: number;
     type: 'mcq' | 'coding' | string;
@@ -121,6 +144,8 @@ type Props = {
     candidate: Candidate;
     attempt: Attempt;
     answers: Answer[];
+    proctoring_summary: ProctoringSummary;
+    proctoring_events: ProctoringEvent[];
 };
 
 export default function Show({
@@ -129,6 +154,8 @@ export default function Show({
     candidate,
     attempt,
     answers,
+    proctoring_summary,
+    proctoring_events,
 }: Props) {
     return (
         <AuthenticatedLayout
@@ -273,6 +300,11 @@ export default function Show({
                         </section>
                     </div>
 
+                    <ProctoringReview
+                        summary={proctoring_summary}
+                        events={proctoring_events}
+                    />
+
                     <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="border-b border-gray-200 px-6 py-4">
                             <h4 className="text-base font-semibold text-gray-900">
@@ -313,6 +345,144 @@ export default function Show({
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function ProctoringReview({
+    summary,
+    events,
+}: {
+    summary: ProctoringSummary;
+    events: ProctoringEvent[];
+}) {
+    return (
+        <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+            <div className="border-b border-gray-200 px-6 py-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                    Proctoring Summary
+                </h4>
+                <p className="mt-1 text-sm text-gray-600">
+                    Recorded browser activity for this attempt.
+                </p>
+            </div>
+
+            <div className="space-y-6 p-6">
+                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Metric label="Total events">{summary.total}</Metric>
+                    <Metric label="High severity">{summary.high}</Metric>
+                    <Metric label="Tab switches">
+                        {summary.tab_switches}
+                    </Metric>
+                    <Metric label="Fullscreen exits">
+                        {summary.fullscreen_exits}
+                    </Metric>
+                    <Metric label="Clipboard attempts">
+                        {summary.clipboard_attempts}
+                    </Metric>
+                    <Metric label="Right-click attempts">
+                        {summary.right_click_attempts}
+                    </Metric>
+                    <Metric label="Shortcut attempts">
+                        {summary.shortcut_attempts}
+                    </Metric>
+                    <Metric label="Low / Medium">
+                        {summary.low} / {summary.medium}
+                    </Metric>
+                </dl>
+
+                {events.length > 0 ? (
+                    <div className="overflow-x-auto rounded-md border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {[
+                                        'Time',
+                                        'Event',
+                                        'Severity',
+                                        'IP',
+                                        'User Agent',
+                                        'Details',
+                                    ].map((heading) => (
+                                        <th
+                                            key={heading}
+                                            className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                        >
+                                            {heading}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 bg-white">
+                                {events.map((event) => (
+                                    <tr key={event.id}>
+                                        <td className="whitespace-nowrap px-4 py-3 align-top text-gray-700">
+                                            {formatDateTime(
+                                                event.occurred_at ??
+                                                    event.created_at,
+                                            )}
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-3 align-top text-gray-700">
+                                            {formatLabel(event.event_type)}
+                                        </td>
+                                        <td className="px-4 py-3 align-top">
+                                            <SeverityBadge
+                                                value={event.severity}
+                                            />
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-3 align-top text-gray-700">
+                                            {formatNullableValue(
+                                                event.ip_address,
+                                            )}
+                                        </td>
+                                        <td className="max-w-sm whitespace-pre-wrap break-words px-4 py-3 align-top text-gray-700">
+                                            {formatNullableValue(
+                                                event.user_agent,
+                                            )}
+                                        </td>
+                                        <td className="max-w-sm px-4 py-3 align-top text-gray-700">
+                                            <MetadataDetails
+                                                metadata={event.metadata}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        No proctoring events were recorded for this attempt.
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
+function MetadataDetails({
+    metadata,
+}: {
+    metadata: Record<string, unknown>;
+}) {
+    const entries = Object.entries(metadata ?? {});
+
+    if (entries.length === 0) {
+        return <span>-</span>;
+    }
+
+    return (
+        <dl className="space-y-1">
+            {entries.map(([key, value]) => (
+                <div key={key}>
+                    <dt className="text-xs font-medium uppercase text-gray-500">
+                        {formatLabel(key)}
+                    </dt>
+                    <dd className="break-words text-sm text-gray-900">
+                        {formatFieldValue(value)}
+                    </dd>
+                </div>
+            ))}
+        </dl>
     );
 }
 
@@ -597,6 +767,26 @@ function TypeBadge({ type }: { type: string }) {
 function RunStatusBadge({ value }: { value: string }) {
     return (
         <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+            {formatLabel(value)}
+        </span>
+    );
+}
+
+function SeverityBadge({ value }: { value: string }) {
+    const className =
+        value === 'high'
+            ? 'bg-red-100 text-red-700'
+            : value === 'medium'
+              ? 'bg-amber-100 text-amber-700'
+              : 'bg-emerald-100 text-emerald-700';
+
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                className
+            }
+        >
             {formatLabel(value)}
         </span>
     );

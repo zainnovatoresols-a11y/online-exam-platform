@@ -4,6 +4,7 @@ import CodingQuestionPanel, {
 } from '@/Components/Attempts/CodingQuestionPanel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import { useProctoringEvents } from '@/features/proctoring/useProctoringEvents';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PublicAssessmentLayout from '@/Layouts/PublicAssessmentLayout';
 import { Head, useForm } from '@inertiajs/react';
@@ -82,6 +83,11 @@ export default function Show({
     const timeRemaining = useMemo(
         () => formatRemainingTime(remainingSeconds),
         [remainingSeconds],
+    );
+    const { enterFullscreen, fullscreenActive, fullscreenSupported } =
+        useProctoringEvents(
+            attempt,
+            expired || attempt.status !== 'in_progress',
     );
 
     useEffect(() => {
@@ -192,6 +198,22 @@ export default function Show({
                                 Time is over. Answers can no longer be saved or
                                 submitted.
                             </p>
+                        )}
+                        {fullscreenSupported && (
+                            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                                <SecondaryButton
+                                    type="button"
+                                    onClick={enterFullscreen}
+                                    disabled={fullscreenActive || expired}
+                                >
+                                    {fullscreenActive
+                                        ? 'Fullscreen active'
+                                        : 'Enter fullscreen'}
+                                </SecondaryButton>
+                                <span className="text-sm font-medium text-gray-600">
+                                    Proctoring active
+                                </span>
+                            </div>
                         )}
                     </div>
 

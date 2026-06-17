@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
+use App\Http\Controllers\Candidate\Attempts\ProctoringEventController;
 use App\Http\Controllers\Candidate\Attempts\RunCodingQuestionController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
@@ -49,6 +50,9 @@ Route::post('/public-attempts/{attemptToken}/coding-answers', [PublicAttemptCont
 Route::post('/public-attempts/{attemptToken}/coding-questions/run', [RunCodingQuestionController::class, 'storePublic'])
     ->middleware('throttle:30,1')
     ->name('candidate.public-attempts.coding-questions.run');
+Route::post('/public-attempts/{attemptToken}/proctoring-events', [ProctoringEventController::class, 'storePublic'])
+    ->middleware('throttle:60,1')
+    ->name('candidate.public-attempts.proctoring-events.store');
 Route::post('/public-attempts/{attemptToken}/submit', [PublicAttemptController::class, 'submit'])
     ->name('candidate.public-attempts.submit');
 
@@ -150,6 +154,9 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
         Route::post('/attempts/{attempt}/coding-questions/run', [RunCodingQuestionController::class, 'store'])
             ->middleware('throttle:30,1')
             ->name('attempts.coding-questions.run');
+        Route::post('/attempts/{attempt}/proctoring-events', [ProctoringEventController::class, 'store'])
+            ->middleware('throttle:60,1')
+            ->name('attempts.proctoring-events.store');
         Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
             ->name('attempts.submit');
     });
