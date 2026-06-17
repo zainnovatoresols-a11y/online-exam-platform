@@ -66,14 +66,21 @@ class TestResultController extends Controller
             'codeExecutionRuns.question:id,test_id,type,body,marks,order',
             'codeExecutionRuns.attemptAnswer:id,test_attempt_id,question_id,language,submitted_code,is_correct,score',
             'codeExecutionRuns.testCaseResults' => fn ($query) => $query->orderBy('id'),
-            'proctoringEvents' => fn ($query) => $query
-                ->orderBy('occurred_at')
-                ->orderBy('id'),
         ]);
 
         $finalRunsByQuestion = $attempt->codeExecutionRuns
             ->groupBy('question_id')
             ->map(fn (Collection $runs): ?CodeExecutionRun => $runs->first());
+
+        $proctoringSummaryEvents = $attempt->proctoringEvents()
+            ->get(['event_type', 'severity']);
+        $proctoringEvents = $attempt->proctoringEvents()
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->paginate(15, ['*'], 'proctoring_page')
+            ->withQueryString();
+
+        $proctoringEvents->through(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event));
 
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
@@ -97,10 +104,8 @@ class TestResultController extends Controller
                     $finalRunsByQuestion->get((int) $answer->question_id),
                 ))
                 ->values(),
-            'proctoring_summary' => $this->proctoringSummary($attempt->proctoringEvents),
-            'proctoring_events' => $attempt->proctoringEvents
-                ->map(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event))
-                ->values(),
+            'proctoring_summary' => $this->proctoringSummary($proctoringSummaryEvents),
+            'proctoring_events' => $proctoringEvents,
         ]);
     }
 

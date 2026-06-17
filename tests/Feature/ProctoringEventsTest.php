@@ -257,11 +257,58 @@ class ProctoringEventsTest extends TestCase
             ->where('proctoring_summary.medium', 1)
             ->where('proctoring_summary.tab_switches', 1)
             ->where('proctoring_summary.clipboard_attempts', 1)
-            ->where('proctoring_events.0.event_type', 'tab_hidden')
-            ->where('proctoring_events.0.severity', 'medium')
-            ->where('proctoring_events.0.metadata.visibility_state', 'hidden')
-            ->where('proctoring_events.1.event_type', 'copy_attempt')
-            ->where('proctoring_events.1.severity', 'high'));
+            ->where('proctoring_events.total', 2)
+            ->where('proctoring_events.per_page', 15)
+            ->where('proctoring_events.data.0.event_type', 'tab_hidden')
+            ->where('proctoring_events.data.0.severity', 'medium')
+            ->where('proctoring_events.data.0.metadata.visibility_state', 'hidden')
+            ->where('proctoring_events.data.1.event_type', 'copy_attempt')
+            ->where('proctoring_events.data.1.severity', 'high'));
+    }
+
+    public function test_admin_proctoring_timeline_is_paginated(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = $this->publishedTestFor($admin);
+        [, $attempt] = $this->publicAttemptFor($test, $admin, [
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        for ($index = 0; $index < 17; $index++) {
+            ProctoringEvent::create([
+                'test_attempt_id' => $attempt->id,
+                'candidate_user_id' => null,
+                'event_type' => 'tab_hidden',
+                'severity' => 'medium',
+                'occurred_at' => now()->subMinutes(30 - $index),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'FeatureBrowser/1.0',
+                'metadata' => [
+                    'event_index' => $index,
+                ],
+            ]);
+        }
+
+        $firstPage = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $firstPage->assertOk();
+        $firstPage->assertInertia(fn (Assert $page) => $page
+            ->where('proctoring_summary.total', 17)
+            ->has('proctoring_events.data', 15)
+            ->where('proctoring_events.current_page', 1)
+            ->where('proctoring_events.total', 17));
+
+        $secondPage = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]).'?proctoring_page=2');
+
+        $secondPage->assertOk();
+        $secondPage->assertInertia(fn (Assert $page) => $page
+            ->where('proctoring_summary.total', 17)
+            ->where('proctoring_events.current_page', 2)
+            ->has('proctoring_events.data', 2)
+            ->where('proctoring_events.data.0.metadata.event_index', 15));
     }
 
     public function test_candidate_result_page_does_not_expose_proctoring_events(): void

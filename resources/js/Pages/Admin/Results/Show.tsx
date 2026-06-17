@@ -69,6 +69,25 @@ type ProctoringEvent = {
     created_at: string | null;
 };
 
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
+
+type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    links: PaginationLink[];
+    next_page_url: string | null;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number | null;
+    total: number;
+};
+
 type Question = {
     id: number;
     type: 'mcq' | 'coding' | string;
@@ -145,7 +164,7 @@ type Props = {
     attempt: Attempt;
     answers: Answer[];
     proctoring_summary: ProctoringSummary;
-    proctoring_events: ProctoringEvent[];
+    proctoring_events: Paginated<ProctoringEvent>;
 };
 
 export default function Show({
@@ -353,7 +372,7 @@ function ProctoringReview({
     events,
 }: {
     summary: ProctoringSummary;
-    events: ProctoringEvent[];
+    events: Paginated<ProctoringEvent>;
 }) {
     return (
         <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
@@ -390,10 +409,11 @@ function ProctoringReview({
                     </Metric>
                 </dl>
 
-                {events.length > 0 ? (
-                    <div className="overflow-x-auto rounded-md border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50">
+                {events.data.length > 0 ? (
+                    <div className="space-y-3">
+                        <div className="max-h-[32rem] overflow-auto rounded-md border border-gray-200">
+                        <table className="min-w-[960px] divide-y divide-gray-200 text-sm">
+                            <thead className="sticky top-0 z-10 bg-gray-50">
                                 <tr>
                                     {[
                                         'Time',
@@ -413,7 +433,7 @@ function ProctoringReview({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
-                                {events.map((event) => (
+                                {events.data.map((event) => (
                                     <tr key={event.id}>
                                         <td className="whitespace-nowrap px-4 py-3 align-top text-gray-700">
                                             {formatDateTime(
@@ -448,6 +468,8 @@ function ProctoringReview({
                                 ))}
                             </tbody>
                         </table>
+                        </div>
+                        <ProctoringPagination events={events} />
                     </div>
                 ) : (
                     <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
@@ -457,6 +479,63 @@ function ProctoringReview({
             </div>
         </section>
     );
+}
+
+function ProctoringPagination({
+    events,
+}: {
+    events: Paginated<ProctoringEvent>;
+}) {
+    if (events.total === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <p className="text-gray-600">
+                Showing {events.from ?? 0} to {events.to ?? 0} of{' '}
+                {events.total} events
+            </p>
+
+            {events.last_page > 1 && (
+                <div className="flex flex-wrap items-center gap-1">
+                    {events.links.map((link, index) =>
+                        link.url ? (
+                            <Link
+                                key={`${link.label}-${index}`}
+                                href={link.url}
+                                preserveScroll
+                                preserveState
+                                className={
+                                    'rounded-md border px-3 py-1.5 text-sm font-medium ' +
+                                    (link.active
+                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50')
+                                }
+                            >
+                                {paginationLabel(link.label)}
+                            </Link>
+                        ) : (
+                            <span
+                                key={`${link.label}-${index}`}
+                                className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-400"
+                            >
+                                {paginationLabel(link.label)}
+                            </span>
+                        ),
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function paginationLabel(label: string): string {
+    return label
+        .replace('&laquo;', '‹')
+        .replace('&raquo;', '›')
+        .replace('Previous', 'Prev')
+        .trim();
 }
 
 function MetadataDetails({
