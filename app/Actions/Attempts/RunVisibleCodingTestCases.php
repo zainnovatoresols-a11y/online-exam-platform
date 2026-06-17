@@ -57,12 +57,13 @@ class RunVisibleCodingTestCases
             'candidate_user_id' => $attempt->candidate_user_id,
             'language' => $language,
             'status' => 'running',
+            'run_type' => 'visible',
             'source_code' => $submittedCode,
             'started_at' => now(),
         ]);
 
         try {
-            $result = $this->codeExecutionService->runVisibleTestCases(
+            $result = $this->codeExecutionService->runTestCases(
                 language: $language,
                 sourceCode: $submittedCode,
                 testCases: $visibleTestCases,
@@ -79,6 +80,7 @@ class RunVisibleCodingTestCases
                     'passed' => 0,
                     'failed' => $visibleTestCases->count(),
                 ],
+                'error_message' => $exception->getMessage(),
                 'finished_at' => now(),
             ]);
 
@@ -95,6 +97,7 @@ class RunVisibleCodingTestCases
                     'passed' => 0,
                     'failed' => $visibleTestCases->count(),
                 ],
+                'error_message' => 'Unable to run code right now.',
                 'finished_at' => now(),
             ]);
 

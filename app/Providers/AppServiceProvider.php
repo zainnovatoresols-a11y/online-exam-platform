@@ -13,10 +13,12 @@ use App\Policies\QuestionPolicy;
 use App\Policies\TestAttemptPolicy;
 use App\Policies\TestPolicy;
 use App\Services\CodeExecution\CodeExecutionService;
+use App\Services\CodeExecution\FakeCodeExecutionService;
 use App\Services\CodeExecution\Judge0CodeExecutionService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,7 +27,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(CodeExecutionService::class, Judge0CodeExecutionService::class);
+        $this->app->bind(CodeExecutionService::class, function (): CodeExecutionService {
+            $driver = (string) config('code_execution.driver', 'judge0');
+
+            return match ($driver) {
+                'fake' => $this->app->make(FakeCodeExecutionService::class),
+                'judge0' => $this->app->make(Judge0CodeExecutionService::class),
+                default => throw new InvalidArgumentException("Unsupported code execution driver [{$driver}]."),
+            };
+        });
     }
 
     /**

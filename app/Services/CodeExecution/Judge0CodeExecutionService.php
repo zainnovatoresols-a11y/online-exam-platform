@@ -18,6 +18,16 @@ class Judge0CodeExecutionService implements CodeExecutionService
         ?int $timeLimitMs = null,
         ?int $memoryLimitKb = null,
     ): CodeRunResult {
+        return $this->runTestCases($language, $sourceCode, $testCases, $timeLimitMs, $memoryLimitKb);
+    }
+
+    public function runTestCases(
+        string $language,
+        string $sourceCode,
+        iterable $testCases,
+        ?int $timeLimitMs = null,
+        ?int $memoryLimitKb = null,
+    ): CodeRunResult {
         $languageId = config("judge0.language_ids.{$language}");
 
         if (! $languageId) {

@@ -15,17 +15,29 @@ class FakeCodeExecutionService implements CodeExecutionService
         ?int $timeLimitMs = null,
         ?int $memoryLimitKb = null,
     ): CodeRunResult {
+        return $this->runTestCases($language, $sourceCode, $testCases, $timeLimitMs, $memoryLimitKb);
+    }
+
+    public function runTestCases(
+        string $language,
+        string $sourceCode,
+        iterable $testCases,
+        ?int $timeLimitMs = null,
+        ?int $memoryLimitKb = null,
+    ): CodeRunResult {
         $results = collect($testCases)
             ->map(function (QuestionTestCase $testCase) use ($sourceCode): CodeTestCaseResult {
                 $actualOutput = str_contains($sourceCode, '__FAIL__')
+                    || (str_contains($sourceCode, '__FAIL_HIDDEN__') && $testCase->is_hidden)
                     ? 'wrong output'
                     : $testCase->expected_output;
                 $passed = rtrim((string) $actualOutput) === rtrim((string) $testCase->expected_output);
+                $status = $passed ? 'passed' : 'failed';
 
                 return new CodeTestCaseResult(
                     questionTestCaseId: $testCase->id,
                     isHidden: (bool) $testCase->is_hidden,
-                    status: $passed ? 'passed' : 'failed',
+                    status: $status,
                     passed: $passed,
                     input: $testCase->input,
                     expectedOutput: $testCase->expected_output,

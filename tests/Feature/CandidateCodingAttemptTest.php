@@ -15,6 +15,8 @@ use App\Models\QuestionOption;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
+use App\Services\CodeExecution\CodeExecutionService;
+use App\Services\CodeExecution\FakeCodeExecutionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -24,6 +26,13 @@ use Tests\TestCase;
 class CandidateCodingAttemptTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->app->bind(CodeExecutionService::class, FakeCodeExecutionService::class);
+    }
 
     public function test_candidate_attempt_page_includes_coding_questions(): void
     {
@@ -251,13 +260,14 @@ class CandidateCodingAttemptTest extends TestCase
             'question_id' => $codingQuestion->id,
             'language' => 'javascript',
             'submitted_code' => 'console.log("cba");',
-            'score' => 0,
+            'score' => 5,
+            'is_correct' => true,
         ]);
         $this->assertDatabaseHas('test_attempts', [
             'id' => $attempt->id,
-            'score' => 2,
-            'max_score' => 2,
-            'total_marks' => 2,
+            'score' => 7,
+            'max_score' => 7,
+            'total_marks' => 7,
         ]);
     }
 

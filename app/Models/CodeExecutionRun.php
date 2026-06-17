@@ -14,8 +14,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'candidate_user_id',
     'language',
     'status',
+    'run_type',
     'source_code',
     'result_summary',
+    'score_awarded',
+    'max_score',
+    'passed',
+    'error_message',
     'started_at',
     'finished_at',
 ])]
@@ -30,6 +35,9 @@ class CodeExecutionRun extends Model
     {
         return [
             'result_summary' => 'array',
+            'score_awarded' => 'decimal:2',
+            'max_score' => 'decimal:2',
+            'passed' => 'boolean',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
