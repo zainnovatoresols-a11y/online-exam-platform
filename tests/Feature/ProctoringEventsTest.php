@@ -182,6 +182,35 @@ class ProctoringEventsTest extends TestCase
         ]);
     }
 
+    public function test_blocking_control_events_are_accepted_with_server_side_severity(): void
+    {
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        [, $attempt] = $this->attemptForCandidate($candidate);
+
+        $events = [
+            'drag_attempt' => 'medium',
+            'drop_attempt' => 'medium',
+            'proctoring_violation_acknowledged' => 'low',
+        ];
+
+        foreach ($events as $eventType => $severity) {
+            $this->actingAs($candidate)
+                ->postJson(route('candidate.attempts.proctoring-events.store', $attempt), [
+                    'event_type' => $eventType,
+                    'metadata' => [
+                        'source' => 'blocking_controls_test',
+                    ],
+                ])
+                ->assertCreated();
+
+            $this->assertDatabaseHas('proctoring_events', [
+                'test_attempt_id' => $attempt->id,
+                'event_type' => $eventType,
+                'severity' => $severity,
+            ]);
+        }
+    }
+
     public function test_duplicate_noisy_event_within_three_seconds_is_ignored(): void
     {
         $candidate = $this->userWithRole(UserRole::Candidate);
@@ -309,6 +338,45 @@ class ProctoringEventsTest extends TestCase
             ->where('proctoring_events.current_page', 2)
             ->has('proctoring_events.data', 2)
             ->where('proctoring_events.data.0.metadata.event_index', 15));
+    }
+
+    public function test_admin_result_summary_includes_blocking_control_counts(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = $this->publishedTestFor($admin);
+        [, $attempt] = $this->publicAttemptFor($test, $admin, [
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        foreach ([
+            'drag_attempt' => 'medium',
+            'drop_attempt' => 'medium',
+            'proctoring_violation_acknowledged' => 'low',
+        ] as $eventType => $severity) {
+            ProctoringEvent::create([
+                'test_attempt_id' => $attempt->id,
+                'candidate_user_id' => null,
+                'event_type' => $eventType,
+                'severity' => $severity,
+                'occurred_at' => now(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'FeatureBrowser/1.0',
+                'metadata' => [],
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('proctoring_summary.total', 3)
+            ->where('proctoring_summary.drag_drop_attempts', 2)
+            ->where('proctoring_summary.acknowledged_violations', 1)
+            ->where('proctoring_summary.medium', 2)
+            ->where('proctoring_summary.low', 1));
     }
 
     public function test_candidate_result_page_does_not_expose_proctoring_events(): void

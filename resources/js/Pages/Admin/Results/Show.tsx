@@ -56,6 +56,8 @@ type ProctoringSummary = {
     clipboard_attempts: number;
     right_click_attempts: number;
     shortcut_attempts: number;
+    drag_drop_attempts: number;
+    acknowledged_violations: number;
 };
 
 type ProctoringEvent = {
@@ -403,6 +405,12 @@ function ProctoringReview({
                     </Metric>
                     <Metric label="Shortcut attempts">
                         {summary.shortcut_attempts}
+                    </Metric>
+                    <Metric label="Drag/drop attempts">
+                        {summary.drag_drop_attempts}
+                    </Metric>
+                    <Metric label="Acknowledgements">
+                        {summary.acknowledged_violations}
                     </Metric>
                     <Metric label="Low / Medium">
                         {summary.low} / {summary.medium}

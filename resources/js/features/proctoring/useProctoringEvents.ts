@@ -30,6 +30,8 @@ export function useProctoringEvents(
     disabled = false,
 ) {
     const eventUrl = useMemo(() => proctoringRoute(attempt), [attempt]);
+    const autoFullscreenAttemptedRef = useRef(false);
+    const interactionFullscreenAttemptedRef = useRef(false);
     const sentAtRef = useRef<Map<string, number>>(new Map());
     const [fullscreenActive, setFullscreenActive] = useState(false);
     const [fullscreenSupported, setFullscreenSupported] = useState(false);
@@ -180,21 +182,71 @@ export function useProctoringEvents(
         };
     }, [disabled, sendEvent]);
 
-    const enterFullscreen = useCallback(async () => {
+    const enterFullscreen = useCallback(async (): Promise<boolean> => {
         if (
             typeof document === 'undefined' ||
             ! document.fullscreenEnabled ||
             document.fullscreenElement
         ) {
-            return;
+            return false;
         }
 
         try {
             await document.documentElement.requestFullscreen();
+
+            return true;
         } catch {
             // Browser fullscreen failures are non-blocking for this phase.
+            return false;
         }
     }, []);
+
+    useEffect(() => {
+        if (
+            disabled ||
+            ! fullscreenSupported ||
+            fullscreenActive ||
+            autoFullscreenAttemptedRef.current
+        ) {
+            return;
+        }
+
+        autoFullscreenAttemptedRef.current = true;
+
+        const timer = window.setTimeout(() => {
+            void enterFullscreen();
+        }, 300);
+
+        return () => window.clearTimeout(timer);
+    }, [disabled, enterFullscreen, fullscreenActive, fullscreenSupported]);
+
+    useEffect(() => {
+        if (
+            disabled ||
+            ! fullscreenSupported ||
+            fullscreenActive ||
+            interactionFullscreenAttemptedRef.current
+        ) {
+            return;
+        }
+
+        const handleCandidateInteraction = () => {
+            interactionFullscreenAttemptedRef.current = true;
+            void enterFullscreen();
+        };
+
+        window.addEventListener('pointerdown', handleCandidateInteraction, true);
+        window.addEventListener('keydown', handleCandidateInteraction, true);
+
+        return () => {
+            window.removeEventListener(
+                'pointerdown',
+                handleCandidateInteraction,
+                true,
+            );
+            window.removeEventListener('keydown', handleCandidateInteraction, true);
+        };
+    }, [disabled, enterFullscreen, fullscreenActive, fullscreenSupported]);
 
     return {
         enterFullscreen,

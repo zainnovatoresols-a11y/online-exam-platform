@@ -24,6 +24,9 @@ class RecordProctoringEvent
         'cut_attempt' => 'high',
         'right_click_attempt' => 'medium',
         'shortcut_attempt' => 'medium',
+        'drag_attempt' => 'medium',
+        'drop_attempt' => 'medium',
+        'proctoring_violation_acknowledged' => 'low',
     ];
 
     /**

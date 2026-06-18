@@ -5,6 +5,9 @@ import CodingQuestionPanel, {
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { useProctoringEvents } from '@/features/proctoring/useProctoringEvents';
+import {
+    useProctoringGuards,
+} from '@/features/proctoring/useProctoringGuards';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PublicAssessmentLayout from '@/Layouts/PublicAssessmentLayout';
 import { Head, useForm } from '@inertiajs/react';
@@ -84,11 +87,30 @@ export default function Show({
         () => formatRemainingTime(remainingSeconds),
         [remainingSeconds],
     );
+    const proctoringDisabled = expired || attempt.status !== 'in_progress';
     const { enterFullscreen, fullscreenActive, fullscreenSupported } =
-        useProctoringEvents(
-            attempt,
-            expired || attempt.status !== 'in_progress',
-    );
+        useProctoringEvents(attempt, proctoringDisabled);
+    const {
+        acknowledgeViolation,
+        latestBlockedAction,
+        violation,
+    } = useProctoringGuards(attempt, proctoringDisabled);
+    const acknowledgeAndReturnToFullscreen = useCallback(async () => {
+        if (fullscreenSupported && ! fullscreenActive) {
+            const enteredFullscreen = await enterFullscreen();
+
+            if (! enteredFullscreen) {
+                return;
+            }
+        }
+
+        acknowledgeViolation();
+    }, [
+        acknowledgeViolation,
+        enterFullscreen,
+        fullscreenActive,
+        fullscreenSupported,
+    ]);
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -149,6 +171,15 @@ export default function Show({
         >
             <Head title={test.title} />
 
+            {violation && (
+                <ProctoringViolationOverlay
+                    violation={violation}
+                    onAcknowledgeAndReturnToFullscreen={
+                        acknowledgeAndReturnToFullscreen
+                    }
+                />
+            )}
+
             <div className="py-12">
                 <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
                     <div className="bg-white p-6 shadow-sm sm:rounded-lg">
@@ -199,21 +230,20 @@ export default function Show({
                                 submitted.
                             </p>
                         )}
-                        {fullscreenSupported && (
-                            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
-                                <SecondaryButton
-                                    type="button"
-                                    onClick={enterFullscreen}
-                                    disabled={fullscreenActive || expired}
-                                >
-                                    {fullscreenActive
-                                        ? 'Fullscreen active'
-                                        : 'Enter fullscreen'}
-                                </SecondaryButton>
-                                <span className="text-sm font-medium text-gray-600">
-                                    Proctoring active
-                                </span>
-                            </div>
+                        <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+                            <p className="font-medium text-gray-700">
+                                Proctoring controls active
+                            </p>
+                            <p className="mt-1 text-gray-500">
+                                Fullscreen is required. Copy, paste, right
+                                click, drag/drop, and restricted shortcuts are
+                                blocked.
+                            </p>
+                        </div>
+                        {latestBlockedAction && (
+                            <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">
+                                {latestBlockedAction}
+                            </p>
                         )}
                     </div>
 
@@ -351,6 +381,46 @@ function AssessmentLayout({
     }
 
     return <AuthenticatedLayout header={header}>{children}</AuthenticatedLayout>;
+}
+
+function ProctoringViolationOverlay({
+    violation,
+    onAcknowledgeAndReturnToFullscreen,
+}: {
+    violation: {
+        title: string;
+        message: string;
+    };
+    onAcknowledgeAndReturnToFullscreen: () => void;
+}) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 px-4">
+            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <p className="text-sm font-medium uppercase text-red-600">
+                    Proctoring interruption
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                    {violation.title}
+                </h3>
+                <p className="mt-3 text-sm text-gray-700">
+                    {violation.message}
+                </p>
+                <p className="mt-2 text-sm text-gray-500">
+                    Your timer continues while this notice is open.
+                </p>
+
+                <div className="mt-6 flex justify-end">
+                    <PrimaryButton
+                        type="button"
+                        className="w-full justify-center whitespace-normal text-center leading-5 tracking-normal sm:w-auto"
+                        onClick={onAcknowledgeAndReturnToFullscreen}
+                    >
+                        I understand and go back to fullscreen
+                    </PrimaryButton>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {

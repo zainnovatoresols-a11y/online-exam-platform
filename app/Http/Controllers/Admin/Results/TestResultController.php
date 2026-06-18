@@ -324,6 +324,11 @@ class TestResultController extends Controller
                 ->count(),
             'right_click_attempts' => $events->where('event_type', 'right_click_attempt')->count(),
             'shortcut_attempts' => $events->where('event_type', 'shortcut_attempt')->count(),
+            'drag_drop_attempts' => $events
+                ->whereIn('event_type', ['drag_attempt', 'drop_attempt'])
+                ->count(),
+            'acknowledged_violations' => $events
+                ->where('event_type', 'proctoring_violation_acknowledged')->count(),
         ];
     }
 
