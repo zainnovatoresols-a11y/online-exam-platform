@@ -7,8 +7,10 @@ use App\Enums\UserRole;
 use App\Models\Organization;
 use App\Models\Question;
 use App\Models\Test;
+use App\Models\TestAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -249,6 +251,35 @@ class TestManagementTest extends TestCase
         $this->assertDatabaseMissing('tests', ['id' => $draftTest->id]);
         $this->assertDatabaseMissing('tests', ['id' => $closedTest->id]);
         $this->assertDatabaseHas('tests', ['id' => $publishedTest->id]);
+    }
+
+    public function test_deleting_a_test_removes_private_proctoring_recording_files(): void
+    {
+        Storage::fake('local');
+
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+            'status' => TestStatus::Closed->value,
+            'closed_at' => now(),
+        ]);
+        $attempt = TestAttempt::factory()->create([
+            'test_id' => $test->id,
+            'organization_id' => $organization->id,
+        ]);
+        $recordingPath = "proctoring/attempts/{$attempt->id}/recordings/camera/camera_000001.webm";
+
+        Storage::disk('local')->put($recordingPath, 'fake-webm-content');
+        Storage::disk('local')->assertExists($recordingPath);
+
+        $response = $this->actingAs($admin)
+            ->delete(route('admin.tests.destroy', $test));
+
+        $response->assertRedirect(route('admin.tests.index'));
+        $this->assertDatabaseMissing('tests', ['id' => $test->id]);
+        Storage::disk('local')->assertMissing($recordingPath);
     }
 
     public function test_admin_can_add_an_mcq_question_with_options(): void

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Tests\DeleteTestWithArtifacts;
 use App\Enums\TestStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreTestRequest;
@@ -95,11 +96,11 @@ class TestController extends Controller
             ->with('success', 'Test updated successfully.');
     }
 
-    public function destroy(Test $test): RedirectResponse
+    public function destroy(Test $test, DeleteTestWithArtifacts $deleteTest): RedirectResponse
     {
         Gate::authorize('delete', $test);
 
-        $test->delete();
+        $deleteTest->handle($test);
 
         return to_route('admin.tests.index')
             ->with('success', 'Test deleted successfully.');
