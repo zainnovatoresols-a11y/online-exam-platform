@@ -145,16 +145,28 @@ export function useProctoringGuards(
         };
 
         const handleVisibilityChange = () => {
+            if (mediaPermissionPromptIsActive()) {
+                return;
+            }
+
             if (document.visibilityState === 'hidden') {
                 markViolation('tab_hidden');
             }
         };
 
         const handleWindowBlur = () => {
+            if (mediaPermissionPromptIsActive()) {
+                return;
+            }
+
             markViolation('window_blur');
         };
 
         const handleFullscreenChange = () => {
+            if (mediaPermissionPromptIsActive()) {
+                return;
+            }
+
             if (! document.fullscreenElement) {
                 markViolation('fullscreen_exited');
             }
@@ -277,6 +289,13 @@ export function useProctoringGuards(
         latestBlockedAction,
         violation,
     };
+}
+
+function mediaPermissionPromptIsActive(): boolean {
+    return (
+        typeof document !== 'undefined' &&
+        document.documentElement.dataset.proctoringMediaPermissionPrompt === 'true'
+    );
 }
 
 function proctoringRoute(attempt: ProctoringAttempt): string {

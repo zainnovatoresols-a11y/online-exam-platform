@@ -93,13 +93,20 @@ export default function Show({
         [remainingSeconds],
     );
     const proctoringDisabled = expired || attempt.status !== 'in_progress';
+    const recordings = useProctoringRecordings(attempt, proctoringDisabled);
+    const recordingPermissionRequestActive =
+        recordings.cameraStatus === 'requesting' ||
+        recordings.screenStatus === 'requesting';
     const { enterFullscreen, fullscreenActive, fullscreenSupported } =
         useProctoringEvents(attempt, proctoringDisabled);
     const {
         acknowledgeViolation,
         latestBlockedAction,
         violation,
-    } = useProctoringGuards(attempt, proctoringDisabled);
+    } = useProctoringGuards(
+        attempt,
+        proctoringDisabled || recordingPermissionRequestActive,
+    );
     const acknowledgeAndReturnToFullscreen = useCallback(async () => {
         if (fullscreenSupported && ! fullscreenActive) {
             const enteredFullscreen = await enterFullscreen();
@@ -116,19 +123,35 @@ export default function Show({
         fullscreenActive,
         fullscreenSupported,
     ]);
-    const recordings = useProctoringRecordings(attempt, proctoringDisabled);
-    const recordingWarningKey = `${recordings.cameraStatus}:${recordings.screenStatus}`;
-    const [recordingWarningDismissed, setRecordingWarningDismissed] =
+    const startScreenAndReturnToFullscreen = useCallback(async () => {
+        if (fullscreenSupported && ! document.fullscreenElement) {
+            await enterFullscreen();
+        }
+
+        await recordings.startScreen();
+
+        if (fullscreenSupported && ! document.fullscreenElement) {
+            void enterFullscreen();
+        }
+    }, [enterFullscreen, fullscreenSupported, recordings]);
+    const [recordingSetupCompleted, setRecordingSetupCompleted] =
         useState(false);
+    const recordingsNeedAttention = recordingNeedsAttention(
+        recordings.cameraStatus,
+        recordings.screenStatus,
+    );
     const showRecordingWarning =
         ! violation &&
         ! proctoringDisabled &&
-        ! recordingWarningDismissed &&
-        recordingNeedsAttention(recordings.cameraStatus, recordings.screenStatus);
-    const continueWithRecordingViolation = useCallback(() => {
-        recordings.recordContinueWithViolation();
-        setRecordingWarningDismissed(true);
-    }, [recordings]);
+        ! recordingSetupCompleted &&
+        recordingsNeedAttention;
+    const showRecordingMessage =
+        ! violation &&
+        ! proctoringDisabled &&
+        recordingSetupCompleted &&
+        recordingsNeedAttention;
+    const hideAssessmentContent =
+        ! proctoringDisabled && recordingsNeedAttention;
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -139,8 +162,18 @@ export default function Show({
     }, []);
 
     useEffect(() => {
-        setRecordingWarningDismissed(false);
-    }, [recordingWarningKey]);
+        if (
+            ! recordingSetupCompleted &&
+            recordings.cameraStatus === 'recording' &&
+            recordings.screenStatus === 'recording'
+        ) {
+            setRecordingSetupCompleted(true);
+        }
+    }, [
+        recordingSetupCompleted,
+        recordings.cameraStatus,
+        recordings.screenStatus,
+    ]);
 
     const registerCodingSave = useCallback(
         (questionId: number, saveHandler: () => Promise<void>) => {
@@ -207,9 +240,7 @@ export default function Show({
             {showRecordingWarning && (
                 <RecordingPermissionOverlay
                     recordings={recordings}
-                    onContinueWithViolation={
-                        continueWithRecordingViolation
-                    }
+                    onStartScreen={startScreenAndReturnToFullscreen}
                 />
             )}
 
@@ -278,44 +309,58 @@ export default function Show({
                                 {latestBlockedAction}
                             </p>
                         )}
+                        {showRecordingMessage && (
+                            <RecordingStoppedMessage
+                                recordings={recordings}
+                                onStartScreen={startScreenAndReturnToFullscreen}
+                            />
+                        )}
                     </div>
 
-                    <form onSubmit={submit} className="space-y-6">
-                        {questions.map((question, questionIndex) => (
-                            <QuestionPanel
-                                key={question.id}
-                                attempt={attempt}
-                                question={question}
-                                questionNumber={questionIndex + 1}
-                                selectedAnswer={data.answers[question.id]}
-                                formErrors={formErrors}
-                                expired={expired}
-                                registerCodingSave={registerCodingSave}
-                                onSelectAnswer={selectAnswer}
-                            />
-                        ))}
+                    {hideAssessmentContent ? (
+                        <RecordingLockedNotice />
+                    ) : (
+                        <form onSubmit={submit} className="space-y-6">
+                            {questions.map((question, questionIndex) => (
+                                <QuestionPanel
+                                    key={question.id}
+                                    attempt={attempt}
+                                    question={question}
+                                    questionNumber={questionIndex + 1}
+                                    selectedAnswer={data.answers[question.id]}
+                                    formErrors={formErrors}
+                                    expired={expired}
+                                    registerCodingSave={registerCodingSave}
+                                    onSelectAnswer={selectAnswer}
+                                />
+                            ))}
 
-                        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
-                            <InputError
-                                message={formErrors.attempt}
-                                className="mt-0"
-                            />
-                            <div className="flex gap-3">
-                                <SecondaryButton
-                                    type="button"
-                                    onClick={save}
-                                    disabled={processing || submitting || expired}
-                                >
-                                    Save MCQ answers
-                                </SecondaryButton>
-                                <PrimaryButton
-                                    disabled={processing || submitting || expired}
-                                >
-                                    Submit test
-                                </PrimaryButton>
+                            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
+                                <InputError
+                                    message={formErrors.attempt}
+                                    className="mt-0"
+                                />
+                                <div className="flex gap-3">
+                                    <SecondaryButton
+                                        type="button"
+                                        onClick={save}
+                                        disabled={
+                                            processing || submitting || expired
+                                        }
+                                    >
+                                        Save MCQ answers
+                                    </SecondaryButton>
+                                    <PrimaryButton
+                                        disabled={
+                                            processing || submitting || expired
+                                        }
+                                    >
+                                        Submit test
+                                    </PrimaryButton>
+                                </div>
                             </div>
-                        </div>
-                    </form>
+                        </form>
+                    )}
                 </div>
             </div>
         </AssessmentLayout>
@@ -458,10 +503,10 @@ function ProctoringViolationOverlay({
 
 function RecordingPermissionOverlay({
     recordings,
-    onContinueWithViolation,
+    onStartScreen,
 }: {
     recordings: ProctoringRecordingControls;
-    onContinueWithViolation: () => void;
+    onStartScreen: () => void;
 }) {
     const cameraNeedsAttention = recordings.cameraStatus !== 'recording';
     const screenNeedsAttention = recordings.screenStatus !== 'recording';
@@ -489,7 +534,7 @@ function RecordingPermissionOverlay({
                     {screenNeedsAttention && (
                         <p>
                             Screen recording is not active. Please start screen
-                            sharing again.
+                            sharing.
                         </p>
                     )}
                     <p className="text-gray-500">
@@ -504,28 +549,78 @@ function RecordingPermissionOverlay({
                             disabled={recordings.cameraStatus === 'requesting'}
                             onClick={() => void recordings.startCamera()}
                         >
-                            Retry camera
+                            {recordings.cameraStatus === 'idle'
+                                ? 'Start camera'
+                                : 'Retry camera'}
                         </SecondaryButton>
                     )}
                     {screenNeedsAttention && (
                         <SecondaryButton
                             type="button"
                             disabled={recordings.screenStatus === 'requesting'}
-                            onClick={() => void recordings.startScreen()}
+                            onClick={onStartScreen}
                         >
                             Start screen sharing
                         </SecondaryButton>
                     )}
-                    <PrimaryButton
-                        type="button"
-                        className="whitespace-normal text-center leading-5 tracking-normal"
-                        onClick={onContinueWithViolation}
-                    >
-                        I understand, continue
-                    </PrimaryButton>
                 </div>
             </div>
         </div>
+    );
+}
+
+function RecordingStoppedMessage({
+    recordings,
+    onStartScreen,
+}: {
+    recordings: ProctoringRecordingControls;
+    onStartScreen: () => void;
+}) {
+    const cameraNeedsAttention = recordings.cameraStatus !== 'recording';
+    const screenNeedsAttention = recordings.screenStatus !== 'recording';
+
+    return (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="font-medium">
+                You cannot stop camera or screen sharing during the assessment.
+            </p>
+            <p className="mt-1">
+                Please restart the required recording immediately. Your attempt
+                timer continues running.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+                {cameraNeedsAttention && (
+                    <SecondaryButton
+                        type="button"
+                        disabled={recordings.cameraStatus === 'requesting'}
+                        onClick={() => void recordings.startCamera()}
+                    >
+                        Restart camera
+                    </SecondaryButton>
+                )}
+                {screenNeedsAttention && (
+                    <SecondaryButton
+                        type="button"
+                        disabled={recordings.screenStatus === 'requesting'}
+                        onClick={onStartScreen}
+                    >
+                        Restart screen sharing
+                    </SecondaryButton>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function RecordingLockedNotice() {
+    return (
+        <section className="rounded-md border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 shadow-sm">
+            <p className="font-medium">Assessment content is hidden.</p>
+            <p className="mt-1">
+                Camera and screen recording must be active before questions,
+                save, and submit controls are shown again.
+            </p>
+        </section>
     );
 }
 
