@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 type Test = {
@@ -205,7 +206,8 @@ type Props = {
     proctoring_summary: ProctoringSummary;
     proctoring_events: Paginated<ProctoringEvent>;
     proctoring_recording_summary: ProctoringRecordingSummary;
-    proctoring_recording_chunks: Paginated<ProctoringRecordingChunk>;
+    proctoring_camera_recording_chunks: Paginated<ProctoringRecordingChunk>;
+    proctoring_screen_recording_chunks: Paginated<ProctoringRecordingChunk>;
 };
 
 export default function Show({
@@ -217,7 +219,8 @@ export default function Show({
     proctoring_summary,
     proctoring_events,
     proctoring_recording_summary,
-    proctoring_recording_chunks,
+    proctoring_camera_recording_chunks,
+    proctoring_screen_recording_chunks,
 }: Props) {
     return (
         <AuthenticatedLayout
@@ -369,7 +372,8 @@ export default function Show({
 
                     <ProctoringRecordingReview
                         summary={proctoring_recording_summary}
-                        chunks={proctoring_recording_chunks}
+                        cameraChunks={proctoring_camera_recording_chunks}
+                        screenChunks={proctoring_screen_recording_chunks}
                     />
 
                     <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
@@ -595,71 +599,135 @@ function ProctoringPagination({
 
 function ProctoringRecordingReview({
     summary,
-    chunks,
+    cameraChunks,
+    screenChunks,
 }: {
     summary: ProctoringRecordingSummary;
-    chunks: Paginated<ProctoringRecordingChunk>;
+    cameraChunks: Paginated<ProctoringRecordingChunk>;
+    screenChunks: Paginated<ProctoringRecordingChunk>;
 }) {
+    const [selectedFolder, setSelectedFolder] = useState<
+        'camera' | 'screen' | null
+    >(null);
+    const activeChunks = useMemo(() => {
+        if (selectedFolder === 'camera') {
+            return cameraChunks;
+        }
+
+        if (selectedFolder === 'screen') {
+            return screenChunks;
+        }
+
+        return null;
+    }, [cameraChunks, screenChunks, selectedFolder]);
+    const activeTitle =
+        selectedFolder === 'camera'
+            ? 'Camera Recording'
+            : 'Screen Recording';
+
     return (
         <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
             <div className="border-b border-gray-200 px-6 py-4">
-                <h4 className="text-base font-semibold text-gray-900">
-                    Screen And Camera Recordings
-                </h4>
-                <p className="mt-1 text-sm text-gray-600">
-                    Private recording chunks captured during the candidate
-                    attempt.
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 className="text-base font-semibold text-gray-900">
+                            Recording Evidence
+                        </h4>
+                    </div>
+
+                    {selectedFolder && (
+                        <button
+                            type="button"
+                            onClick={() => setSelectedFolder(null)}
+                            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                            Back to folders
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="space-y-6 p-6">
-                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Metric label="Camera status">
-                        <StatusBadge value={summary.camera_status} />
-                    </Metric>
-                    <Metric label="Camera chunks">
-                        {summary.camera_chunk_count}
-                    </Metric>
-                    <Metric label="Camera size">
-                        {formatBytes(summary.camera_total_size_bytes)}
-                    </Metric>
-                    <Metric label="Camera started">
-                        {formatDateTime(summary.camera_started_at)}
-                    </Metric>
-                    <Metric label="Screen status">
-                        <StatusBadge value={summary.screen_status} />
-                    </Metric>
-                    <Metric label="Screen chunks">
-                        {summary.screen_chunk_count}
-                    </Metric>
-                    <Metric label="Screen size">
-                        {formatBytes(summary.screen_total_size_bytes)}
-                    </Metric>
-                    <Metric label="Screen started">
-                        {formatDateTime(summary.screen_started_at)}
-                    </Metric>
-                </dl>
-
-                {chunks.data.length > 0 ? (
-                    <div className="space-y-4">
-                        <div className="grid gap-4 lg:grid-cols-2">
-                            {chunks.data.map((chunk) => (
-                                <RecordingChunkCard
-                                    key={chunk.id}
-                                    chunk={chunk}
-                                />
-                            ))}
-                        </div>
-                        <RecordingPagination chunks={chunks} />
+                {!selectedFolder && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <RecordingFolderCard
+                            title="Camera Recording"
+                            status={summary.camera_status}
+                            chunks={summary.camera_chunk_count}
+                            onOpen={() => setSelectedFolder('camera')}
+                        />
+                        <RecordingFolderCard
+                            title="Screen Recording"
+                            status={summary.screen_status}
+                            chunks={summary.screen_chunk_count}
+                            onOpen={() => setSelectedFolder('screen')}
+                        />
                     </div>
-                ) : (
-                    <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                        No camera or screen recording chunks have been stored
-                        for this attempt.
+                )}
+
+                {selectedFolder && activeChunks && (
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h5 className="text-sm font-semibold text-gray-900">
+                                    {activeTitle} Folder
+                                </h5>
+                            </div>
+                            <RecordingTypeBadge type={selectedFolder} />
+                        </div>
+
+                        {activeChunks.data.length > 0 ? (
+                            <>
+                                <div className="grid max-h-[720px] gap-4 overflow-y-auto pr-2 lg:grid-cols-2">
+                                    {activeChunks.data.map((chunk) => (
+                                        <RecordingChunkCard
+                                            key={chunk.id}
+                                            chunk={chunk}
+                                        />
+                                    ))}
+                                </div>
+                                <RecordingPagination chunks={activeChunks} />
+                            </>
+                        ) : (
+                            <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                                No {selectedFolder} recording chunks have been
+                                stored for this attempt.
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
         </section>
+    );
+}
+
+function RecordingFolderCard({
+    title,
+    status,
+    chunks,
+    onOpen,
+}: {
+    title: string;
+    status: string;
+    chunks: number;
+    onOpen: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className="rounded-md border border-gray-200 bg-gray-50 p-4 text-left transition hover:border-gray-300 hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                        {title}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{chunks} videos</p>
+                </div>
+                <StatusBadge value={status} />
+            </div>
+        </button>
     );
 }
 
@@ -669,63 +737,16 @@ function RecordingChunkCard({
     chunk: ProctoringRecordingChunk;
 }) {
     return (
-        <article className="rounded-md border border-gray-200 bg-gray-50 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <TypeBadge type={chunk.recording_type} />
-                        {chunk.event && (
-                            <SeverityBadge value={chunk.event.severity} />
-                        )}
-                    </div>
-                    <h5 className="mt-2 text-sm font-semibold text-gray-900">
-                        {formatLabel(chunk.recording_type)} chunk #
-                        {chunk.sequence}
-                    </h5>
-                    <p className="mt-1 text-xs text-gray-500">
-                        Uploaded {formatDateTime(chunk.uploaded_at)}
-                    </p>
-                </div>
-                <div className="text-right text-xs text-gray-500">
-                    <p>{formatBytes(chunk.size_bytes)}</p>
-                    <p>{formatDurationMs(chunk.duration_ms)}</p>
-                </div>
-            </div>
-
+        <article className="rounded-md border border-gray-200 bg-gray-50 p-3">
             <video
                 src={chunk.url}
                 controls
                 preload="metadata"
-                className="mt-4 aspect-video w-full rounded-md bg-gray-950"
+                className="aspect-video w-full rounded-md bg-gray-950"
             />
-
-            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Detail label="Recorded">
-                    {formatDateTime(chunk.recorded_at)}
-                </Detail>
-                <Detail label="MIME type">
-                    {formatNullableValue(chunk.mime_type)}
-                </Detail>
-                <Detail label="IP address">
-                    {formatNullableValue(chunk.ip_address)}
-                </Detail>
-                <Detail label="Event">
-                    {chunk.event
-                        ? formatLabel(chunk.event.event_type)
-                        : 'Not recorded'}
-                </Detail>
-                <div className="sm:col-span-2">
-                    <Detail label="User agent">
-                        {formatNullableValue(chunk.user_agent)}
-                    </Detail>
-                </div>
-            </dl>
-
-            {Object.keys(chunk.metadata).length > 0 && (
-                <div className="mt-4 rounded-md border border-gray-200 bg-white p-3">
-                    <MetadataDetails metadata={chunk.metadata} />
-                </div>
-            )}
+            <p className="mt-2 text-xs font-medium text-gray-600">
+                Video #{chunk.sequence}
+            </p>
         </article>
     );
 }
@@ -1092,6 +1113,21 @@ function TypeBadge({ type }: { type: string }) {
     );
 }
 
+function RecordingTypeBadge({ type }: { type: string }) {
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                (type === 'screen'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-emerald-100 text-emerald-700')
+            }
+        >
+            {type === 'screen' ? 'Screen' : 'Camera'}
+        </span>
+    );
+}
+
 function RunStatusBadge({ value }: { value: string }) {
     return (
         <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
@@ -1221,28 +1257,4 @@ function formatNullableValue(value: string | number | null | undefined): string 
     }
 
     return String(value);
-}
-
-function formatBytes(value?: number | null): string {
-    if (! value) {
-        return '0 B';
-    }
-
-    if (value < 1024) {
-        return `${value} B`;
-    }
-
-    if (value < 1024 * 1024) {
-        return `${(value / 1024).toFixed(1)} KB`;
-    }
-
-    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDurationMs(value?: number | null): string {
-    if (! value) {
-        return 'Duration not recorded';
-    }
-
-    return `${Math.round(value / 1000)} sec`;
 }

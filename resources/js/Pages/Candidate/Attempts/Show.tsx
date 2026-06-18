@@ -278,10 +278,6 @@ export default function Show({
                                 {latestBlockedAction}
                             </p>
                         )}
-                        <ProctoringRecordingPanel
-                            recordings={recordings}
-                            disabled={proctoringDisabled}
-                        />
                     </div>
 
                     <form onSubmit={submit} className="space-y-6">
@@ -460,123 +456,6 @@ function ProctoringViolationOverlay({
     );
 }
 
-function ProctoringRecordingPanel({
-    recordings,
-    disabled,
-}: {
-    recordings: ProctoringRecordingControls;
-    disabled: boolean;
-}) {
-    return (
-        <div className="mt-4 rounded-md border border-gray-200 bg-white p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                        Screen and camera recording
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                        Video is saved in short private chunks for admin review.
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <RecordingStatusBadge
-                        label="Camera"
-                        status={recordings.cameraStatus}
-                    />
-                    <RecordingStatusBadge
-                        label="Screen"
-                        status={recordings.screenStatus}
-                    />
-                </div>
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <RecordingPreviewCard
-                    title="Camera"
-                    videoRef={recordings.cameraVideoRef}
-                    status={recordings.cameraStatus}
-                    message={recordings.cameraMessage}
-                    buttonLabel={
-                        recordings.cameraStatus === 'recording'
-                            ? 'Camera active'
-                            : 'Start camera recording'
-                    }
-                    disabled={
-                        disabled ||
-                        recordings.cameraStatus === 'requesting' ||
-                        recordings.cameraStatus === 'recording'
-                    }
-                    onStart={() => void recordings.startCamera()}
-                />
-                <RecordingPreviewCard
-                    title="Screen"
-                    videoRef={recordings.screenVideoRef}
-                    status={recordings.screenStatus}
-                    message={recordings.screenMessage}
-                    buttonLabel={
-                        recordings.screenStatus === 'recording'
-                            ? 'Screen active'
-                            : 'Start screen recording'
-                    }
-                    disabled={
-                        disabled ||
-                        recordings.screenStatus === 'requesting' ||
-                        recordings.screenStatus === 'recording'
-                    }
-                    onStart={() => void recordings.startScreen()}
-                />
-            </div>
-        </div>
-    );
-}
-
-function RecordingPreviewCard({
-    title,
-    videoRef,
-    status,
-    message,
-    buttonLabel,
-    disabled,
-    onStart,
-}: {
-    title: string;
-    videoRef: React.RefObject<HTMLVideoElement>;
-    status: RecordingStatus;
-    message: string | null;
-    buttonLabel: string;
-    disabled: boolean;
-    onStart: () => void;
-}) {
-    return (
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-            <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-gray-800">{title}</p>
-                <RecordingStatusBadge status={status} />
-            </div>
-            <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="mt-3 aspect-video w-full rounded-md bg-gray-900 object-cover"
-            />
-            {message && (
-                <p className="mt-2 text-xs font-medium text-amber-700">
-                    {message}
-                </p>
-            )}
-            <SecondaryButton
-                type="button"
-                className="mt-3"
-                disabled={disabled}
-                onClick={onStart}
-            >
-                {buttonLabel}
-            </SecondaryButton>
-        </div>
-    );
-}
-
 function RecordingPermissionOverlay({
     recordings,
     onContinueWithViolation,
@@ -591,22 +470,26 @@ function RecordingPermissionOverlay({
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/70 px-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
                 <p className="text-sm font-medium uppercase text-amber-600">
-                    Recording permission required
+                    Proctoring recording required
                 </p>
                 <h3 className="mt-2 text-lg font-semibold text-gray-900">
-                    Camera and screen recording must stay active
+                    Do not change camera or screen settings
                 </h3>
                 <div className="mt-4 space-y-3 text-sm text-gray-700">
+                    <p>
+                        Camera and screen recording are important for this
+                        assessment and must remain active during the test.
+                    </p>
                     {cameraNeedsAttention && (
                         <p>
-                            Camera permission is required for this assessment.
-                            Please allow camera access.
+                            Camera recording is not active. Please allow camera
+                            access again.
                         </p>
                     )}
                     {screenNeedsAttention && (
                         <p>
-                            Screen sharing is required for this assessment.
-                            Please share your entire screen where possible.
+                            Screen recording is not active. Please start screen
+                            sharing again.
                         </p>
                     )}
                     <p className="text-gray-500">
@@ -638,40 +521,11 @@ function RecordingPermissionOverlay({
                         className="whitespace-normal text-center leading-5 tracking-normal"
                         onClick={onContinueWithViolation}
                     >
-                        I understand, continue with violation recorded
+                        I understand, continue
                     </PrimaryButton>
                 </div>
             </div>
         </div>
-    );
-}
-
-function RecordingStatusBadge({
-    status,
-    label,
-}: {
-    status: RecordingStatus;
-    label?: string;
-}) {
-    const className =
-        status === 'recording'
-            ? 'bg-emerald-100 text-emerald-700'
-            : status === 'requesting'
-              ? 'bg-blue-100 text-blue-700'
-              : ['denied', 'error', 'unavailable'].includes(status)
-                ? 'bg-red-100 text-red-700'
-                : 'bg-gray-100 text-gray-700';
-
-    return (
-        <span
-            className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
-                className
-            }
-        >
-            {label ? `${label}: ` : ''}
-            {formatRecordingStatus(status)}
-        </span>
     );
 }
 
@@ -680,13 +534,6 @@ function recordingNeedsAttention(
     screenStatus: RecordingStatus,
 ): boolean {
     return cameraStatus !== 'recording' || screenStatus !== 'recording';
-}
-
-function formatRecordingStatus(status: RecordingStatus): string {
-    return status
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
 }
 
 function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {

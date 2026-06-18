@@ -14,6 +14,7 @@ use App\Models\ProctoringRecordingChunk;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -85,16 +86,6 @@ class TestResultController extends Controller
         $proctoringEvents->through(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event));
 
         $proctoringRecordings = $attempt->proctoringRecordings()->get();
-        $proctoringRecordingChunks = $attempt->proctoringRecordingChunks()
-            ->with('event:id,event_type,severity,occurred_at')
-            ->orderBy('uploaded_at')
-            ->orderBy('id')
-            ->paginate(12, ['*'], 'recording_page')
-            ->withQueryString();
-
-        $proctoringRecordingChunks->through(
-            fn (ProctoringRecordingChunk $chunk): array => $this->proctoringRecordingChunkPayload($chunk),
-        );
 
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
@@ -121,7 +112,8 @@ class TestResultController extends Controller
             'proctoring_summary' => $this->proctoringSummary($proctoringSummaryEvents),
             'proctoring_events' => $proctoringEvents,
             'proctoring_recording_summary' => $this->proctoringRecordingSummary($proctoringRecordings),
-            'proctoring_recording_chunks' => $proctoringRecordingChunks,
+            'proctoring_camera_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'camera', 'camera_recording_page'),
+            'proctoring_screen_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'screen', 'screen_recording_page'),
         ]);
     }
 
@@ -395,6 +387,25 @@ class TestResultController extends Controller
             'screen_started_at' => $screen?->started_at?->toISOString(),
             'screen_stopped_at' => $screen?->stopped_at?->toISOString(),
         ];
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    private function proctoringRecordingChunks(
+        TestAttempt $attempt,
+        string $recordingType,
+        string $pageName,
+    ): LengthAwarePaginator {
+        $chunks = $attempt->proctoringRecordingChunks()
+            ->with('event:id,event_type,severity,occurred_at')
+            ->where('recording_type', $recordingType)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->paginate(12, ['*'], $pageName)
+            ->withQueryString();
+
+        return $chunks->through(fn (ProctoringRecordingChunk $chunk): array => $this->proctoringRecordingChunkPayload($chunk));
     }
 
     /**

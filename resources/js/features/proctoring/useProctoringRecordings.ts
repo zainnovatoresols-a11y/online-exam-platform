@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type ProctoringAttempt = {
     id: number;
@@ -36,8 +36,6 @@ export type ProctoringRecordingControls = {
     screenStatus: RecordingStatus;
     cameraMessage: string | null;
     screenMessage: string | null;
-    cameraVideoRef: RefObject<HTMLVideoElement>;
-    screenVideoRef: RefObject<HTMLVideoElement>;
     startCamera: () => Promise<void>;
     startScreen: () => Promise<void>;
     stopAllRecordings: (reason?: string) => Promise<void>;
@@ -54,14 +52,14 @@ export function useProctoringRecordings(
 ): ProctoringRecordingControls {
     const routes = useMemo(() => recordingRoutes(attempt), [attempt]);
     const disabledRef = useRef(disabled);
-    const cameraVideoRef = useRef<HTMLVideoElement>(null);
-    const screenVideoRef = useRef<HTMLVideoElement>(null);
     const cameraStreamRef = useRef<MediaStream | null>(null);
     const screenStreamRef = useRef<MediaStream | null>(null);
     const cameraRecorderRef = useRef<MediaRecorder | null>(null);
     const screenRecorderRef = useRef<MediaRecorder | null>(null);
     const cameraSequenceRef = useRef(0);
     const screenSequenceRef = useRef(0);
+    const cameraChunkTimerRef = useRef<number | null>(null);
+    const screenChunkTimerRef = useRef<number | null>(null);
     const cameraStartedRef = useRef(false);
     const stoppingRef = useRef<Set<RecordingType>>(new Set());
     const cameraSessionStartedRef = useRef(false);
@@ -206,18 +204,25 @@ export function useProctoringRecordings(
                 recordingType === 'camera'
                     ? cameraSessionStartedRef
                     : screenSessionStartedRef;
+            const timerRef =
+                recordingType === 'camera'
+                    ? cameraChunkTimerRef
+                    : screenChunkTimerRef;
 
             try {
                 const recorder = recorderRef.current;
 
                 if (recorder && recorder.state !== 'inactive') {
                     try {
-                        recorder.requestData();
+                        recorder.stop();
                     } catch {
-                        // Some browsers throw if requestData is called during stop.
+                        // Some browsers throw if stop is called during a state change.
                     }
+                }
 
-                    recorder.stop();
+                if (timerRef.current !== null) {
+                    window.clearTimeout(timerRef.current);
+                    timerRef.current = null;
                 }
 
                 streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -261,12 +266,34 @@ export function useProctoringRecordings(
         [routes.stop, sendEvent],
     );
 
-    const startRecorder = useCallback(
+    const startRecorderChunk = useCallback(
         (
             recordingType: RecordingType,
             stream: MediaStream,
             mimeType: string,
         ) => {
+            if (disabledRef.current || ! stream.active) {
+                return;
+            }
+
+            const sessionStartedRef =
+                recordingType === 'camera'
+                    ? cameraSessionStartedRef
+                    : screenSessionStartedRef;
+
+            if (! sessionStartedRef.current) {
+                return;
+            }
+
+            const timerRef =
+                recordingType === 'camera'
+                    ? cameraChunkTimerRef
+                    : screenChunkTimerRef;
+            const setStatus =
+                recordingType === 'camera' ? setCameraStatus : setScreenStatus;
+            const setMessage =
+                recordingType === 'camera' ? setCameraMessage : setScreenMessage;
+            const recordedParts: Blob[] = [];
             const recorder = new MediaRecorder(stream, {
                 mimeType: mimeType || undefined,
                 videoBitsPerSecond:
@@ -276,18 +303,43 @@ export function useProctoringRecordings(
             });
 
             recorder.ondataavailable = (event) => {
-                if (event.data.size === 0) {
-                    return;
+                if (event.data.size > 0) {
+                    recordedParts.push(event.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                if (timerRef.current !== null) {
+                    window.clearTimeout(timerRef.current);
+                    timerRef.current = null;
                 }
 
-                const sequenceRef =
-                    recordingType === 'camera'
-                        ? cameraSequenceRef
-                        : screenSequenceRef;
-                const sequence = sequenceRef.current + 1;
-                sequenceRef.current = sequence;
+                if (recordedParts.length > 0) {
+                    const sequenceRef =
+                        recordingType === 'camera'
+                            ? cameraSequenceRef
+                            : screenSequenceRef;
+                    const sequence = sequenceRef.current + 1;
+                    sequenceRef.current = sequence;
+                    const chunkMimeType =
+                        mimeType || recorder.mimeType || 'video/webm';
+                    const blob = new Blob(recordedParts, {
+                        type: chunkMimeType,
+                    });
 
-                void uploadChunk(recordingType, event.data, sequence, mimeType);
+                    void uploadChunk(recordingType, blob, sequence, chunkMimeType);
+                }
+
+                if (
+                    sessionStartedRef.current &&
+                    ! disabledRef.current &&
+                    ! stoppingRef.current.has(recordingType) &&
+                    stream.active
+                ) {
+                    window.setTimeout(() => {
+                        startRecorderChunk(recordingType, stream, mimeType);
+                    }, 250);
+                }
             };
 
             recorder.onerror = () => {
@@ -296,22 +348,32 @@ export function useProctoringRecordings(
                     stage: 'media_recorder',
                 });
 
-                if (recordingType === 'camera') {
-                    setCameraStatus('error');
-                    setCameraMessage('Camera recording failed.');
-                } else {
-                    setScreenStatus('error');
-                    setScreenMessage('Screen recording failed.');
-                }
+                setStatus('error');
+                setMessage(
+                    `${recordingType === 'camera' ? 'Camera' : 'Screen'} recording failed.`,
+                );
             };
-
-            recorder.start(CHUNK_DURATION_MS);
 
             if (recordingType === 'camera') {
                 cameraRecorderRef.current = recorder;
             } else {
                 screenRecorderRef.current = recorder;
             }
+
+            recorder.start();
+
+            timerRef.current = window.setTimeout(() => {
+                if (recorder.state === 'recording') {
+                    try {
+                        recorder.stop();
+                    } catch {
+                        sendEvent(`${recordingType}_recording_error`, {
+                            recording_type: recordingType,
+                            stage: 'chunk_stop',
+                        });
+                    }
+                }
+            }, CHUNK_DURATION_MS);
         },
         [sendEvent, uploadChunk],
     );
@@ -346,13 +408,12 @@ export function useProctoringRecordings(
             const mimeType = preferredMimeType();
 
             cameraStreamRef.current = stream;
-            attachStream(cameraVideoRef.current, stream);
             sendEvent('camera_recording_permission_granted');
             await startRecordingSession('camera', mimeType, {
                 video_tracks: stream.getVideoTracks().length,
             });
             cameraSessionStartedRef.current = true;
-            startRecorder('camera', stream, mimeType);
+            startRecorderChunk('camera', stream, mimeType);
             setCameraStatus('recording');
             setCameraMessage('Camera recording active.');
         } catch (error) {
@@ -371,7 +432,7 @@ export function useProctoringRecordings(
                 errorMetadata(error),
             );
         }
-    }, [sendEvent, startRecorder, startRecordingSession]);
+    }, [sendEvent, startRecorderChunk, startRecordingSession]);
 
     const startScreen = useCallback(async () => {
         if (disabledRef.current || screenRecorderRef.current?.state === 'recording') {
@@ -402,13 +463,12 @@ export function useProctoringRecordings(
             const screenTrack = stream.getVideoTracks()[0];
 
             screenStreamRef.current = stream;
-            attachStream(screenVideoRef.current, stream);
             sendEvent('screen_recording_permission_granted');
             await startRecordingSession('screen', mimeType, {
                 video_tracks: stream.getVideoTracks().length,
             });
             screenSessionStartedRef.current = true;
-            startRecorder('screen', stream, mimeType);
+            startRecorderChunk('screen', stream, mimeType);
             setScreenStatus('recording');
             setScreenMessage('Screen recording active.');
 
@@ -433,7 +493,7 @@ export function useProctoringRecordings(
                 errorMetadata(error),
             );
         }
-    }, [sendEvent, startRecorder, startRecordingSession, stopRecording]);
+    }, [sendEvent, startRecorderChunk, startRecordingSession, stopRecording]);
 
     const stopAllRecordings = useCallback(
         async (reason = 'stopped') => {
@@ -489,8 +549,6 @@ export function useProctoringRecordings(
         screenStatus,
         cameraMessage,
         screenMessage,
-        cameraVideoRef,
-        screenVideoRef,
         startCamera,
         startScreen,
         stopAllRecordings,
@@ -549,20 +607,6 @@ function preferredMimeType(): string {
         ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ??
         'video/webm'
     );
-}
-
-function attachStream(
-    videoElement: HTMLVideoElement | null,
-    stream: MediaStream,
-): void {
-    if (! videoElement) {
-        return;
-    }
-
-    videoElement.srcObject = stream;
-    videoElement.muted = true;
-    videoElement.playsInline = true;
-    void videoElement.play().catch(() => undefined);
 }
 
 function isPermissionDenied(error: unknown): boolean {

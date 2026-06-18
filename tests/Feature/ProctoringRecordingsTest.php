@@ -341,11 +341,20 @@ class ProctoringRecordingsTest extends TestCase
             ->where('proctoring_recording_summary.camera_status', 'recording')
             ->where('proctoring_recording_summary.camera_chunk_count', 7)
             ->where('proctoring_recording_summary.screen_chunk_count', 7)
-            ->where('proctoring_recording_chunks.per_page', 12)
-            ->where('proctoring_recording_chunks.total', 14)
-            ->has('proctoring_recording_chunks.data', 12)
-            ->where('proctoring_recording_chunks.data.0.sequence', 1)
-            ->where('proctoring_recording_chunks.data.0.url', route('admin.proctoring-recording-chunks.show', ProctoringRecordingChunk::first())));
+            ->where('proctoring_camera_recording_chunks.per_page', 12)
+            ->where('proctoring_camera_recording_chunks.total', 7)
+            ->has('proctoring_camera_recording_chunks.data', 7)
+            ->where('proctoring_camera_recording_chunks.data.0.recording_type', 'camera')
+            ->where('proctoring_camera_recording_chunks.data.0.sequence', 1)
+            ->where(
+                'proctoring_camera_recording_chunks.data.0.url',
+                route('admin.proctoring-recording-chunks.show', ProctoringRecordingChunk::query()->where('recording_type', 'camera')->orderBy('sequence')->first()),
+            )
+            ->where('proctoring_screen_recording_chunks.per_page', 12)
+            ->where('proctoring_screen_recording_chunks.total', 7)
+            ->has('proctoring_screen_recording_chunks.data', 7)
+            ->where('proctoring_screen_recording_chunks.data.0.recording_type', 'screen')
+            ->where('proctoring_screen_recording_chunks.data.0.sequence', 2));
     }
 
     public function test_candidate_result_page_does_not_expose_recordings(): void
@@ -366,7 +375,9 @@ class ProctoringRecordingsTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Candidate/Attempts/Result')
             ->missing('proctoring_recording_summary')
-            ->missing('proctoring_recording_chunks'));
+            ->missing('proctoring_recording_chunks')
+            ->missing('proctoring_camera_recording_chunks')
+            ->missing('proctoring_screen_recording_chunks'));
     }
 
     private function recordingChunkFor(TestAttempt $attempt, string $type, int $sequence = 1): ProctoringRecordingChunk
