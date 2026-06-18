@@ -140,18 +140,23 @@ export default function Show({
         recordings.cameraStatus,
         recordings.screenStatus,
     );
+    const recordingUiSuppressed = submitting;
     const showRecordingWarning =
         ! violation &&
         ! proctoringDisabled &&
+        ! recordingUiSuppressed &&
         ! recordingSetupCompleted &&
         recordingsNeedAttention;
     const showRecordingMessage =
         ! violation &&
         ! proctoringDisabled &&
+        ! recordingUiSuppressed &&
         recordingSetupCompleted &&
         recordingsNeedAttention;
     const hideAssessmentContent =
-        ! proctoringDisabled && recordingsNeedAttention;
+        ! proctoringDisabled &&
+        ! recordingUiSuppressed &&
+        recordingsNeedAttention;
 
     useEffect(() => {
         const timer = window.setInterval(() => {
