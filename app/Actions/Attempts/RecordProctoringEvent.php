@@ -27,6 +27,21 @@ class RecordProctoringEvent
         'drag_attempt' => 'medium',
         'drop_attempt' => 'medium',
         'proctoring_violation_acknowledged' => 'low',
+        'camera_recording_permission_granted' => 'low',
+        'camera_recording_permission_denied' => 'high',
+        'camera_recording_started' => 'low',
+        'camera_recording_stopped' => 'medium',
+        'camera_recording_chunk_uploaded' => 'low',
+        'camera_recording_chunk_failed' => 'medium',
+        'camera_recording_error' => 'medium',
+        'screen_recording_permission_granted' => 'low',
+        'screen_recording_permission_denied' => 'high',
+        'screen_recording_started' => 'low',
+        'screen_recording_stopped' => 'medium',
+        'screen_recording_chunk_uploaded' => 'low',
+        'screen_recording_chunk_failed' => 'medium',
+        'screen_recording_error' => 'medium',
+        'screen_share_ended' => 'high',
     ];
 
     /**

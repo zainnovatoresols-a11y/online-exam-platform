@@ -8,6 +8,11 @@ import { useProctoringEvents } from '@/features/proctoring/useProctoringEvents';
 import {
     useProctoringGuards,
 } from '@/features/proctoring/useProctoringGuards';
+import {
+    ProctoringRecordingControls,
+    RecordingStatus,
+    useProctoringRecordings,
+} from '@/features/proctoring/useProctoringRecordings';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PublicAssessmentLayout from '@/Layouts/PublicAssessmentLayout';
 import { Head, useForm } from '@inertiajs/react';
@@ -111,6 +116,19 @@ export default function Show({
         fullscreenActive,
         fullscreenSupported,
     ]);
+    const recordings = useProctoringRecordings(attempt, proctoringDisabled);
+    const recordingWarningKey = `${recordings.cameraStatus}:${recordings.screenStatus}`;
+    const [recordingWarningDismissed, setRecordingWarningDismissed] =
+        useState(false);
+    const showRecordingWarning =
+        ! violation &&
+        ! proctoringDisabled &&
+        ! recordingWarningDismissed &&
+        recordingNeedsAttention(recordings.cameraStatus, recordings.screenStatus);
+    const continueWithRecordingViolation = useCallback(() => {
+        recordings.recordContinueWithViolation();
+        setRecordingWarningDismissed(true);
+    }, [recordings]);
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -119,6 +137,10 @@ export default function Show({
 
         return () => window.clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        setRecordingWarningDismissed(false);
+    }, [recordingWarningKey]);
 
     const registerCodingSave = useCallback(
         (questionId: number, saveHandler: () => Promise<void>) => {
@@ -138,6 +160,8 @@ export default function Show({
                     (saveHandler) => saveHandler(),
                 ),
             );
+
+            await recordings.stopAllRecordings('attempt_submitted');
 
             post(attemptRoute(attempt, 'submit'), {
                 onFinish: () => setSubmitting(false),
@@ -176,6 +200,15 @@ export default function Show({
                     violation={violation}
                     onAcknowledgeAndReturnToFullscreen={
                         acknowledgeAndReturnToFullscreen
+                    }
+                />
+            )}
+
+            {showRecordingWarning && (
+                <RecordingPermissionOverlay
+                    recordings={recordings}
+                    onContinueWithViolation={
+                        continueWithRecordingViolation
                     }
                 />
             )}
@@ -245,6 +278,10 @@ export default function Show({
                                 {latestBlockedAction}
                             </p>
                         )}
+                        <ProctoringRecordingPanel
+                            recordings={recordings}
+                            disabled={proctoringDisabled}
+                        />
                     </div>
 
                     <form onSubmit={submit} className="space-y-6">
@@ -421,6 +458,235 @@ function ProctoringViolationOverlay({
             </div>
         </div>
     );
+}
+
+function ProctoringRecordingPanel({
+    recordings,
+    disabled,
+}: {
+    recordings: ProctoringRecordingControls;
+    disabled: boolean;
+}) {
+    return (
+        <div className="mt-4 rounded-md border border-gray-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                        Screen and camera recording
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Video is saved in short private chunks for admin review.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <RecordingStatusBadge
+                        label="Camera"
+                        status={recordings.cameraStatus}
+                    />
+                    <RecordingStatusBadge
+                        label="Screen"
+                        status={recordings.screenStatus}
+                    />
+                </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <RecordingPreviewCard
+                    title="Camera"
+                    videoRef={recordings.cameraVideoRef}
+                    status={recordings.cameraStatus}
+                    message={recordings.cameraMessage}
+                    buttonLabel={
+                        recordings.cameraStatus === 'recording'
+                            ? 'Camera active'
+                            : 'Start camera recording'
+                    }
+                    disabled={
+                        disabled ||
+                        recordings.cameraStatus === 'requesting' ||
+                        recordings.cameraStatus === 'recording'
+                    }
+                    onStart={() => void recordings.startCamera()}
+                />
+                <RecordingPreviewCard
+                    title="Screen"
+                    videoRef={recordings.screenVideoRef}
+                    status={recordings.screenStatus}
+                    message={recordings.screenMessage}
+                    buttonLabel={
+                        recordings.screenStatus === 'recording'
+                            ? 'Screen active'
+                            : 'Start screen recording'
+                    }
+                    disabled={
+                        disabled ||
+                        recordings.screenStatus === 'requesting' ||
+                        recordings.screenStatus === 'recording'
+                    }
+                    onStart={() => void recordings.startScreen()}
+                />
+            </div>
+        </div>
+    );
+}
+
+function RecordingPreviewCard({
+    title,
+    videoRef,
+    status,
+    message,
+    buttonLabel,
+    disabled,
+    onStart,
+}: {
+    title: string;
+    videoRef: React.RefObject<HTMLVideoElement>;
+    status: RecordingStatus;
+    message: string | null;
+    buttonLabel: string;
+    disabled: boolean;
+    onStart: () => void;
+}) {
+    return (
+        <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-gray-800">{title}</p>
+                <RecordingStatusBadge status={status} />
+            </div>
+            <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="mt-3 aspect-video w-full rounded-md bg-gray-900 object-cover"
+            />
+            {message && (
+                <p className="mt-2 text-xs font-medium text-amber-700">
+                    {message}
+                </p>
+            )}
+            <SecondaryButton
+                type="button"
+                className="mt-3"
+                disabled={disabled}
+                onClick={onStart}
+            >
+                {buttonLabel}
+            </SecondaryButton>
+        </div>
+    );
+}
+
+function RecordingPermissionOverlay({
+    recordings,
+    onContinueWithViolation,
+}: {
+    recordings: ProctoringRecordingControls;
+    onContinueWithViolation: () => void;
+}) {
+    const cameraNeedsAttention = recordings.cameraStatus !== 'recording';
+    const screenNeedsAttention = recordings.screenStatus !== 'recording';
+
+    return (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/70 px-4">
+            <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+                <p className="text-sm font-medium uppercase text-amber-600">
+                    Recording permission required
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                    Camera and screen recording must stay active
+                </h3>
+                <div className="mt-4 space-y-3 text-sm text-gray-700">
+                    {cameraNeedsAttention && (
+                        <p>
+                            Camera permission is required for this assessment.
+                            Please allow camera access.
+                        </p>
+                    )}
+                    {screenNeedsAttention && (
+                        <p>
+                            Screen sharing is required for this assessment.
+                            Please share your entire screen where possible.
+                        </p>
+                    )}
+                    <p className="text-gray-500">
+                        Your timer continues while this notice is open.
+                    </p>
+                </div>
+
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                    {cameraNeedsAttention && (
+                        <SecondaryButton
+                            type="button"
+                            disabled={recordings.cameraStatus === 'requesting'}
+                            onClick={() => void recordings.startCamera()}
+                        >
+                            Retry camera
+                        </SecondaryButton>
+                    )}
+                    {screenNeedsAttention && (
+                        <SecondaryButton
+                            type="button"
+                            disabled={recordings.screenStatus === 'requesting'}
+                            onClick={() => void recordings.startScreen()}
+                        >
+                            Start screen sharing
+                        </SecondaryButton>
+                    )}
+                    <PrimaryButton
+                        type="button"
+                        className="whitespace-normal text-center leading-5 tracking-normal"
+                        onClick={onContinueWithViolation}
+                    >
+                        I understand, continue with violation recorded
+                    </PrimaryButton>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RecordingStatusBadge({
+    status,
+    label,
+}: {
+    status: RecordingStatus;
+    label?: string;
+}) {
+    const className =
+        status === 'recording'
+            ? 'bg-emerald-100 text-emerald-700'
+            : status === 'requesting'
+              ? 'bg-blue-100 text-blue-700'
+              : ['denied', 'error', 'unavailable'].includes(status)
+                ? 'bg-red-100 text-red-700'
+                : 'bg-gray-100 text-gray-700';
+
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                className
+            }
+        >
+            {label ? `${label}: ` : ''}
+            {formatRecordingStatus(status)}
+        </span>
+    );
+}
+
+function recordingNeedsAttention(
+    cameraStatus: RecordingStatus,
+    screenStatus: RecordingStatus,
+): boolean {
+    return cameraStatus !== 'recording' || screenStatus !== 'recording';
+}
+
+function formatRecordingStatus(status: RecordingStatus): string {
+    return status
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {

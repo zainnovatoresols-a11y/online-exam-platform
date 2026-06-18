@@ -9,6 +9,8 @@ use App\Models\CandidateTestDetail;
 use App\Models\CodeExecutionRun;
 use App\Models\Invitation;
 use App\Models\ProctoringEvent;
+use App\Models\ProctoringRecording;
+use App\Models\ProctoringRecordingChunk;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
@@ -82,6 +84,18 @@ class TestResultController extends Controller
 
         $proctoringEvents->through(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event));
 
+        $proctoringRecordings = $attempt->proctoringRecordings()->get();
+        $proctoringRecordingChunks = $attempt->proctoringRecordingChunks()
+            ->with('event:id,event_type,severity,occurred_at')
+            ->orderBy('uploaded_at')
+            ->orderBy('id')
+            ->paginate(12, ['*'], 'recording_page')
+            ->withQueryString();
+
+        $proctoringRecordingChunks->through(
+            fn (ProctoringRecordingChunk $chunk): array => $this->proctoringRecordingChunkPayload($chunk),
+        );
+
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
             'invitation' => $attempt->invitation
@@ -106,6 +120,8 @@ class TestResultController extends Controller
                 ->values(),
             'proctoring_summary' => $this->proctoringSummary($proctoringSummaryEvents),
             'proctoring_events' => $proctoringEvents,
+            'proctoring_recording_summary' => $this->proctoringRecordingSummary($proctoringRecordings),
+            'proctoring_recording_chunks' => $proctoringRecordingChunks,
         ]);
     }
 
@@ -329,6 +345,15 @@ class TestResultController extends Controller
                 ->count(),
             'acknowledged_violations' => $events
                 ->where('event_type', 'proctoring_violation_acknowledged')->count(),
+            'recording_permission_denials' => $events
+                ->whereIn('event_type', [
+                    'camera_recording_permission_denied',
+                    'screen_recording_permission_denied',
+                ])
+                ->count(),
+            'recording_errors' => $events->filter(fn (ProctoringEvent $event): bool => str_ends_with($event->event_type, '_recording_error')
+                || str_ends_with($event->event_type, '_recording_chunk_failed'))->count(),
+            'screen_share_ended' => $events->where('event_type', 'screen_share_ended')->count(),
         ];
     }
 
@@ -346,6 +371,56 @@ class TestResultController extends Controller
             'user_agent' => $event->user_agent,
             'metadata' => $event->metadata ?? [],
             'created_at' => $event->created_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ProctoringRecording>  $recordings
+     * @return array<string, mixed>
+     */
+    private function proctoringRecordingSummary(Collection $recordings): array
+    {
+        $camera = $recordings->firstWhere('recording_type', 'camera');
+        $screen = $recordings->firstWhere('recording_type', 'screen');
+
+        return [
+            'camera_status' => $camera?->status ?? 'not_started',
+            'camera_chunk_count' => $camera?->chunk_count ?? 0,
+            'camera_total_size_bytes' => $camera?->total_size_bytes ?? 0,
+            'camera_started_at' => $camera?->started_at?->toISOString(),
+            'camera_stopped_at' => $camera?->stopped_at?->toISOString(),
+            'screen_status' => $screen?->status ?? 'not_started',
+            'screen_chunk_count' => $screen?->chunk_count ?? 0,
+            'screen_total_size_bytes' => $screen?->total_size_bytes ?? 0,
+            'screen_started_at' => $screen?->started_at?->toISOString(),
+            'screen_stopped_at' => $screen?->stopped_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proctoringRecordingChunkPayload(ProctoringRecordingChunk $chunk): array
+    {
+        return [
+            'id' => $chunk->id,
+            'recording_type' => $chunk->recording_type,
+            'sequence' => $chunk->sequence,
+            'mime_type' => $chunk->mime_type,
+            'size_bytes' => $chunk->size_bytes,
+            'duration_ms' => $chunk->duration_ms,
+            'recorded_at' => $chunk->recorded_at?->toISOString(),
+            'uploaded_at' => $chunk->uploaded_at?->toISOString(),
+            'ip_address' => $chunk->ip_address,
+            'user_agent' => $chunk->user_agent,
+            'metadata' => $chunk->metadata ?? [],
+            'url' => route('admin.proctoring-recording-chunks.show', $chunk),
+            'event' => $chunk->event ? [
+                'id' => $chunk->event->id,
+                'event_type' => $chunk->event->event_type,
+                'severity' => $chunk->event->severity,
+                'occurred_at' => $chunk->event->occurred_at?->toISOString(),
+            ] : null,
         ];
     }
 }

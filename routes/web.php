@@ -3,11 +3,13 @@
 use App\Http\Controllers\Admin\CodingQuestionController as AdminCodingQuestionController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
+use App\Http\Controllers\Admin\ProctoringRecordingChunkController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
 use App\Http\Controllers\Candidate\Attempts\ProctoringEventController;
+use App\Http\Controllers\Candidate\Attempts\ProctoringRecordingController;
 use App\Http\Controllers\Candidate\Attempts\RunCodingQuestionController;
 use App\Http\Controllers\Candidate\Attempts\TestAttemptController;
 use App\Http\Controllers\Candidate\DashboardController as CandidateDashboardController;
@@ -53,6 +55,15 @@ Route::post('/public-attempts/{attemptToken}/coding-questions/run', [RunCodingQu
 Route::post('/public-attempts/{attemptToken}/proctoring-events', [ProctoringEventController::class, 'storePublic'])
     ->middleware('throttle:60,1')
     ->name('candidate.public-attempts.proctoring-events.store');
+Route::post('/public-attempts/{attemptToken}/proctoring-recordings/start', [ProctoringRecordingController::class, 'startPublic'])
+    ->middleware('throttle:20,1')
+    ->name('candidate.public-attempts.proctoring-recordings.start');
+Route::post('/public-attempts/{attemptToken}/proctoring-recordings/chunks', [ProctoringRecordingController::class, 'storePublicChunk'])
+    ->middleware('throttle:30,1')
+    ->name('candidate.public-attempts.proctoring-recordings.chunks.store');
+Route::post('/public-attempts/{attemptToken}/proctoring-recordings/stop', [ProctoringRecordingController::class, 'stopPublic'])
+    ->middleware('throttle:20,1')
+    ->name('candidate.public-attempts.proctoring-recordings.stop');
 Route::post('/public-attempts/{attemptToken}/submit', [PublicAttemptController::class, 'submit'])
     ->name('candidate.public-attempts.submit');
 
@@ -83,6 +94,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
+        Route::get('/proctoring-recording-chunks/{chunk}', [ProctoringRecordingChunkController::class, 'show'])
+            ->name('proctoring-recording-chunks.show');
         Route::scopeBindings()
             ->prefix('tests/{test}')
             ->name('tests.')
@@ -157,6 +170,15 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
         Route::post('/attempts/{attempt}/proctoring-events', [ProctoringEventController::class, 'store'])
             ->middleware('throttle:60,1')
             ->name('attempts.proctoring-events.store');
+        Route::post('/attempts/{attempt}/proctoring-recordings/start', [ProctoringRecordingController::class, 'start'])
+            ->middleware('throttle:20,1')
+            ->name('attempts.proctoring-recordings.start');
+        Route::post('/attempts/{attempt}/proctoring-recordings/chunks', [ProctoringRecordingController::class, 'storeChunk'])
+            ->middleware('throttle:30,1')
+            ->name('attempts.proctoring-recordings.chunks.store');
+        Route::post('/attempts/{attempt}/proctoring-recordings/stop', [ProctoringRecordingController::class, 'stop'])
+            ->middleware('throttle:20,1')
+            ->name('attempts.proctoring-recordings.stop');
         Route::post('/attempts/{attempt}/submit', [TestAttemptController::class, 'submit'])
             ->name('attempts.submit');
     });

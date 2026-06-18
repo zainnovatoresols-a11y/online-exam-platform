@@ -58,6 +58,9 @@ type ProctoringSummary = {
     shortcut_attempts: number;
     drag_drop_attempts: number;
     acknowledged_violations: number;
+    recording_permission_denials: number;
+    recording_errors: number;
+    screen_share_ended: number;
 };
 
 type ProctoringEvent = {
@@ -69,6 +72,40 @@ type ProctoringEvent = {
     user_agent: string | null;
     metadata: Record<string, unknown>;
     created_at: string | null;
+};
+
+type ProctoringRecordingSummary = {
+    camera_status: string;
+    camera_chunk_count: number;
+    camera_total_size_bytes: number;
+    camera_started_at: string | null;
+    camera_stopped_at: string | null;
+    screen_status: string;
+    screen_chunk_count: number;
+    screen_total_size_bytes: number;
+    screen_started_at: string | null;
+    screen_stopped_at: string | null;
+};
+
+type ProctoringRecordingChunk = {
+    id: number;
+    recording_type: 'camera' | 'screen' | string;
+    sequence: number;
+    mime_type: string | null;
+    size_bytes: number | null;
+    duration_ms: number | null;
+    recorded_at: string | null;
+    uploaded_at: string | null;
+    ip_address: string | null;
+    user_agent: string | null;
+    metadata: Record<string, unknown>;
+    url: string;
+    event: {
+        id: number;
+        event_type: string;
+        severity: 'low' | 'medium' | 'high' | string;
+        occurred_at: string | null;
+    } | null;
 };
 
 type PaginationLink = {
@@ -167,6 +204,8 @@ type Props = {
     answers: Answer[];
     proctoring_summary: ProctoringSummary;
     proctoring_events: Paginated<ProctoringEvent>;
+    proctoring_recording_summary: ProctoringRecordingSummary;
+    proctoring_recording_chunks: Paginated<ProctoringRecordingChunk>;
 };
 
 export default function Show({
@@ -177,6 +216,8 @@ export default function Show({
     answers,
     proctoring_summary,
     proctoring_events,
+    proctoring_recording_summary,
+    proctoring_recording_chunks,
 }: Props) {
     return (
         <AuthenticatedLayout
@@ -326,6 +367,11 @@ export default function Show({
                         events={proctoring_events}
                     />
 
+                    <ProctoringRecordingReview
+                        summary={proctoring_recording_summary}
+                        chunks={proctoring_recording_chunks}
+                    />
+
                     <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="border-b border-gray-200 px-6 py-4">
                             <h4 className="text-base font-semibold text-gray-900">
@@ -411,6 +457,15 @@ function ProctoringReview({
                     </Metric>
                     <Metric label="Acknowledgements">
                         {summary.acknowledged_violations}
+                    </Metric>
+                    <Metric label="Recording denials">
+                        {summary.recording_permission_denials}
+                    </Metric>
+                    <Metric label="Recording errors">
+                        {summary.recording_errors}
+                    </Metric>
+                    <Metric label="Screen ended">
+                        {summary.screen_share_ended}
                     </Metric>
                     <Metric label="Low / Medium">
                         {summary.low} / {summary.medium}
@@ -508,6 +563,192 @@ function ProctoringPagination({
             {events.last_page > 1 && (
                 <div className="flex flex-wrap items-center gap-1">
                     {events.links.map((link, index) =>
+                        link.url ? (
+                            <Link
+                                key={`${link.label}-${index}`}
+                                href={link.url}
+                                preserveScroll
+                                preserveState
+                                className={
+                                    'rounded-md border px-3 py-1.5 text-sm font-medium ' +
+                                    (link.active
+                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50')
+                                }
+                            >
+                                {paginationLabel(link.label)}
+                            </Link>
+                        ) : (
+                            <span
+                                key={`${link.label}-${index}`}
+                                className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-400"
+                            >
+                                {paginationLabel(link.label)}
+                            </span>
+                        ),
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ProctoringRecordingReview({
+    summary,
+    chunks,
+}: {
+    summary: ProctoringRecordingSummary;
+    chunks: Paginated<ProctoringRecordingChunk>;
+}) {
+    return (
+        <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+            <div className="border-b border-gray-200 px-6 py-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                    Screen And Camera Recordings
+                </h4>
+                <p className="mt-1 text-sm text-gray-600">
+                    Private recording chunks captured during the candidate
+                    attempt.
+                </p>
+            </div>
+
+            <div className="space-y-6 p-6">
+                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Metric label="Camera status">
+                        <StatusBadge value={summary.camera_status} />
+                    </Metric>
+                    <Metric label="Camera chunks">
+                        {summary.camera_chunk_count}
+                    </Metric>
+                    <Metric label="Camera size">
+                        {formatBytes(summary.camera_total_size_bytes)}
+                    </Metric>
+                    <Metric label="Camera started">
+                        {formatDateTime(summary.camera_started_at)}
+                    </Metric>
+                    <Metric label="Screen status">
+                        <StatusBadge value={summary.screen_status} />
+                    </Metric>
+                    <Metric label="Screen chunks">
+                        {summary.screen_chunk_count}
+                    </Metric>
+                    <Metric label="Screen size">
+                        {formatBytes(summary.screen_total_size_bytes)}
+                    </Metric>
+                    <Metric label="Screen started">
+                        {formatDateTime(summary.screen_started_at)}
+                    </Metric>
+                </dl>
+
+                {chunks.data.length > 0 ? (
+                    <div className="space-y-4">
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {chunks.data.map((chunk) => (
+                                <RecordingChunkCard
+                                    key={chunk.id}
+                                    chunk={chunk}
+                                />
+                            ))}
+                        </div>
+                        <RecordingPagination chunks={chunks} />
+                    </div>
+                ) : (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        No camera or screen recording chunks have been stored
+                        for this attempt.
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
+function RecordingChunkCard({
+    chunk,
+}: {
+    chunk: ProctoringRecordingChunk;
+}) {
+    return (
+        <article className="rounded-md border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <TypeBadge type={chunk.recording_type} />
+                        {chunk.event && (
+                            <SeverityBadge value={chunk.event.severity} />
+                        )}
+                    </div>
+                    <h5 className="mt-2 text-sm font-semibold text-gray-900">
+                        {formatLabel(chunk.recording_type)} chunk #
+                        {chunk.sequence}
+                    </h5>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Uploaded {formatDateTime(chunk.uploaded_at)}
+                    </p>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                    <p>{formatBytes(chunk.size_bytes)}</p>
+                    <p>{formatDurationMs(chunk.duration_ms)}</p>
+                </div>
+            </div>
+
+            <video
+                src={chunk.url}
+                controls
+                preload="metadata"
+                className="mt-4 aspect-video w-full rounded-md bg-gray-950"
+            />
+
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Detail label="Recorded">
+                    {formatDateTime(chunk.recorded_at)}
+                </Detail>
+                <Detail label="MIME type">
+                    {formatNullableValue(chunk.mime_type)}
+                </Detail>
+                <Detail label="IP address">
+                    {formatNullableValue(chunk.ip_address)}
+                </Detail>
+                <Detail label="Event">
+                    {chunk.event
+                        ? formatLabel(chunk.event.event_type)
+                        : 'Not recorded'}
+                </Detail>
+                <div className="sm:col-span-2">
+                    <Detail label="User agent">
+                        {formatNullableValue(chunk.user_agent)}
+                    </Detail>
+                </div>
+            </dl>
+
+            {Object.keys(chunk.metadata).length > 0 && (
+                <div className="mt-4 rounded-md border border-gray-200 bg-white p-3">
+                    <MetadataDetails metadata={chunk.metadata} />
+                </div>
+            )}
+        </article>
+    );
+}
+
+function RecordingPagination({
+    chunks,
+}: {
+    chunks: Paginated<ProctoringRecordingChunk>;
+}) {
+    if (chunks.total === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <p className="text-gray-600">
+                Showing {chunks.from ?? 0} to {chunks.to ?? 0} of{' '}
+                {chunks.total} recording chunks
+            </p>
+
+            {chunks.last_page > 1 && (
+                <div className="flex flex-wrap items-center gap-1">
+                    {chunks.links.map((link, index) =>
                         link.url ? (
                             <Link
                                 key={`${link.label}-${index}`}
@@ -974,10 +1215,34 @@ function formatNullableNumber(value: number | null): string {
     return value === null ? '-' : String(value);
 }
 
-function formatNullableValue(value: string | number | null): string {
-    if (value === null || value === '') {
+function formatNullableValue(value: string | number | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
         return '-';
     }
 
     return String(value);
+}
+
+function formatBytes(value?: number | null): string {
+    if (! value) {
+        return '0 B';
+    }
+
+    if (value < 1024) {
+        return `${value} B`;
+    }
+
+    if (value < 1024 * 1024) {
+        return `${(value / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDurationMs(value?: number | null): string {
+    if (! value) {
+        return 'Duration not recorded';
+    }
+
+    return `${Math.round(value / 1000)} sec`;
 }

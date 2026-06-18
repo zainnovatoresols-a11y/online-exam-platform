@@ -119,6 +119,26 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get proctoring recording sessions for this attempt.
+     *
+     * @return HasMany<ProctoringRecording, $this>
+     */
+    public function proctoringRecordings(): HasMany
+    {
+        return $this->hasMany(ProctoringRecording::class);
+    }
+
+    /**
+     * Get proctoring recording chunks for this attempt.
+     *
+     * @return HasMany<ProctoringRecordingChunk, $this>
+     */
+    public function proctoringRecordingChunks(): HasMany
+    {
+        return $this->hasMany(ProctoringRecordingChunk::class);
+    }
+
+    /**
      * Get the public candidate details attached to the attempt.
      *
      * @return HasOne<CandidateTestDetail, $this>
