@@ -6,6 +6,7 @@ use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
 use App\Enums\TestStatus;
 use App\Enums\UserRole;
+use App\Jobs\MergeProctoringRecording;
 use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
 use App\Models\Organization;
@@ -17,6 +18,7 @@ use App\Models\TestAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -319,6 +321,90 @@ class ProctoringRecordingsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_admin_can_view_merged_recording_for_in_scope_attempt(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = $this->publishedTestFor($admin);
+        [, $attempt] = $this->publicAttemptFor($test, $admin, [
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+        $chunk = $this->recordingChunkFor($attempt, 'camera');
+        $recording = $chunk->recording()->firstOrFail();
+
+        $recording->forceFill([
+            'merged_disk' => 'local',
+            'merged_path' => "proctoring/attempts/{$attempt->id}/recordings/camera/merged_camera.webm",
+            'merged_status' => 'completed',
+            'merged_at' => now(),
+            'merged_size_bytes' => 2048,
+        ])->save();
+
+        Storage::disk('local')->put($recording->merged_path, 'merged-video-content');
+
+        $this->actingAs($admin)
+            ->get(route('admin.proctoring-recordings.merged-video.show', $recording))
+            ->assertOk();
+    }
+
+    public function test_candidate_cannot_view_admin_merged_recording_route(): void
+    {
+        Storage::fake('local');
+
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        [, $attempt] = $this->attemptForCandidate($candidate, [
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+        $chunk = $this->recordingChunkFor($attempt, 'screen');
+        $recording = $chunk->recording()->firstOrFail();
+
+        $recording->forceFill([
+            'merged_disk' => 'local',
+            'merged_path' => "proctoring/attempts/{$attempt->id}/recordings/screen/merged_screen.webm",
+            'merged_status' => 'completed',
+            'merged_at' => now(),
+            'merged_size_bytes' => 2048,
+        ])->save();
+
+        Storage::disk('local')->put($recording->merged_path, 'merged-video-content');
+
+        $this->actingAs($candidate)
+            ->get(route('admin.proctoring-recordings.merged-video.show', $recording))
+            ->assertForbidden();
+    }
+
+    public function test_submitting_attempt_dispatches_recording_merge_jobs(): void
+    {
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        [, $attempt] = $this->attemptForCandidate($candidate);
+        $cameraRecording = $this->recordingChunkFor($attempt, 'camera')
+            ->recording()
+            ->firstOrFail();
+        $screenRecording = $this->recordingChunkFor($attempt, 'screen')
+            ->recording()
+            ->firstOrFail();
+
+        Queue::fake([MergeProctoringRecording::class]);
+
+        $this->actingAs($candidate)
+            ->post(route('candidate.attempts.submit', $attempt), [
+                'answers' => [],
+            ])
+            ->assertRedirect(route('candidate.attempts.show', $attempt));
+
+        Queue::assertPushed(
+            MergeProctoringRecording::class,
+            fn (MergeProctoringRecording $job): bool => $job->recordingId === $cameraRecording->id,
+        );
+        Queue::assertPushed(
+            MergeProctoringRecording::class,
+            fn (MergeProctoringRecording $job): bool => $job->recordingId === $screenRecording->id,
+        );
+    }
+
     public function test_admin_result_page_includes_recording_summary_and_paginated_chunks(): void
     {
         $admin = $this->userWithRole(UserRole::Admin);
@@ -332,6 +418,18 @@ class ProctoringRecordingsTest extends TestCase
             $this->recordingChunkFor($attempt, $index % 2 === 0 ? 'screen' : 'camera', $index);
         }
 
+        $cameraRecording = ProctoringRecording::query()
+            ->where('test_attempt_id', $attempt->id)
+            ->where('recording_type', 'camera')
+            ->firstOrFail();
+        $cameraRecording->forceFill([
+            'merged_disk' => 'local',
+            'merged_path' => "proctoring/attempts/{$attempt->id}/recordings/camera/merged_camera.webm",
+            'merged_status' => 'completed',
+            'merged_at' => now(),
+            'merged_size_bytes' => 2048,
+        ])->save();
+
         $response = $this->actingAs($admin)
             ->get(route('admin.tests.results.show', [$test, $attempt]));
 
@@ -340,7 +438,10 @@ class ProctoringRecordingsTest extends TestCase
             ->component('Admin/Results/Show')
             ->where('proctoring_recording_summary.camera_status', 'recording')
             ->where('proctoring_recording_summary.camera_chunk_count', 7)
+            ->where('proctoring_recording_summary.camera_merged_status', 'completed')
+            ->where('proctoring_recording_summary.camera_merged_url', route('admin.proctoring-recordings.merged-video.show', $cameraRecording))
             ->where('proctoring_recording_summary.screen_chunk_count', 7)
+            ->where('proctoring_recording_summary.screen_merged_status', 'pending')
             ->where('proctoring_camera_recording_chunks.per_page', 12)
             ->where('proctoring_camera_recording_chunks.total', 7)
             ->has('proctoring_camera_recording_chunks.data', 7)

@@ -381,12 +381,35 @@ class TestResultController extends Controller
             'camera_total_size_bytes' => $camera?->total_size_bytes ?? 0,
             'camera_started_at' => $camera?->started_at?->toISOString(),
             'camera_stopped_at' => $camera?->stopped_at?->toISOString(),
+            'camera_merged_status' => $camera?->merged_status ?? 'not_started',
+            'camera_merged_url' => $this->mergedRecordingUrl($camera),
+            'camera_merged_at' => $camera?->merged_at?->toISOString(),
+            'camera_merged_size_bytes' => $camera?->merged_size_bytes ?? 0,
+            'camera_merge_error' => $camera?->merge_error,
             'screen_status' => $screen?->status ?? 'not_started',
             'screen_chunk_count' => $screen?->chunk_count ?? 0,
             'screen_total_size_bytes' => $screen?->total_size_bytes ?? 0,
             'screen_started_at' => $screen?->started_at?->toISOString(),
             'screen_stopped_at' => $screen?->stopped_at?->toISOString(),
+            'screen_merged_status' => $screen?->merged_status ?? 'not_started',
+            'screen_merged_url' => $this->mergedRecordingUrl($screen),
+            'screen_merged_at' => $screen?->merged_at?->toISOString(),
+            'screen_merged_size_bytes' => $screen?->merged_size_bytes ?? 0,
+            'screen_merge_error' => $screen?->merge_error,
         ];
+    }
+
+    private function mergedRecordingUrl(?ProctoringRecording $recording): ?string
+    {
+        if (! $recording || $recording->merged_status !== 'completed') {
+            return null;
+        }
+
+        if (! $recording->merged_disk || ! $recording->merged_path) {
+            return null;
+        }
+
+        return route('admin.proctoring-recordings.merged-video.show', $recording);
     }
 
     /**

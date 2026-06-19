@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CodingQuestionController as AdminCodingQuestionCo
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
 use App\Http\Controllers\Admin\ProctoringRecordingChunkController;
+use App\Http\Controllers\Admin\ProctoringRecordingController as AdminProctoringRecordingController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
@@ -94,6 +95,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
+        Route::get('/proctoring-recordings/{recording}/merged-video', [AdminProctoringRecordingController::class, 'showMerged'])
+            ->name('proctoring-recordings.merged-video.show');
         Route::get('/proctoring-recording-chunks/{chunk}', [ProctoringRecordingChunkController::class, 'show'])
             ->name('proctoring-recording-chunks.show');
         Route::scopeBindings()

@@ -6,6 +6,7 @@ use App\Data\CodeExecution\CodeRunResult;
 use App\Data\CodeExecution\CodeTestCaseResult;
 use App\Enums\AttemptStatus;
 use App\Enums\QuestionType;
+use App\Jobs\MergeProctoringRecording;
 use App\Models\CodeExecutionRun;
 use App\Models\Question;
 use App\Models\TestAttempt;
@@ -42,7 +43,7 @@ class SubmitMcqAttempt
         }
 
         try {
-            return DB::transaction(function () use ($attempt, $answers): TestAttempt {
+            $submittedAttempt = DB::transaction(function () use ($attempt, $answers): TestAttempt {
                 $attempt->load([
                     'test.questions' => fn ($query) => $query
                         ->orderBy('order')
@@ -91,6 +92,22 @@ class SubmitMcqAttempt
                 'attempt' => 'Code execution is temporarily unavailable. Please try submitting again.',
             ]);
         }
+
+        $this->queueProctoringRecordingMerges($submittedAttempt);
+
+        return $submittedAttempt;
+    }
+
+    private function queueProctoringRecordingMerges(TestAttempt $attempt): void
+    {
+        $attempt->proctoringRecordings()
+            ->where('chunk_count', '>', 0)
+            ->where(function ($query): void {
+                $query->whereNull('merged_status')
+                    ->orWhereIn('merged_status', ['pending', 'failed']);
+            })
+            ->get(['id'])
+            ->each(fn ($recording): mixed => MergeProctoringRecording::dispatch($recording->id)->afterCommit());
     }
 
     /**

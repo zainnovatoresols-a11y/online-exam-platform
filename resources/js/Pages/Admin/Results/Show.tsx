@@ -81,11 +81,21 @@ type ProctoringRecordingSummary = {
     camera_total_size_bytes: number;
     camera_started_at: string | null;
     camera_stopped_at: string | null;
+    camera_merged_status: string;
+    camera_merged_url: string | null;
+    camera_merged_at: string | null;
+    camera_merged_size_bytes: number;
+    camera_merge_error: string | null;
     screen_status: string;
     screen_chunk_count: number;
     screen_total_size_bytes: number;
     screen_started_at: string | null;
     screen_stopped_at: string | null;
+    screen_merged_status: string;
+    screen_merged_url: string | null;
+    screen_merged_at: string | null;
+    screen_merged_size_bytes: number;
+    screen_merge_error: string | null;
 };
 
 type ProctoringRecordingChunk = {
@@ -620,6 +630,9 @@ function ProctoringRecordingReview({
 
         return null;
     }, [cameraChunks, screenChunks, selectedFolder]);
+    const activeMerged = selectedFolder
+        ? recordingMerge(summary, selectedFolder)
+        : null;
     const activeTitle =
         selectedFolder === 'camera'
             ? 'Camera Recording'
@@ -653,13 +666,13 @@ function ProctoringRecordingReview({
                         <RecordingFolderCard
                             title="Camera Recording"
                             status={summary.camera_status}
-                            chunks={summary.camera_chunk_count}
+                            mergedStatus={summary.camera_merged_status}
                             onOpen={() => setSelectedFolder('camera')}
                         />
                         <RecordingFolderCard
                             title="Screen Recording"
                             status={summary.screen_status}
-                            chunks={summary.screen_chunk_count}
+                            mergedStatus={summary.screen_merged_status}
                             onOpen={() => setSelectedFolder('screen')}
                         />
                     </div>
@@ -676,23 +689,38 @@ function ProctoringRecordingReview({
                             <RecordingTypeBadge type={selectedFolder} />
                         </div>
 
-                        {activeChunks.data.length > 0 ? (
-                            <>
-                                <div className="grid max-h-[720px] gap-4 overflow-y-auto pr-2 lg:grid-cols-2">
-                                    {activeChunks.data.map((chunk) => (
-                                        <RecordingChunkCard
-                                            key={chunk.id}
-                                            chunk={chunk}
-                                        />
-                                    ))}
+                        {activeMerged?.url ? (
+                            <MergedRecordingPlayer
+                                title={activeTitle}
+                                merged={activeMerged}
+                            />
+                        ) : activeMerged?.status === 'processing' ? (
+                            <RecordingProcessingNotice />
+                        ) : activeMerged?.status === 'failed' ? (
+                            <RecordingMergeFailedNotice
+                                error={activeMerged.error}
+                            />
+                        ) : null}
+
+                        {!activeMerged?.url && (
+                            activeChunks.data.length > 0 ? (
+                                <>
+                                    <div className="grid max-h-[720px] gap-4 overflow-y-auto pr-2 lg:grid-cols-2">
+                                        {activeChunks.data.map((chunk) => (
+                                            <RecordingChunkCard
+                                                key={chunk.id}
+                                                chunk={chunk}
+                                            />
+                                        ))}
+                                    </div>
+                                    <RecordingPagination chunks={activeChunks} />
+                                </>
+                            ) : (
+                                <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                                    No {selectedFolder} recording chunks have
+                                    been stored for this attempt.
                                 </div>
-                                <RecordingPagination chunks={activeChunks} />
-                            </>
-                        ) : (
-                            <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                                No {selectedFolder} recording chunks have been
-                                stored for this attempt.
-                            </div>
+                            )
                         )}
                     </div>
                 )}
@@ -704,12 +732,12 @@ function ProctoringRecordingReview({
 function RecordingFolderCard({
     title,
     status,
-    chunks,
+    mergedStatus,
     onOpen,
 }: {
     title: string;
     status: string;
-    chunks: number;
+    mergedStatus: string;
     onOpen: () => void;
 }) {
     return (
@@ -723,11 +751,56 @@ function RecordingFolderCard({
                     <p className="text-sm font-semibold text-gray-900">
                         {title}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">{chunks} videos</p>
                 </div>
-                <StatusBadge value={status} />
+                <div className="flex flex-col items-end gap-1">
+                    <StatusBadge value={status} />
+                    <StatusBadge value={mergedStatus} />
+                </div>
             </div>
         </button>
+    );
+}
+
+function MergedRecordingPlayer({
+    title,
+    merged,
+}: {
+    title: string;
+    merged: RecordingMerge;
+}) {
+    return (
+        <article className="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <video
+                src={merged.url ?? undefined}
+                controls
+                preload="metadata"
+                className="aspect-video w-full rounded-md bg-gray-950"
+            />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+                <span className="font-medium">{title}</span>
+                <span>
+                    {merged.merged_at ? formatDateTime(merged.merged_at) : '-'}
+                </span>
+            </div>
+        </article>
+    );
+}
+
+function RecordingProcessingNotice() {
+    return (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Recording is processing. Keep the queue worker running and refresh
+            this page shortly.
+        </div>
+    );
+}
+
+function RecordingMergeFailedNotice({ error }: { error: string | null }) {
+    return (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            Recording merge failed. The original chunks are shown below.
+            {error && <p className="mt-1 text-xs">{error}</p>}
+        </div>
     );
 }
 
@@ -806,6 +879,37 @@ function paginationLabel(label: string): string {
         .replace('&raquo;', '›')
         .replace('Previous', 'Prev')
         .trim();
+}
+
+type RecordingMerge = {
+    status: string;
+    url: string | null;
+    merged_at: string | null;
+    size_bytes: number;
+    error: string | null;
+};
+
+function recordingMerge(
+    summary: ProctoringRecordingSummary,
+    type: 'camera' | 'screen',
+): RecordingMerge {
+    if (type === 'camera') {
+        return {
+            status: summary.camera_merged_status,
+            url: summary.camera_merged_url,
+            merged_at: summary.camera_merged_at,
+            size_bytes: summary.camera_merged_size_bytes,
+            error: summary.camera_merge_error,
+        };
+    }
+
+    return {
+        status: summary.screen_merged_status,
+        url: summary.screen_merged_url,
+        merged_at: summary.screen_merged_at,
+        size_bytes: summary.screen_merged_size_bytes,
+        error: summary.screen_merge_error,
+    };
 }
 
 function MetadataDetails({

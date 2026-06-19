@@ -18,6 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'last_chunk_at',
     'chunk_count',
     'total_size_bytes',
+    'merged_disk',
+    'merged_path',
+    'merged_status',
+    'merged_at',
+    'merged_size_bytes',
+    'merge_error',
     'mime_type',
     'ip_address',
     'user_agent',
@@ -35,6 +41,7 @@ class ProctoringRecording extends Model
             'stopped_at' => 'datetime',
             'denied_at' => 'datetime',
             'last_chunk_at' => 'datetime',
+            'merged_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
