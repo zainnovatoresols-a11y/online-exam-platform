@@ -42,7 +42,7 @@ class StoreInvitationRequest extends FormRequest
             'name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'required_without_all:emails,email_csv', 'email', 'max:255'],
             'emails' => ['nullable', 'required_without_all:email,email_csv', 'string'],
-            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'mimes:csv,txt', 'max:2048'],
+            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'max:2048'],
             'starts_at' => ['required', 'date'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
@@ -54,6 +54,12 @@ class StoreInvitationRequest extends FormRequest
             $test = $this->route('test');
 
             if (! $test) {
+                return;
+            }
+
+            if ($this->hasInvalidCsvExtension()) {
+                $validator->errors()->add('email_csv', 'Please upload a .csv or .txt file.');
+
                 return;
             }
 
@@ -114,6 +120,19 @@ class StoreInvitationRequest extends FormRequest
     private function hasBulkEmailInput(): bool
     {
         return filled($this->input('emails')) || $this->hasFile('email_csv');
+    }
+
+    private function hasInvalidCsvExtension(): bool
+    {
+        $file = $this->file('email_csv');
+
+        if (! $file) {
+            return false;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        return ! in_array($extension, ['csv', 'txt'], true);
     }
 
     /**

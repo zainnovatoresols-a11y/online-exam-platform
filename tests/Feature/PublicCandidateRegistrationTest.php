@@ -156,6 +156,34 @@ class PublicCandidateRegistrationTest extends TestCase
         $this->assertStringContainsString('not-an-email', session('warning'));
     }
 
+    public function test_csv_invitation_upload_uses_file_extension_not_browser_mime_guess(): void
+    {
+        Notification::fake();
+        [$admin, $test] = $this->publishedOrganizationTest();
+        $path = tempnam(sys_get_temp_dir(), 'candidate-emails-');
+
+        file_put_contents($path, "email\nmime-test@example.com\n");
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.tests.invitations.store', $test), [
+                'email_csv' => new UploadedFile(
+                    $path,
+                    'candidate-emails.csv',
+                    'application/octet-stream',
+                    null,
+                    true,
+                ),
+                'starts_at' => now()->subMinute()->toDateTimeString(),
+            ]);
+
+        $response->assertRedirect(route('admin.tests.invitations.index', $test));
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'email' => 'mime-test@example.com',
+            'status' => InvitationStatus::Sent->value,
+        ]);
+    }
+
     public function test_invited_email_can_accept_policy_submit_details_and_complete_test_without_authentication(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest([

@@ -35,6 +35,9 @@ export default function Create({ test, public_url }: Props) {
         });
 
     const hasInvitationInput = data.emails.trim() !== '' || data.email_csv !== null;
+    const csvTemplateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(
+        'name,email\nCandidate One,candidate1@example.com\nCandidate Two,candidate2@example.com\n',
+    )}`;
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
@@ -113,10 +116,19 @@ export default function Create({ test, public_url }: Props) {
                         </div>
 
                         <div>
-                            <InputLabel
-                                htmlFor="email_csv"
-                                value="CSV email file"
-                            />
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <InputLabel
+                                    htmlFor="email_csv"
+                                    value="CSV email file"
+                                />
+                                <a
+                                    href={csvTemplateHref}
+                                    download="candidate-invites-template.csv"
+                                    className="text-sm font-medium text-gray-600 underline"
+                                >
+                                    Download CSV template
+                                </a>
+                            </div>
                             <input
                                 id="email_csv"
                                 type="file"
