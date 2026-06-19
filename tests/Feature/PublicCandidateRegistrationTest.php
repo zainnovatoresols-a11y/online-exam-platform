@@ -14,6 +14,7 @@ use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
@@ -74,7 +75,7 @@ class PublicCandidateRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_bulk_email_invitations_validate_each_email_address(): void
+    public function test_bulk_email_invitations_skip_invalid_addresses_and_queue_valid_ones(): void
     {
         Notification::fake();
         [$admin, $test] = $this->publishedOrganizationTest();
@@ -85,14 +86,22 @@ class PublicCandidateRegistrationTest extends TestCase
                 'starts_at' => now()->subMinute()->toDateTimeString(),
             ]);
 
-        $response->assertSessionHasErrors('emails');
-        $this->assertDatabaseMissing('invitations', [
+        $response
+            ->assertRedirect(route('admin.tests.invitations.index', $test))
+            ->assertSessionHas('warning');
+        $this->assertStringContainsString('not-an-email', session('warning'));
+        $this->assertDatabaseHas('invitations', [
             'test_id' => $test->id,
             'email' => 'valid@example.com',
+            'status' => InvitationStatus::Sent->value,
+        ]);
+        $this->assertDatabaseMissing('invitations', [
+            'test_id' => $test->id,
+            'email' => 'not-an-email',
         ]);
     }
 
-    public function test_bulk_email_invitations_reject_duplicate_addresses(): void
+    public function test_bulk_email_invitations_skip_duplicate_addresses(): void
     {
         Notification::fake();
         [$admin, $test] = $this->publishedOrganizationTest();
@@ -103,7 +112,48 @@ class PublicCandidateRegistrationTest extends TestCase
                 'starts_at' => now()->subMinute()->toDateTimeString(),
             ]);
 
-        $response->assertSessionHasErrors('emails');
+        $response
+            ->assertRedirect(route('admin.tests.invitations.index', $test))
+            ->assertSessionHas('warning');
+        $this->assertSame(1, Invitation::query()
+            ->where('test_id', $test->id)
+            ->where('email', 'duplicate@example.com')
+            ->count());
+        $this->assertStringContainsString('duplicate@example.com', session('warning'));
+    }
+
+    public function test_admin_can_queue_valid_invitations_from_csv_and_skip_invalid_rows(): void
+    {
+        Notification::fake();
+        [$admin, $test] = $this->publishedOrganizationTest();
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.tests.invitations.store', $test), [
+                'email_csv' => UploadedFile::fake()->createWithContent(
+                    'candidates.csv',
+                    "name,email\nCandidate One,csv-one@example.com\nCandidate Bad,not-an-email\nCandidate Two,csv-two@example.com\n",
+                ),
+                'starts_at' => now()->subMinute()->toDateTimeString(),
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.tests.invitations.index', $test))
+            ->assertSessionHas('warning');
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'email' => 'csv-one@example.com',
+            'status' => InvitationStatus::Sent->value,
+        ]);
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'email' => 'csv-two@example.com',
+            'status' => InvitationStatus::Sent->value,
+        ]);
+        $this->assertDatabaseMissing('invitations', [
+            'test_id' => $test->id,
+            'email' => 'not-an-email',
+        ]);
+        $this->assertStringContainsString('not-an-email', session('warning'));
     }
 
     public function test_invited_email_can_accept_policy_submit_details_and_complete_test_without_authentication(): void

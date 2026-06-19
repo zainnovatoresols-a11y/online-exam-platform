@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Invitations;
 use App\Actions\Invitations\CreateInvitation;
 use App\Actions\Invitations\ResendInvitation;
 use App\Actions\Invitations\RevokeInvitation;
+use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Invitations\StoreInvitationRequest;
 use App\Models\Invitation;
@@ -78,9 +79,16 @@ class InvitationController extends Controller
         $validated = $request->validated();
         $urlRoot = $request->root();
         $queued = 0;
+        $skippedExisting = [];
 
         collect($request->bulkEmails())
-            ->each(function (string $email) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued): void {
+            ->each(function (string $email) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued, &$skippedExisting): void {
+                if ($this->activeInvitationExists($test, $email)) {
+                    $skippedExisting[] = $email;
+
+                    return;
+                }
+
                 $createInvitation->handle($test, $request->user(), [
                     'name' => null,
                     'email' => $email,
@@ -93,16 +101,30 @@ class InvitationController extends Controller
             });
 
         if (filled($validated['email'] ?? null)) {
-            $createInvitation->handle($test, $request->user(), [
-                ...$validated,
-                'url_root' => $urlRoot,
-            ]);
+            if ($this->activeInvitationExists($test, $validated['email'])) {
+                $skippedExisting[] = $validated['email'];
+            } else {
+                $createInvitation->handle($test, $request->user(), [
+                    ...$validated,
+                    'url_root' => $urlRoot,
+                ]);
 
-            $queued++;
+                $queued++;
+            }
         }
 
-        return to_route('admin.tests.invitations.index', $test)
+        $redirect = to_route('admin.tests.invitations.index', $test)
             ->with('success', $queued.' invitation(s) queued successfully. Share the public URL with allowed candidates.');
+
+        if ($warning = $this->skippedEmailWarning(
+            $request->invalidBulkEmails(),
+            $request->duplicateBulkEmails(),
+            $skippedExisting,
+        )) {
+            $redirect->with('warning', $warning);
+        }
+
+        return $redirect;
     }
 
     public function resend(Test $test, Invitation $invitation, ResendInvitation $resendInvitation): RedirectResponse
@@ -137,5 +159,54 @@ class InvitationController extends Controller
         return $test->public_token
             ? route('candidate.public-tests.policy', $test->public_token)
             : null;
+    }
+
+    private function activeInvitationExists(Test $test, string $email): bool
+    {
+        return Invitation::query()
+            ->where('test_id', $test->id)
+            ->where('email', $email)
+            ->whereIn('status', [
+                InvitationStatus::Pending->value,
+                InvitationStatus::Sent->value,
+                InvitationStatus::Accepted->value,
+            ])
+            ->exists();
+    }
+
+    /**
+     * @param  list<string>  $invalidEmails
+     * @param  list<string>  $duplicateEmails
+     * @param  list<string>  $existingEmails
+     */
+    private function skippedEmailWarning(array $invalidEmails, array $duplicateEmails, array $existingEmails): ?string
+    {
+        $messages = [];
+
+        if ($invalidEmails !== []) {
+            $messages[] = 'Invalid email(s) skipped: '.$this->emailList($invalidEmails).'.';
+        }
+
+        if ($duplicateEmails !== []) {
+            $messages[] = 'Duplicate row(s) skipped: '.$this->emailList($duplicateEmails).'.';
+        }
+
+        if ($existingEmails !== []) {
+            $messages[] = 'Already invited email(s) skipped: '.$this->emailList($existingEmails).'.';
+        }
+
+        return $messages === [] ? null : implode(' ', $messages);
+    }
+
+    /**
+     * @param  list<string>  $emails
+     */
+    private function emailList(array $emails): string
+    {
+        $emails = array_values(array_unique($emails));
+        $shown = array_slice($emails, 0, 10);
+        $remaining = count($emails) - count($shown);
+
+        return implode(', ', $shown).($remaining > 0 ? " and {$remaining} more" : '');
     }
 }

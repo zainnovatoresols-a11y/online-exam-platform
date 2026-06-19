@@ -20,6 +20,7 @@ type Props = {
 
 type InvitationForm = {
     emails: string;
+    email_csv: File | null;
     starts_at: string;
     expires_at: string;
 };
@@ -28,9 +29,12 @@ export default function Create({ test, public_url }: Props) {
     const { data, setData, post, processing, errors } =
         useForm<InvitationForm>({
             emails: '',
+            email_csv: null,
             starts_at: '',
             expires_at: '',
         });
+
+    const hasInvitationInput = data.emails.trim() !== '' || data.email_csv !== null;
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
@@ -110,6 +114,33 @@ export default function Create({ test, public_url }: Props) {
 
                         <div>
                             <InputLabel
+                                htmlFor="email_csv"
+                                value="CSV email file"
+                            />
+                            <input
+                                id="email_csv"
+                                type="file"
+                                accept=".csv,text/csv,text/plain"
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                                onChange={(event) =>
+                                    setData(
+                                        'email_csv',
+                                        event.target.files?.[0] ?? null,
+                                    )
+                                }
+                            />
+                            <p className="mt-2 text-xs text-gray-500">
+                                CSV rows with valid emails are queued. Invalid
+                                rows are skipped and reported after submit.
+                            </p>
+                            <InputError
+                                message={errors.email_csv}
+                                className="mt-2"
+                            />
+                        </div>
+
+                        <div>
+                            <InputLabel
                                 htmlFor="starts_at"
                                 value="Candidate start time"
                             />
@@ -151,9 +182,7 @@ export default function Create({ test, public_url }: Props) {
 
                         <div className="flex flex-wrap items-center gap-4">
                             <PrimaryButton
-                                disabled={
-                                    processing || data.emails.trim() === ''
-                                }
+                                disabled={processing || !hasInvitationInput}
                             >
                                 Queue invitations
                             </PrimaryButton>

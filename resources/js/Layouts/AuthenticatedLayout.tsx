@@ -179,11 +179,16 @@ export default function Authenticated({
                 </header>
             )}
 
-            {(flash.success || flash.error) && (
-                <div className="mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
+            {(flash.success || flash.warning || flash.error) && (
+                <div className="mx-auto mt-6 max-w-7xl space-y-3 px-4 sm:px-6 lg:px-8">
                     {flash.success && (
                         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
                             {flash.success}
+                        </div>
+                    )}
+                    {flash.warning && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                            {flash.warning}
                         </div>
                     )}
                     {flash.error && (
