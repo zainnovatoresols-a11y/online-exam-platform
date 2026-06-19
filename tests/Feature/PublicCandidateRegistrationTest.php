@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
 use App\Enums\UserRole;
+use App\Jobs\ProcessBulkInvitations;
 use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
 use App\Models\Organization;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -154,6 +156,34 @@ class PublicCandidateRegistrationTest extends TestCase
             'email' => 'not-an-email',
         ]);
         $this->assertStringContainsString('not-an-email', session('warning'));
+    }
+
+    public function test_large_bulk_email_import_is_processed_in_background(): void
+    {
+        Queue::fake();
+        [$admin, $test] = $this->publishedOrganizationTest();
+        $emails = collect(range(1, 55))
+            ->map(fn (int $number): string => "candidate{$number}@example.com")
+            ->implode("\n");
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.tests.invitations.store', $test), [
+                'emails' => $emails,
+                'starts_at' => now()->subMinute()->toDateTimeString(),
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.tests.invitations.index', $test))
+            ->assertSessionHas('success');
+        Queue::assertPushed(ProcessBulkInvitations::class, function (ProcessBulkInvitations $job) use ($test, $admin): bool {
+            return $job->testId === $test->id
+                && $job->adminId === $admin->id
+                && count($job->emails) === 55;
+        });
+        $this->assertDatabaseMissing('invitations', [
+            'test_id' => $test->id,
+            'email' => 'candidate1@example.com',
+        ]);
     }
 
     public function test_csv_invitation_upload_uses_file_extension_not_browser_mime_guess(): void

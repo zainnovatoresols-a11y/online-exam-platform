@@ -8,8 +8,10 @@ use App\Actions\Invitations\RevokeInvitation;
 use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Invitations\StoreInvitationRequest;
+use App\Jobs\ProcessBulkInvitations;
 use App\Models\Invitation;
 use App\Models\Test;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -17,6 +19,8 @@ use Inertia\Response;
 
 class InvitationController extends Controller
 {
+    private const BULK_QUEUE_THRESHOLD = 50;
+
     public function index(Test $test): Response
     {
         Gate::authorize('viewAny', [Invitation::class, $test]);
@@ -80,25 +84,23 @@ class InvitationController extends Controller
         $urlRoot = $request->root();
         $queued = 0;
         $skippedExisting = [];
+        $bulkEmails = $request->bulkEmails();
+        $existingBulkEmails = $this->activeInvitationEmails($test, $bulkEmails);
+        $skippedExisting = [
+            ...$skippedExisting,
+            ...$existingBulkEmails,
+        ];
+        $bulkEmailsToQueue = array_values(array_diff($bulkEmails, $existingBulkEmails));
 
-        collect($request->bulkEmails())
-            ->each(function (string $email) use ($createInvitation, $test, $request, $validated, $urlRoot, &$queued, &$skippedExisting): void {
-                if ($this->activeInvitationExists($test, $email)) {
-                    $skippedExisting[] = $email;
-
-                    return;
-                }
-
-                $createInvitation->handle($test, $request->user(), [
-                    'name' => null,
-                    'email' => $email,
-                    'starts_at' => $validated['starts_at'],
-                    'expires_at' => $validated['expires_at'] ?? null,
-                    'url_root' => $urlRoot,
-                ]);
-
-                $queued++;
-            });
+        $queued += $this->queueBulkInvitations(
+            $test,
+            $request->user(),
+            $bulkEmailsToQueue,
+            $validated['starts_at'],
+            $validated['expires_at'] ?? null,
+            $urlRoot,
+            $createInvitation,
+        );
 
         if (filled($validated['email'] ?? null)) {
             if ($this->activeInvitationExists($test, $validated['email'])) {
@@ -114,7 +116,7 @@ class InvitationController extends Controller
         }
 
         $redirect = to_route('admin.tests.invitations.index', $test)
-            ->with('success', $queued.' invitation(s) queued successfully. Share the public URL with allowed candidates.');
+            ->with('success', $this->successMessage($queued, count($bulkEmailsToQueue)));
 
         if ($warning = $this->skippedEmailWarning(
             $request->invalidBulkEmails(),
@@ -172,6 +174,79 @@ class InvitationController extends Controller
                 InvitationStatus::Accepted->value,
             ])
             ->exists();
+    }
+
+    /**
+     * @param  list<string>  $emails
+     * @return list<string>
+     */
+    private function activeInvitationEmails(Test $test, array $emails): array
+    {
+        if ($emails === []) {
+            return [];
+        }
+
+        return Invitation::query()
+            ->where('test_id', $test->id)
+            ->whereIn('email', $emails)
+            ->whereIn('status', [
+                InvitationStatus::Pending->value,
+                InvitationStatus::Sent->value,
+                InvitationStatus::Accepted->value,
+            ])
+            ->pluck('email')
+            ->all();
+    }
+
+    /**
+     * @param  list<string>  $emails
+     */
+    private function queueBulkInvitations(
+        Test $test,
+        User $admin,
+        array $emails,
+        string $startsAt,
+        ?string $expiresAt,
+        string $urlRoot,
+        CreateInvitation $createInvitation,
+    ): int {
+        if ($emails === []) {
+            return 0;
+        }
+
+        if (count($emails) >= self::BULK_QUEUE_THRESHOLD) {
+            ProcessBulkInvitations::dispatch(
+                $test->id,
+                $admin->id,
+                $emails,
+                $startsAt,
+                $expiresAt,
+                $urlRoot,
+            );
+
+            return count($emails);
+        }
+
+        foreach ($emails as $email) {
+            $createInvitation->handle($test, $admin, [
+                'name' => null,
+                'email' => $email,
+                'starts_at' => $startsAt,
+                'expires_at' => $expiresAt,
+                'url_root' => $urlRoot,
+            ]);
+        }
+
+        return count($emails);
+    }
+
+    private function successMessage(int $queued, int $bulkCount): string
+    {
+        if ($bulkCount >= self::BULK_QUEUE_THRESHOLD) {
+            return $queued.' invitation(s) accepted for background processing. They will appear as the queue worker processes them.';
+        }
+
+        return $queued.' invitation(s) queued successfully. Share the public URL with allowed candidates.';
     }
 
     /**

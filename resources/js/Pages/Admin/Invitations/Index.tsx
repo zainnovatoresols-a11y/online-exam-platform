@@ -22,12 +22,22 @@ type Invitation = {
     accepted_at: string | null;
 };
 
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
+
 type Props = {
     test: Test;
     canCreateInvitation: boolean;
     public_url: string | null;
     invitations: {
         data: Invitation[];
+        from: number | null;
+        to: number | null;
+        total: number;
+        links: PaginationLink[];
     };
 };
 
@@ -190,11 +200,52 @@ export default function Index({
                                 )}
                             </tbody>
                         </table>
+
+                        {invitations.total > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 px-6 py-4 text-sm">
+                                <p className="text-gray-600">
+                                    Showing {invitations.from ?? 0} to{' '}
+                                    {invitations.to ?? 0} of{' '}
+                                    {invitations.total} invitations
+                                </p>
+
+                                <div className="flex flex-wrap gap-1">
+                                    {invitations.links.map((link, index) =>
+                                        link.url ? (
+                                            <Link
+                                                key={`${link.label}-${index}`}
+                                                href={link.url}
+                                                preserveScroll
+                                                className={
+                                                    'rounded-md border px-3 py-1 text-sm font-medium ' +
+                                                    (link.active
+                                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50')
+                                                }
+                                            >
+                                                {paginationLabel(link.label)}
+                                            </Link>
+                                        ) : (
+                                            <span
+                                                key={`${link.label}-${index}`}
+                                                className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-400"
+                                            >
+                                                {paginationLabel(link.label)}
+                                            </span>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function paginationLabel(label: string): string {
+    return label.replace('&laquo;', '').replace('&raquo;', '').trim();
 }
 
 function formatDateTime(value: string): string {
