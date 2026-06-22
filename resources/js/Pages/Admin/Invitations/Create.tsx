@@ -9,6 +9,7 @@ import { FormEventHandler } from 'react';
 type Test = {
     id: number;
     title: string;
+    public_access_enabled: boolean;
     organization: { id: number; name: string } | null;
     creator: { id: number; name: string; email: string } | null;
 };
@@ -79,19 +80,31 @@ export default function Create({ test, public_url }: Props) {
                         onSubmit={submit}
                         className="space-y-6 bg-white p-6 shadow-sm sm:rounded-lg"
                     >
-                        <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
-                            <p className="font-medium text-gray-900">
-                                Public test URL
-                            </p>
-                            <p className="mt-1 break-all">
-                                {public_url ?? 'Not generated yet'}
-                            </p>
-                            <p className="mt-2 text-xs text-gray-500">
-                                Emailed candidates receive this same public
-                                link. If public access is off, only invited
-                                emails can register.
-                            </p>
-                        </div>
+                        {test.public_access_enabled ? (
+                            <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                                <p className="font-medium text-gray-900">
+                                    Public test URL
+                                </p>
+                                <p className="mt-1 break-all">
+                                    {public_url ?? 'Not generated yet'}
+                                </p>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Anyone with this URL can register after
+                                    accepting the policy.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                                <p className="font-medium text-gray-900">
+                                    Invite-only access
+                                </p>
+                                <p className="mt-1 text-gray-600">
+                                    Public access is off for this test. Queue
+                                    invitations below and only invited email
+                                    addresses can register.
+                                </p>
+                            </div>
+                        )}
 
                         <div>
                             <InputLabel htmlFor="emails" value="Bulk emails" />

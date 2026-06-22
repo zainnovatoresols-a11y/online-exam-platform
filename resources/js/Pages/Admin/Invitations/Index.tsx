@@ -8,6 +8,7 @@ type Test = {
     id: number;
     title: string;
     status: string;
+    public_access_enabled: boolean;
     organization: { id: number; name: string } | null;
     creator: { id: number; name: string; email: string } | null;
 };
@@ -86,18 +87,31 @@ export default function Index({
                                     'Solo admin'}
                             </p>
                         </div>
-                        <div className="max-w-xl rounded-md bg-gray-50 p-4 text-sm text-gray-700">
-                            <p className="font-medium text-gray-900">
-                                Public test URL
-                            </p>
-                            <p className="mt-1 break-all">
-                                {public_url ?? 'Not generated yet'}
-                            </p>
-                            <p className="mt-2 text-xs text-gray-500">
-                                Send this URL to candidates. Invited emails are
-                                allowed even when open public access is off.
-                            </p>
-                        </div>
+                        {test.public_access_enabled ? (
+                            <div className="max-w-xl rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                                <p className="font-medium text-gray-900">
+                                    Public test URL
+                                </p>
+                                <p className="mt-1 break-all">
+                                    {public_url ?? 'Not generated yet'}
+                                </p>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Anyone with this URL can register after
+                                    accepting the policy.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="max-w-xl rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                                <p className="font-medium text-gray-900">
+                                    Invite-only access
+                                </p>
+                                <p className="mt-1 text-gray-600">
+                                    Public access is off for this test. Only
+                                    emailed candidates from this invitation list
+                                    can register.
+                                </p>
+                            </div>
+                        )}
 
                         {canCreateInvitation && (
                             <Link

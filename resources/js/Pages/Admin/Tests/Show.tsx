@@ -120,19 +120,20 @@ export default function Show({ test }: { test: Test }) {
                                     {test.questions_count}
                                 </dd>
                             </div>
-                            <div className="sm:col-span-2">
-                                <dt className="text-sm font-medium text-gray-500">
-                                    Public test URL
-                                </dt>
-                                <dd className="mt-1 break-all text-sm text-gray-900">
-                                    {test.public_url ?? 'Not generated yet'}
-                                </dd>
-                                <dd className="mt-2 text-xs text-gray-500">
-                                    {test.public_access_enabled
-                                        ? 'Anyone with this URL can register after accepting the policy.'
-                                        : 'Only emailed/invited addresses can register through this URL.'}
-                                </dd>
-                            </div>
+                            {test.public_access_enabled && (
+                                <div className="sm:col-span-2">
+                                    <dt className="text-sm font-medium text-gray-500">
+                                        Public test URL
+                                    </dt>
+                                    <dd className="mt-1 break-all text-sm text-gray-900">
+                                        {test.public_url ?? 'Not generated yet'}
+                                    </dd>
+                                    <dd className="mt-2 text-xs text-gray-500">
+                                        Anyone with this URL can register after
+                                        accepting the policy.
+                                    </dd>
+                                </div>
+                            )}
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">
                                     Public access
