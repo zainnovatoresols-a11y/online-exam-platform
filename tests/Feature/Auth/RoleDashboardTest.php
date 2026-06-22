@@ -70,22 +70,6 @@ class RoleDashboardTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_new_registered_users_get_the_candidate_role(): void
-    {
-        $response = $this->post('/register', [
-            'name' => 'New Candidate',
-            'email' => 'new-candidate@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ]);
-
-        $user = User::where('email', 'new-candidate@example.com')->firstOrFail();
-
-        $this->assertAuthenticatedAs($user);
-        $this->assertTrue($user->hasRole(UserRole::Candidate->value));
-        $response->assertRedirect(route('dashboard', absolute: false));
-    }
-
     private function userWithRole(UserRole $role): User
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();

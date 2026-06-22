@@ -117,16 +117,6 @@ export default function Login({
                     </Link>
                     .
                 </p>
-                <p>
-                    Looking to take an assessment?{' '}
-                    <Link
-                        href={route('register')}
-                        className="font-medium text-gray-900 underline"
-                    >
-                        Register as candidate
-                    </Link>
-                    .
-                </p>
             </div>
         </GuestLayout>
     );

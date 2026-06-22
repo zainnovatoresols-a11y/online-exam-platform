@@ -9,7 +9,7 @@ export default function Index() {
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-900">
-                        Choose your account setup
+                        Choose your admin account setup
                     </h1>
                     <p className="mt-2 text-sm text-gray-600">
                         Pick the onboarding path that matches how you manage
@@ -54,16 +54,6 @@ export default function Index() {
                 </div>
 
                 <div className="space-y-2 border-t border-gray-200 pt-4 text-sm text-gray-600">
-                    <p>
-                        Taking an assessment instead?{' '}
-                        <Link
-                            href={route('register')}
-                            className="font-medium text-gray-900 underline"
-                        >
-                            Register as candidate
-                        </Link>
-                        .
-                    </p>
                     <p>
                         Already have an account?{' '}
                         <Link
