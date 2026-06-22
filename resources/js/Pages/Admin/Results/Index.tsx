@@ -48,11 +48,18 @@ type Attempt = {
     expires_at: string | null;
 };
 
+type ProctoringRisk = {
+    score: number;
+    level: string;
+    event_count: number;
+};
+
 type ResultRow = {
     invitation: Invitation;
     candidate: Candidate;
     attempt: Attempt | null;
     attempt_status: string;
+    proctoring_risk: ProctoringRisk;
     proctoring_review_status: string;
 };
 
@@ -173,6 +180,9 @@ export default function Index({ test, results }: Props) {
                                             Attempt
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                            Risk
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                                             Review
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
@@ -239,6 +249,21 @@ export default function Index({ test, results }: Props) {
                                                 />
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-600">
+                                                <RiskLevelBadge
+                                                    level={
+                                                        row.proctoring_risk
+                                                            .level
+                                                    }
+                                                />
+                                                <div className="mt-1 text-xs text-gray-500">
+                                                    {
+                                                        row.proctoring_risk
+                                                            .score
+                                                    }{' '}
+                                                    points
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">
                                                 <StatusBadge
                                                     value={
                                                         row.proctoring_review_status
@@ -292,7 +317,7 @@ export default function Index({ test, results }: Props) {
                                     {results.data.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={9}
+                                                colSpan={10}
                                                 className="px-6 py-4 text-sm text-gray-600"
                                             >
                                                 No candidates found for this
@@ -364,6 +389,26 @@ function ResultBadge({ passed }: { passed: boolean | null }) {
             }
         >
             {passed ? 'Passed' : 'Failed'}
+        </span>
+    );
+}
+
+function RiskLevelBadge({ level }: { level: string }) {
+    const classes: Record<string, string> = {
+        low: 'bg-green-100 text-green-700',
+        medium: 'bg-yellow-100 text-yellow-800',
+        high: 'bg-orange-100 text-orange-800',
+        critical: 'bg-red-100 text-red-700',
+    };
+
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                (classes[level] ?? 'bg-gray-100 text-gray-700')
+            }
+        >
+            {formatLabel(level)}
         </span>
     );
 }

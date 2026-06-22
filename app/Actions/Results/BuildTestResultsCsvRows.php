@@ -2,6 +2,7 @@
 
 namespace App\Actions\Results;
 
+use App\Actions\Proctoring\CalculateProctoringRiskScore;
 use App\Enums\QuestionType;
 use App\Models\CandidateTestDetail;
 use App\Models\Invitation;
@@ -13,6 +14,10 @@ use Illuminate\Support\Collection;
 
 class BuildTestResultsCsvRows
 {
+    public function __construct(
+        private readonly CalculateProctoringRiskScore $calculateRiskScore,
+    ) {}
+
     /**
      * @return list<string>
      */
@@ -40,8 +45,10 @@ class BuildTestResultsCsvRows
             'Clipboard Attempts',
             'Recording Permission Denials',
             'Screen Share Ended Count',
-            'Proctoring Review Status',
+            'Proctoring Risk Score',
             'Proctoring Risk Level',
+            'Proctoring Review Status',
+            'Proctoring Review Risk Level',
             'Reviewed By',
             'Reviewed At',
         ];
@@ -82,6 +89,7 @@ class BuildTestResultsCsvRows
             $invitation,
         );
         $summary = $this->proctoringSummary($attempt?->proctoringEvents ?? collect());
+        $risk = $this->calculateRiskScore->handle($attempt?->proctoringEvents ?? collect());
         $review = $attempt?->proctoringReview;
 
         return [
@@ -106,6 +114,8 @@ class BuildTestResultsCsvRows
             $summary['clipboard_attempts'],
             $summary['recording_permission_denials'],
             $summary['screen_share_ended'],
+            $risk['score'],
+            $risk['level'],
             $review?->status ?? 'needs_review',
             $review?->risk_level,
             $review?->reviewedBy?->name,

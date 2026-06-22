@@ -2,6 +2,7 @@
 
 namespace App\Actions\Results;
 
+use App\Actions\Proctoring\CalculateProctoringRiskScore;
 use App\Enums\QuestionType;
 use App\Models\AttemptAnswer;
 use App\Models\CandidateTestDetail;
@@ -15,6 +16,10 @@ use Illuminate\Support\Collection;
 
 class BuildAttemptResultExportData
 {
+    public function __construct(
+        private readonly CalculateProctoringRiskScore $calculateRiskScore,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -80,6 +85,7 @@ class BuildAttemptResultExportData
                 ->values()
                 ->all(),
             'proctoring_summary' => $this->proctoringSummary($attempt->proctoringEvents),
+            'proctoring_risk' => $this->calculateRiskScore->handle($attempt->proctoringEvents),
             'proctoring_review' => $this->reviewPayload($attempt),
             'generated_at' => now(),
         ];

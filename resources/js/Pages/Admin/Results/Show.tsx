@@ -75,6 +75,21 @@ type ProctoringEvent = {
     created_at: string | null;
 };
 
+type ProctoringRiskBreakdown = {
+    event_type: string;
+    label: string;
+    count: number;
+    points_each: number;
+    points: number;
+};
+
+type ProctoringRisk = {
+    score: number;
+    level: string;
+    event_count: number;
+    breakdown: ProctoringRiskBreakdown[];
+};
+
 type ProctoringReviewDecision = {
     id: number | null;
     status: string;
@@ -228,6 +243,7 @@ type Props = {
     attempt: Attempt;
     answers: Answer[];
     proctoring_summary: ProctoringSummary;
+    proctoring_risk: ProctoringRisk;
     proctoring_events: Paginated<ProctoringEvent>;
     proctoring_review: ProctoringReviewDecision;
     proctoring_recording_summary: ProctoringRecordingSummary;
@@ -242,6 +258,7 @@ export default function Show({
     attempt,
     answers,
     proctoring_summary,
+    proctoring_risk,
     proctoring_events,
     proctoring_review,
     proctoring_recording_summary,
@@ -413,6 +430,11 @@ export default function Show({
                     <ProctoringReview
                         summary={proctoring_summary}
                         events={proctoring_events}
+                    />
+
+                    <ProctoringRiskScore
+                        risk={proctoring_risk}
+                        reviewStatus={proctoring_review.status}
                     />
 
                     <ProctoringRecordingReview
@@ -594,6 +616,102 @@ function ProctoringReview({
                         No proctoring events were recorded for this attempt.
                     </div>
                 )}
+            </div>
+        </section>
+    );
+}
+
+function ProctoringRiskScore({
+    risk,
+    reviewStatus,
+}: {
+    risk: ProctoringRisk;
+    reviewStatus: string;
+}) {
+    const shouldReview =
+        reviewStatus === 'needs_review' &&
+        ['high', 'critical'].includes(risk.level);
+
+    return (
+        <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+            <div className="border-b border-gray-200 px-6 py-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                    Proctoring Risk Score
+                </h4>
+                <p className="mt-1 text-sm text-gray-600">
+                    Advisory score calculated from recorded proctoring events.
+                </p>
+            </div>
+
+            <div className="space-y-5 p-6">
+                <dl className="grid gap-4 sm:grid-cols-3">
+                    <Metric label="Risk level">
+                        <RiskLevelBadge level={risk.level} />
+                    </Metric>
+                    <Metric label="Score">{risk.score} points</Metric>
+                    <Metric label="Events">{risk.event_count}</Metric>
+                </dl>
+
+                {shouldReview && (
+                    <div className="rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                        This attempt has elevated proctoring risk and should be
+                        reviewed manually.
+                    </div>
+                )}
+
+                <div className="overflow-x-auto rounded-md border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                {[
+                                    'Event',
+                                    'Count',
+                                    'Points each',
+                                    'Total points',
+                                ].map((heading) => (
+                                    <th
+                                        key={heading}
+                                        className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        {heading}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                            {risk.breakdown.map((item) => (
+                                <tr
+                                    key={`${item.event_type}-${item.points_each}`}
+                                >
+                                    <td className="px-4 py-3 text-gray-700">
+                                        {item.label}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700">
+                                        {item.count}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700">
+                                        {item.points_each}
+                                    </td>
+                                    <td className="px-4 py-3 font-medium text-gray-900">
+                                        {item.points}
+                                    </td>
+                                </tr>
+                            ))}
+
+                            {risk.breakdown.length === 0 && (
+                                <tr>
+                                    <td
+                                        colSpan={4}
+                                        className="px-4 py-3 text-gray-600"
+                                    >
+                                        No risk events were recorded for this
+                                        attempt.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     );
@@ -1473,6 +1591,26 @@ function ReviewStatusBadge({ value }: { value: string }) {
             }
         >
             {formatLabel(value)}
+        </span>
+    );
+}
+
+function RiskLevelBadge({ level }: { level: string }) {
+    const classes: Record<string, string> = {
+        low: 'bg-green-100 text-green-700',
+        medium: 'bg-yellow-100 text-yellow-800',
+        high: 'bg-orange-100 text-orange-800',
+        critical: 'bg-red-100 text-red-700',
+    };
+
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                (classes[level] ?? 'bg-gray-100 text-gray-700')
+            }
+        >
+            {formatLabel(level)}
         </span>
     );
 }

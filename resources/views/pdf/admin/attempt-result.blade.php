@@ -227,6 +227,12 @@
     <h2>Proctoring Summary</h2>
     <table class="two-column">
         <tr>
+            <td>Risk Score</td>
+            <td>{{ $proctoring_risk['score'] }} points</td>
+            <td>Risk Level</td>
+            <td><span class="badge">{{ $formatLabel($proctoring_risk['level']) }}</span></td>
+        </tr>
+        <tr>
             <td>Total Events</td>
             <td>{{ $proctoring_summary['total'] }}</td>
             <td>High / Medium / Low</td>

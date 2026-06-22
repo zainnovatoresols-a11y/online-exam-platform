@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Results;
 
+use App\Actions\Proctoring\CalculateProctoringRiskScore;
 use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Models\AttemptAnswer;
@@ -22,7 +23,7 @@ use Inertia\Response;
 
 class TestResultController extends Controller
 {
-    public function index(Test $test): Response
+    public function index(Test $test, CalculateProctoringRiskScore $calculateRiskScore): Response
     {
         Gate::authorize('view', $test);
 
@@ -37,16 +38,17 @@ class TestResultController extends Controller
                     'candidateDetail',
                     'attempt.candidate:id,name,email,phone,stack_name',
                     'attempt.candidateDetail',
+                    'attempt.proctoringEvents:id,test_attempt_id,event_type,severity',
                     'attempt.proctoringReview:id,test_attempt_id,status',
                 ])
                 ->latest('id')
                 ->paginate(15)
-                ->through(fn (Invitation $invitation): array => $this->resultRowPayload($invitation))
+                ->through(fn (Invitation $invitation): array => $this->resultRowPayload($invitation, $calculateRiskScore))
                 ->withQueryString(),
         ]);
     }
 
-    public function show(Test $test, TestAttempt $attempt): Response
+    public function show(Test $test, TestAttempt $attempt, CalculateProctoringRiskScore $calculateRiskScore): Response
     {
         Gate::authorize('view', $test);
         abort_unless((int) $attempt->test_id === (int) $test->id, 404);
@@ -112,6 +114,7 @@ class TestResultController extends Controller
                 ))
                 ->values(),
             'proctoring_summary' => $this->proctoringSummary($proctoringSummaryEvents),
+            'proctoring_risk' => $calculateRiskScore->handle($proctoringSummaryEvents),
             'proctoring_events' => $proctoringEvents,
             'proctoring_review' => $this->proctoringReviewPayload($attempt),
             'proctoring_recording_summary' => $this->proctoringRecordingSummary($proctoringRecordings),
@@ -123,7 +126,7 @@ class TestResultController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function resultRowPayload(Invitation $invitation): array
+    private function resultRowPayload(Invitation $invitation, CalculateProctoringRiskScore $calculateRiskScore): array
     {
         $attempt = $invitation->attempt;
 
@@ -136,6 +139,9 @@ class TestResultController extends Controller
             ),
             'attempt' => $attempt ? $this->attemptPayload($attempt) : null,
             'attempt_status' => $attempt?->status->value ?? 'not_started',
+            'proctoring_risk' => $attempt
+                ? $calculateRiskScore->handle($attempt)
+                : $calculateRiskScore->handle(collect()),
             'proctoring_review_status' => $attempt?->proctoringReview?->status ?? 'needs_review',
         ];
     }
