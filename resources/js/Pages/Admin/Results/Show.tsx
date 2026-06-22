@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 
 type Test = {
     id: number;
@@ -73,6 +73,20 @@ type ProctoringEvent = {
     user_agent: string | null;
     metadata: Record<string, unknown>;
     created_at: string | null;
+};
+
+type ProctoringReviewDecision = {
+    id: number | null;
+    status: string;
+    risk_level: string | null;
+    reason_codes: string[];
+    notes: string | null;
+    reviewed_at: string | null;
+    reviewed_by: {
+        id: number;
+        name: string;
+        email: string;
+    } | null;
 };
 
 type ProctoringRecordingSummary = {
@@ -215,6 +229,7 @@ type Props = {
     answers: Answer[];
     proctoring_summary: ProctoringSummary;
     proctoring_events: Paginated<ProctoringEvent>;
+    proctoring_review: ProctoringReviewDecision;
     proctoring_recording_summary: ProctoringRecordingSummary;
     proctoring_camera_recording_chunks: Paginated<ProctoringRecordingChunk>;
     proctoring_screen_recording_chunks: Paginated<ProctoringRecordingChunk>;
@@ -228,6 +243,7 @@ export default function Show({
     answers,
     proctoring_summary,
     proctoring_events,
+    proctoring_review,
     proctoring_recording_summary,
     proctoring_camera_recording_chunks,
     proctoring_screen_recording_chunks,
@@ -423,6 +439,12 @@ export default function Show({
                             )}
                         </div>
                     </section>
+
+                    <ProctoringReviewDecisionForm
+                        testId={test.id}
+                        attemptId={attempt.id}
+                        review={proctoring_review}
+                    />
                 </div>
             </div>
         </AuthenticatedLayout>
@@ -604,6 +626,218 @@ function ProctoringPagination({
                 </div>
             )}
         </div>
+    );
+}
+
+type ProctoringReviewFormData = {
+    status: string;
+    risk_level: string;
+    reason_codes: string[];
+    notes: string;
+};
+
+const reviewStatusOptions = [
+    { value: 'approved', label: 'Approved' },
+    { value: 'needs_review', label: 'Needs review' },
+    { value: 'flagged', label: 'Flagged' },
+    { value: 'rejected', label: 'Rejected' },
+];
+
+const riskLevelOptions = [
+    { value: '', label: 'None' },
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+];
+
+const reasonCodeOptions = [
+    { value: 'tab_switching', label: 'Tab switching' },
+    { value: 'fullscreen_exit', label: 'Fullscreen exit' },
+    { value: 'clipboard_attempt', label: 'Clipboard attempt' },
+    { value: 'right_click_attempt', label: 'Right click attempt' },
+    { value: 'shortcut_attempt', label: 'Shortcut attempt' },
+    { value: 'camera_stopped', label: 'Camera stopped' },
+    { value: 'screen_share_stopped', label: 'Screen share stopped' },
+    { value: 'recording_missing', label: 'Recording missing' },
+    { value: 'multiple_people', label: 'Multiple people' },
+    { value: 'identity_mismatch', label: 'Identity mismatch' },
+    { value: 'suspicious_audio_visual', label: 'Suspicious audio/visual' },
+    { value: 'other', label: 'Other' },
+];
+
+function ProctoringReviewDecisionForm({
+    testId,
+    attemptId,
+    review,
+}: {
+    testId: number;
+    attemptId: number;
+    review: ProctoringReviewDecision;
+}) {
+    const form = useForm<ProctoringReviewFormData>({
+        status: review.status,
+        risk_level: review.risk_level ?? '',
+        reason_codes: review.reason_codes ?? [],
+        notes: review.notes ?? '',
+    });
+
+    const toggleReasonCode = (reasonCode: string) => {
+        form.setData(
+            'reason_codes',
+            form.data.reason_codes.includes(reasonCode)
+                ? form.data.reason_codes.filter((value) => value !== reasonCode)
+                : [...form.data.reason_codes, reasonCode],
+        );
+    };
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        form.patch(
+            route('admin.tests.results.proctoring-review.update', [
+                testId,
+                attemptId,
+            ]),
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
+    return (
+        <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+            <div className="border-b border-gray-200 px-6 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 className="text-base font-semibold text-gray-900">
+                            Proctoring Review Decision
+                        </h4>
+                    </div>
+                    <ReviewStatusBadge value={review.status} />
+                </div>
+            </div>
+
+            <form onSubmit={submit} className="space-y-6 p-6">
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <div>
+                        <label
+                            htmlFor="proctoring_review_status"
+                            className="text-sm font-medium text-gray-700"
+                        >
+                            Review status
+                        </label>
+                        <select
+                            id="proctoring_review_status"
+                            value={form.data.status}
+                            onChange={(event) =>
+                                form.setData('status', event.target.value)
+                            }
+                            className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-gray-900 focus:ring-gray-900"
+                        >
+                            {reviewStatusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <FormError message={form.errors.status} />
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="proctoring_review_risk"
+                            className="text-sm font-medium text-gray-700"
+                        >
+                            Risk level
+                        </label>
+                        <select
+                            id="proctoring_review_risk"
+                            value={form.data.risk_level}
+                            onChange={(event) =>
+                                form.setData('risk_level', event.target.value)
+                            }
+                            className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-gray-900 focus:ring-gray-900"
+                        >
+                            {riskLevelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <FormError message={form.errors.risk_level} />
+                    </div>
+                </div>
+
+                <div>
+                    <p className="text-sm font-medium text-gray-700">
+                        Reason codes
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {reasonCodeOptions.map((option) => (
+                            <label
+                                key={option.value}
+                                className="flex min-h-10 items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={form.data.reason_codes.includes(
+                                        option.value,
+                                    )}
+                                    onChange={() =>
+                                        toggleReasonCode(option.value)
+                                    }
+                                    className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                                />
+                                <span>{option.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <FormError message={form.errors.reason_codes} />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor="proctoring_review_notes"
+                        className="text-sm font-medium text-gray-700"
+                    >
+                        Notes
+                    </label>
+                    <textarea
+                        id="proctoring_review_notes"
+                        value={form.data.notes}
+                        onChange={(event) =>
+                            form.setData('notes', event.target.value)
+                        }
+                        rows={4}
+                        className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-gray-900 focus:ring-gray-900"
+                    />
+                    <FormError message={form.errors.notes} />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-4">
+                    <div className="text-sm text-gray-600">
+                        <div>
+                            Reviewed by:{' '}
+                            {review.reviewed_by
+                                ? `${review.reviewed_by.name} (${review.reviewed_by.email})`
+                                : 'Not reviewed yet'}
+                        </div>
+                        <div>
+                            Reviewed at: {formatDateTime(review.reviewed_at)}
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={form.processing}
+                        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-gray-800 disabled:opacity-50"
+                    >
+                        {form.processing ? 'Saving...' : 'Save review'}
+                    </button>
+                </div>
+            </form>
+        </section>
     );
 }
 
@@ -1200,6 +1434,36 @@ function StatusBadge({ value }: { value: string }) {
             {formatLabel(value)}
         </span>
     );
+}
+
+function ReviewStatusBadge({ value }: { value: string }) {
+    const className =
+        value === 'approved'
+            ? 'bg-green-100 text-green-700'
+            : value === 'rejected'
+              ? 'bg-red-100 text-red-700'
+              : value === 'flagged'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-blue-100 text-blue-700';
+
+    return (
+        <span
+            className={
+                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                className
+            }
+        >
+            {formatLabel(value)}
+        </span>
+    );
+}
+
+function FormError({ message }: { message?: string }) {
+    if (!message) {
+        return null;
+    }
+
+    return <p className="mt-1 text-sm text-red-600">{message}</p>;
 }
 
 function TypeBadge({ type }: { type: string }) {

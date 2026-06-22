@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitati
 use App\Http\Controllers\Admin\ProctoringRecordingChunkController;
 use App\Http\Controllers\Admin\ProctoringRecordingController as AdminProctoringRecordingController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
+use App\Http\Controllers\Admin\Results\AttemptProctoringReviewController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
@@ -107,6 +108,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
                     ->name('results.index');
                 Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
                     ->name('results.show');
+                Route::patch('results/{attempt}/proctoring-review', [AttemptProctoringReviewController::class, 'update'])
+                    ->name('results.proctoring-review.update');
             });
     });
 

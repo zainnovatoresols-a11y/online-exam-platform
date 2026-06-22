@@ -53,6 +53,7 @@ type ResultRow = {
     candidate: Candidate;
     attempt: Attempt | null;
     attempt_status: string;
+    proctoring_review_status: string;
 };
 
 type PaginatedResults = {
@@ -157,6 +158,9 @@ export default function Index({ test, results }: Props) {
                                             Attempt
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                            Review
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                                             Score
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
@@ -220,6 +224,13 @@ export default function Index({ test, results }: Props) {
                                                 />
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-600">
+                                                <StatusBadge
+                                                    value={
+                                                        row.proctoring_review_status
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">
                                                 {scoreLabel(row.attempt)}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
@@ -266,7 +277,7 @@ export default function Index({ test, results }: Props) {
                                     {results.data.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={8}
+                                                colSpan={9}
                                                 className="px-6 py-4 text-sm text-gray-600"
                                             >
                                                 No candidates found for this

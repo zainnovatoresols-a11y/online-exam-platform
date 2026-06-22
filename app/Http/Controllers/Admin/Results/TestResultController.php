@@ -37,6 +37,7 @@ class TestResultController extends Controller
                     'candidateDetail',
                     'attempt.candidate:id,name,email,phone,stack_name',
                     'attempt.candidateDetail',
+                    'attempt.proctoringReview:id,test_attempt_id,status',
                 ])
                 ->latest('id')
                 ->paginate(15)
@@ -58,6 +59,7 @@ class TestResultController extends Controller
             'candidateDetail',
             'invitation.candidate:id,name,email,phone,stack_name',
             'invitation.candidateDetail',
+            'proctoringReview.reviewedBy:id,name,email',
             'answers' => fn ($query) => $query->with([
                 'question:id,test_id,type,body,marks,order',
                 'question.options:id,question_id,body,is_correct',
@@ -111,6 +113,7 @@ class TestResultController extends Controller
                 ->values(),
             'proctoring_summary' => $this->proctoringSummary($proctoringSummaryEvents),
             'proctoring_events' => $proctoringEvents,
+            'proctoring_review' => $this->proctoringReviewPayload($attempt),
             'proctoring_recording_summary' => $this->proctoringRecordingSummary($proctoringRecordings),
             'proctoring_camera_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'camera', 'camera_recording_page'),
             'proctoring_screen_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'screen', 'screen_recording_page'),
@@ -133,6 +136,7 @@ class TestResultController extends Controller
             ),
             'attempt' => $attempt ? $this->attemptPayload($attempt) : null,
             'attempt_status' => $attempt?->status->value ?? 'not_started',
+            'proctoring_review_status' => $attempt?->proctoringReview?->status ?? 'needs_review',
         ];
     }
 
@@ -363,6 +367,28 @@ class TestResultController extends Controller
             'user_agent' => $event->user_agent,
             'metadata' => $event->metadata ?? [],
             'created_at' => $event->created_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function proctoringReviewPayload(TestAttempt $attempt): array
+    {
+        $review = $attempt->proctoringReview;
+
+        return [
+            'id' => $review?->id,
+            'status' => $review?->status ?? 'needs_review',
+            'risk_level' => $review?->risk_level,
+            'reason_codes' => $review?->reason_codes ?? [],
+            'notes' => $review?->notes,
+            'reviewed_at' => $review?->reviewed_at?->toISOString(),
+            'reviewed_by' => $review?->reviewedBy ? [
+                'id' => $review->reviewedBy->id,
+                'name' => $review->reviewedBy->name,
+                'email' => $review->reviewedBy->email,
+            ] : null,
         ];
     }
 

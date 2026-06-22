@@ -139,6 +139,16 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get the admin proctoring review decision for this attempt.
+     *
+     * @return HasOne<AttemptProctoringReview, $this>
+     */
+    public function proctoringReview(): HasOne
+    {
+        return $this->hasOne(AttemptProctoringReview::class);
+    }
+
+    /**
      * Get the public candidate details attached to the attempt.
      *
      * @return HasOne<CandidateTestDetail, $this>
