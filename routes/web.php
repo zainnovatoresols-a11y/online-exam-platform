@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProctoringRecordingController as AdminProctoringR
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 use App\Http\Controllers\Admin\Results\AttemptProctoringReviewController;
 use App\Http\Controllers\Admin\Results\AttemptResultExportController;
+use App\Http\Controllers\Admin\Results\TestAnalyticsController;
 use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultController;
 use App\Http\Controllers\Admin\Results\TestResultExportController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
@@ -108,6 +109,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
             ->group(function (): void {
                 Route::get('results', [AdminTestResultController::class, 'index'])
                     ->name('results.index');
+                Route::get('results/analytics', [TestAnalyticsController::class, 'show'])
+                    ->name('results.analytics');
                 Route::get('results/export.csv', [TestResultExportController::class, 'csv'])
                     ->name('results.export.csv');
                 Route::get('results/{attempt}', [AdminTestResultController::class, 'show'])
