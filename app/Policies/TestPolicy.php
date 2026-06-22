@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\Test;
 use App\Models\User;
 
@@ -10,18 +9,27 @@ class TestPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $this->isAdmin($user);
+        return $user->isAdmin()
+            || $user->isPlatformSuperAdmin()
+            || $user->isOrganizationSuperAdmin();
     }
 
     public function view(User $user, Test $test): bool
     {
-        return $this->isSuperAdmin($user)
-            || $this->ownsTest($user, $test);
+        if ($user->isPlatformSuperAdmin()) {
+            return true;
+        }
+
+        if (! $user->isAdmin() && ! $user->isOrganizationSuperAdmin()) {
+            return false;
+        }
+
+        return $test->belongsToAdminScope($user);
     }
 
     public function create(User $user): bool
     {
-        return $this->isAdmin($user);
+        return $user->isAdmin();
     }
 
     public function update(User $user, Test $test): bool
@@ -47,19 +55,9 @@ class TestPolicy
         return $this->ownsTest($user, $test) && $test->isPublished();
     }
 
-    private function isAdmin(User $user): bool
-    {
-        return $user->hasRole(UserRole::Admin->value);
-    }
-
-    private function isSuperAdmin(User $user): bool
-    {
-        return $user->hasRole(UserRole::SuperAdmin->value);
-    }
-
     private function ownsTest(User $user, Test $test): bool
     {
-        if (! $this->isAdmin($user)) {
+        if (! $user->isAdmin()) {
             return false;
         }
 

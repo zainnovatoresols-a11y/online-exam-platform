@@ -34,6 +34,7 @@ class OrganizationAdminController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'organization_id' => $organization->id,
+            'created_by_id' => $request->user()->id,
             'email_verified_at' => now(),
             'password' => Hash::make($validated['password']),
         ]);

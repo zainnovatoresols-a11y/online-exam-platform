@@ -9,24 +9,31 @@ use App\Http\Requests\SuperAdmin\UpdateOrganizationRequest;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class OrganizationController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Organization::class);
 
+        $user = $request->user();
+
+        $organizations = Organization::query()
+            ->when($user->isOrganizationSuperAdmin(), fn ($query) => $query->whereKey($user->organization_id))
+            ->withCount([
+                'users as admins_count' => fn ($query) => $query->adminAccounts(),
+                'tests',
+            ])
+            ->latest('id')
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('SuperAdmin/Organizations/Index', [
-            'organizations' => Organization::query()
-                ->withCount([
-                    'users as admins_count' => fn ($query) => $query->role(UserRole::Admin->value),
-                    'tests',
-                ])
-                ->latest('id')
-                ->paginate(10)
-                ->withQueryString(),
+            'organizations' => $organizations,
+            'can_create_organizations' => $user->isPlatformSuperAdmin(),
         ]);
     }
 
@@ -54,7 +61,7 @@ class OrganizationController extends Controller
         return Inertia::render('SuperAdmin/Organizations/Show', [
             'organization' => $organization->loadCount('tests'),
             'admins' => User::query()
-                ->role(UserRole::Admin->value)
+                ->adminAccounts()
                 ->where('organization_id', $organization->id)
                 ->latest('id')
                 ->get(['id', 'name', 'email', 'created_at']),

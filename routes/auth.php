@@ -9,9 +9,27 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\Onboarding\OnboardingController;
+use App\Http\Controllers\Onboarding\OrganizationOwnerRegistrationController;
+use App\Http\Controllers\Onboarding\SoloAdminRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
+    Route::get('onboarding', [OnboardingController::class, 'index'])
+        ->name('onboarding.index');
+
+    Route::get('onboarding/organization-owner', [OrganizationOwnerRegistrationController::class, 'create'])
+        ->name('onboarding.organization-owner.create');
+
+    Route::post('onboarding/organization-owner', [OrganizationOwnerRegistrationController::class, 'store'])
+        ->name('onboarding.organization-owner.store');
+
+    Route::get('onboarding/solo-admin', [SoloAdminRegistrationController::class, 'create'])
+        ->name('onboarding.solo-admin.create');
+
+    Route::post('onboarding/solo-admin', [SoloAdminRegistrationController::class, 'store'])
+        ->name('onboarding.solo-admin.store');
+
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 

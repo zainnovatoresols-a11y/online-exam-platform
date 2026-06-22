@@ -12,9 +12,13 @@ type Props = {
     organizations: {
         data: Organization[];
     };
+    can_create_organizations: boolean;
 };
 
-export default function Index({ organizations }: Props) {
+export default function Index({
+    organizations,
+    can_create_organizations,
+}: Props) {
     return (
         <AuthenticatedLayout
             header={
@@ -27,14 +31,16 @@ export default function Index({ organizations }: Props) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end">
-                        <Link
-                            href={route('super-admin.organizations.create')}
-                            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
-                        >
-                            Create organization
-                        </Link>
-                    </div>
+                    {can_create_organizations && (
+                        <div className="flex justify-end">
+                            <Link
+                                href={route('super-admin.organizations.create')}
+                                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                            >
+                                Create organization
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200">

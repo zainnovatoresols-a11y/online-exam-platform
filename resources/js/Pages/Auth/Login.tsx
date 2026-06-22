@@ -105,6 +105,29 @@ export default function Login({
                     </PrimaryButton>
                 </div>
             </form>
+
+            <div className="mt-6 space-y-2 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <p>
+                    Need an organization owner or solo admin account?{' '}
+                    <Link
+                        href={route('onboarding.index')}
+                        className="font-medium text-gray-900 underline"
+                    >
+                        Start onboarding
+                    </Link>
+                    .
+                </p>
+                <p>
+                    Looking to take an assessment?{' '}
+                    <Link
+                        href={route('register')}
+                        className="font-medium text-gray-900 underline"
+                    >
+                        Register as candidate
+                    </Link>
+                    .
+                </p>
+            </div>
         </GuestLayout>
     );
 }

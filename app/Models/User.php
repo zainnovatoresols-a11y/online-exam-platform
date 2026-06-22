@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -66,6 +67,46 @@ class User extends Authenticatable
     public function isCandidate(): bool
     {
         return $this->hasRole(UserRole::Candidate->value);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(UserRole::Admin->value);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(UserRole::SuperAdmin->value);
+    }
+
+    public function isPlatformSuperAdmin(): bool
+    {
+        return $this->isSuperAdmin() && $this->organization_id === null;
+    }
+
+    public function isOrganizationSuperAdmin(): bool
+    {
+        return $this->isSuperAdmin() && $this->organization_id !== null;
+    }
+
+    public function belongsToOrganization(Organization $organization): bool
+    {
+        return $this->organization_id !== null
+            && (int) $this->organization_id === (int) $organization->id;
+    }
+
+    /**
+     * Scope a query to organization/admin users without requiring the role
+     * record to be loaded first.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeAdminAccounts(Builder $query): Builder
+    {
+        return $query->whereHas('roles', fn (Builder $roleQuery): Builder => $roleQuery
+            ->where('name', UserRole::Admin->value)
+            ->where('guard_name', 'web'));
     }
 
     /**
