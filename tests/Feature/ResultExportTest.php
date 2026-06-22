@@ -124,6 +124,28 @@ class ResultExportTest extends TestCase
         $this->assertStringContainsString($admin->name, $content);
     }
 
+    public function test_csv_prints_every_invited_email_even_without_an_attempt(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        [$test] = $this->resultFixture($admin);
+
+        Invitation::factory()->create([
+            'organization_id' => $test->organization_id,
+            'test_id' => $test->id,
+            'invited_by' => $admin->id,
+            'candidate_user_id' => null,
+            'name' => 'No Attempt Candidate',
+            'email' => 'no-attempt@example.com',
+        ]);
+
+        $content = $this->actingAs($admin)
+            ->get(route('admin.tests.results.export.csv', $test))
+            ->streamedContent();
+
+        $this->assertStringContainsString('export-candidate@example.com', $content);
+        $this->assertStringContainsString('no-attempt@example.com', $content);
+    }
+
     public function test_csv_does_not_include_private_recording_paths(): void
     {
         $admin = $this->userWithRole(UserRole::Admin);

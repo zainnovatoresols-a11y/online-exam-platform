@@ -52,21 +52,20 @@ class BuildTestResultsCsvRows
      */
     public function writeRows(Test $test, mixed $handle): void
     {
-        $test->attempts()
+        $test->invitations()
             ->with([
                 'candidate:id,name,email,phone,stack_name',
                 'candidateDetail',
-                'invitation:id,test_id,candidate_user_id,name,email,candidate_profile',
-                'invitation.candidate:id,name,email,phone,stack_name',
-                'invitation.candidateDetail',
-                'answers.question:id,type',
-                'proctoringEvents:id,test_attempt_id,event_type,severity',
-                'proctoringReview.reviewedBy:id,name,email',
+                'attempt.candidate:id,name,email,phone,stack_name',
+                'attempt.candidateDetail',
+                'attempt.answers.question:id,type',
+                'attempt.proctoringEvents:id,test_attempt_id,event_type,severity',
+                'attempt.proctoringReview.reviewedBy:id,name,email',
             ])
             ->orderBy('id')
-            ->chunkById(200, function (Collection $attempts) use ($handle, $test): void {
-                $attempts->each(function (TestAttempt $attempt) use ($handle, $test): void {
-                    fputcsv($handle, $this->row($test, $attempt));
+            ->chunkById(200, function (Collection $invitations) use ($handle, $test): void {
+                $invitations->each(function (Invitation $invitation) use ($handle, $test): void {
+                    fputcsv($handle, $this->row($test, $invitation));
                 });
             });
     }
@@ -74,15 +73,16 @@ class BuildTestResultsCsvRows
     /**
      * @return list<string|int|float|null>
      */
-    private function row(Test $test, TestAttempt $attempt): array
+    private function row(Test $test, Invitation $invitation): array
     {
+        $attempt = $invitation->attempt;
         $candidate = $this->candidatePayload(
-            $attempt->candidateDetail ?? $attempt->invitation?->candidateDetail,
-            $attempt->candidate ?? $attempt->invitation?->candidate,
-            $attempt->invitation,
+            $attempt?->candidateDetail ?? $invitation->candidateDetail,
+            $attempt?->candidate ?? $invitation->candidate,
+            $invitation,
         );
-        $summary = $this->proctoringSummary($attempt->proctoringEvents);
-        $review = $attempt->proctoringReview;
+        $summary = $this->proctoringSummary($attempt?->proctoringEvents ?? collect());
+        $review = $attempt?->proctoringReview;
 
         return [
             $candidate['name'],
@@ -90,15 +90,15 @@ class BuildTestResultsCsvRows
             $candidate['phone'],
             $test->title,
             $test->organization?->name ?? 'Solo',
-            $attempt->status->value,
-            $this->dateValue($attempt->started_at),
-            $this->dateValue($attempt->submitted_at),
-            (float) $attempt->score,
-            (float) $attempt->max_score,
-            $attempt->percentage !== null ? (float) $attempt->percentage : null,
-            $attempt->passed === null ? 'Pending' : ($attempt->passed ? 'Passed' : 'Failed'),
-            $this->scoreForType($attempt, QuestionType::Mcq->value),
-            $this->scoreForType($attempt, QuestionType::Coding->value),
+            $attempt?->status->value ?? 'not_started',
+            $this->dateValue($attempt?->started_at),
+            $this->dateValue($attempt?->submitted_at),
+            $attempt ? (float) $attempt->score : 0,
+            $attempt ? (float) $attempt->max_score : 0,
+            $attempt?->percentage !== null ? (float) $attempt->percentage : null,
+            $attempt?->passed === null ? 'Pending' : ($attempt->passed ? 'Passed' : 'Failed'),
+            $attempt ? $this->scoreForType($attempt, QuestionType::Mcq->value) : 0,
+            $attempt ? $this->scoreForType($attempt, QuestionType::Coding->value) : 0,
             $summary['total'],
             $summary['high'],
             $summary['fullscreen_exits'],
