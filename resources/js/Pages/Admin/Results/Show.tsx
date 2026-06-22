@@ -291,22 +291,41 @@ export default function Show({
                                 </p>
                             </div>
 
-                            <dl className="grid min-w-72 grid-cols-2 gap-4 text-sm">
-                                <Metric label="Score">
-                                    {attempt.score}/{attempt.max_score}
-                                </Metric>
-                                <Metric label="Percentage">
-                                    {attempt.percentage === null
-                                        ? 'Pending'
-                                        : `${attempt.percentage.toFixed(2)}%`}
-                                </Metric>
-                                <Metric label="Result">
-                                    <ResultBadge passed={attempt.passed} />
-                                </Metric>
-                                <Metric label="Pass mark">
-                                    {test.pass_mark}%
-                                </Metric>
-                            </dl>
+                            <div className="space-y-4">
+                                <div className="flex justify-end">
+                                    <a
+                                        href={route(
+                                            'admin.tests.results.attempts.export.pdf',
+                                            [test.id, attempt.id],
+                                        )}
+                                        download
+                                        className="rounded-md bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white"
+                                    >
+                                        Export PDF
+                                    </a>
+                                </div>
+
+                                <dl className="grid min-w-72 grid-cols-2 gap-4 text-sm">
+                                    <Metric label="Score">
+                                        {attempt.score}/{attempt.max_score}
+                                    </Metric>
+                                    <Metric label="Percentage">
+                                        {attempt.percentage === null
+                                            ? 'Pending'
+                                            : `${attempt.percentage.toFixed(
+                                                  2,
+                                              )}%`}
+                                    </Metric>
+                                    <Metric label="Result">
+                                        <ResultBadge
+                                            passed={attempt.passed}
+                                        />
+                                    </Metric>
+                                    <Metric label="Pass mark">
+                                        {test.pass_mark}%
+                                    </Metric>
+                                </dl>
+                            </div>
                         </div>
                     </section>
 

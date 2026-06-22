@@ -106,40 +106,55 @@ export default function Index({ test, results }: Props) {
                                 </p>
                             </div>
 
-                            <dl className="grid min-w-64 grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <dt className="font-medium text-gray-500">
-                                        Invitations
-                                    </dt>
-                                    <dd className="mt-1 text-gray-900">
-                                        {test.invitations_count ?? 0}
-                                    </dd>
+                            <div className="space-y-4">
+                                <div className="flex justify-end">
+                                    <a
+                                        href={route(
+                                            'admin.tests.results.export.csv',
+                                            test.id,
+                                        )}
+                                        download
+                                        className="rounded-md bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white"
+                                    >
+                                        Export CSV
+                                    </a>
                                 </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">
-                                        Attempts
-                                    </dt>
-                                    <dd className="mt-1 text-gray-900">
-                                        {test.attempts_count ?? 0}
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">
-                                        Pass mark
-                                    </dt>
-                                    <dd className="mt-1 text-gray-900">
-                                        {test.pass_mark}%
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">
-                                        Duration
-                                    </dt>
-                                    <dd className="mt-1 text-gray-900">
-                                        {test.duration_minutes} min
-                                    </dd>
-                                </div>
-                            </dl>
+
+                                <dl className="grid min-w-64 grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <dt className="font-medium text-gray-500">
+                                            Invitations
+                                        </dt>
+                                        <dd className="mt-1 text-gray-900">
+                                            {test.invitations_count ?? 0}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-500">
+                                            Attempts
+                                        </dt>
+                                        <dd className="mt-1 text-gray-900">
+                                            {test.attempts_count ?? 0}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-500">
+                                            Pass mark
+                                        </dt>
+                                        <dd className="mt-1 text-gray-900">
+                                            {test.pass_mark}%
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-500">
+                                            Duration
+                                        </dt>
+                                        <dd className="mt-1 text-gray-900">
+                                            {test.duration_minutes} min
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
                         </div>
                     </div>
 
