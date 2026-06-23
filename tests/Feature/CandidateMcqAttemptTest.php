@@ -468,6 +468,25 @@ class CandidateMcqAttemptTest extends TestCase
         ]);
     }
 
+    public function test_candidate_cannot_submit_mcq_attempt_without_answering_required_question(): void
+    {
+        [$candidate, $test] = $this->acceptedOrganizationInvitation();
+        [$question] = $this->questionWithOptions($test);
+        $attempt = $this->startAttempt($candidate, $test);
+
+        $response = $this->actingAs($candidate)
+            ->post(route('candidate.attempts.submit', $attempt), [
+                'answers' => [],
+            ]);
+
+        $response->assertSessionHasErrors("answers.{$question->id}");
+        $this->assertDatabaseHas('test_attempts', [
+            'id' => $attempt->id,
+            'status' => AttemptStatus::InProgress->value,
+            'submitted_at' => null,
+        ]);
+    }
+
     public function test_submitted_attempt_cannot_be_submitted_again(): void
     {
         [$candidate, $test] = $this->acceptedOrganizationInvitation();

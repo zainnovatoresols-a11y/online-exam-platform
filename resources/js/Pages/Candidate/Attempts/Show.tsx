@@ -75,7 +75,7 @@ export default function Show({
     questions: Question[];
     saved_answers: Record<string, number>;
 }) {
-    const { data, setData, post, processing, errors } = useForm<AttemptForm>({
+    const { data, setData, post, processing, errors, clearErrors } = useForm<AttemptForm>({
         answers: saved_answers,
     });
 
@@ -199,9 +199,11 @@ export default function Show({
                 ),
             );
 
-            await recordings.stopAllRecordings('attempt_submitted');
-
             post(attemptRoute(attempt, 'submit'), {
+                onSuccess: async () => {
+                    await recordings.stopAllRecordings('attempt_submitted');
+                },
+                onError: () => setSubmitting(false),
                 onFinish: () => setSubmitting(false),
             });
         } catch {
@@ -220,6 +222,7 @@ export default function Show({
             ...data.answers,
             [questionId]: optionId,
         });
+        clearErrors(`answers.${questionId}`);
     };
 
     return (
@@ -400,6 +403,7 @@ function QuestionPanel({
                 runUrl={codingRunRoute(attempt)}
                 disabled={expired}
                 registerSave={registerCodingSave}
+                submitError={formErrors[`coding_answers.${question.id}`]}
             />
         );
     }

@@ -271,6 +271,36 @@ class CandidateCodingAttemptTest extends TestCase
         ]);
     }
 
+    public function test_candidate_cannot_submit_attempt_with_blank_coding_answer(): void
+    {
+        [$candidate, $test] = $this->acceptedOrganizationInvitation();
+        [$mcqQuestion, $correctOption] = $this->questionWithOptions($test, marks: 2);
+        $codingQuestion = $this->codingQuestion($test);
+        $attempt = $this->startAttempt($candidate, $test);
+
+        $this->actingAs($candidate)
+            ->post(route('candidate.attempts.coding-answers.save', $attempt), [
+                'question_id' => $codingQuestion->id,
+                'language' => 'javascript',
+                'submitted_code' => '',
+            ])
+            ->assertRedirect();
+
+        $response = $this->actingAs($candidate)
+            ->post(route('candidate.attempts.submit', $attempt), [
+                'answers' => [
+                    $mcqQuestion->id => $correctOption->id,
+                ],
+            ]);
+
+        $response->assertSessionHasErrors("coding_answers.{$codingQuestion->id}");
+        $this->assertDatabaseHas('test_attempts', [
+            'id' => $attempt->id,
+            'status' => AttemptStatus::InProgress->value,
+            'submitted_at' => null,
+        ]);
+    }
+
     public function test_public_candidate_can_save_coding_answer_without_authentication(): void
     {
         [$admin, $test] = $this->publishedOrganizationTest();

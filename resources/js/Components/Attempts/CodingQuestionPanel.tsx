@@ -1,3 +1,4 @@
+import InputError from '@/Components/InputError';
 import SecondaryButton from '@/Components/SecondaryButton';
 import axios from 'axios';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -60,6 +61,7 @@ type Props = {
     runUrl: string;
     disabled: boolean;
     registerSave?: (questionId: number, saveHandler: () => Promise<void>) => void;
+    submitError?: string;
 };
 
 export default function CodingQuestionPanel({
@@ -69,6 +71,7 @@ export default function CodingQuestionPanel({
     runUrl,
     disabled,
     registerSave,
+    submitError,
 }: Props) {
     const initialLanguage = useMemo(
         () => initialSelectedLanguage(question),
@@ -248,6 +251,8 @@ export default function CodingQuestionPanel({
                     {errorMessage}
                 </p>
             )}
+
+            <InputError message={submitError} className="mt-3" />
 
             <div className="mt-4 flex flex-wrap justify-end gap-3">
                 <SecondaryButton

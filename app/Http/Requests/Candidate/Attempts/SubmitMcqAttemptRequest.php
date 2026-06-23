@@ -41,12 +41,28 @@ class SubmitMcqAttemptRequest extends FormRequest
             }
 
             $attempt->load([
-                'test.questions' => fn ($query) => $query->where('type', QuestionType::Mcq->value),
+                'test.questions' => fn ($query) => $query
+                    ->orderBy('order')
+                    ->orderBy('id'),
                 'test.questions.options',
+                'answers:id,test_attempt_id,question_id,language,submitted_code',
             ]);
             $answers = collect($this->input('answers', []));
 
             foreach ($attempt->test->questions as $question) {
+                if ($question->type === QuestionType::Coding->value) {
+                    $savedAnswer = $attempt->answers->firstWhere('question_id', $question->id);
+
+                    if (! $savedAnswer || blank($savedAnswer->language) || blank($savedAnswer->submitted_code)) {
+                        $validator->errors()->add(
+                            "coding_answers.{$question->id}",
+                            'Please write and save code before submitting this question.',
+                        );
+                    }
+
+                    continue;
+                }
+
                 $selectedOptionId = $answers->get((string) $question->id)
                     ?? $answers->get($question->id);
 
