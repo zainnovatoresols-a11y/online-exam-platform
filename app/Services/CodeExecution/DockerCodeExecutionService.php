@@ -289,6 +289,7 @@ class DockerCodeExecutionService implements CodeExecutionService
             $this->dockerBinary(),
             'run',
             '--rm',
+            '-i',
             '--memory',
             $memoryLimitKb.'k',
             '--cpus',
