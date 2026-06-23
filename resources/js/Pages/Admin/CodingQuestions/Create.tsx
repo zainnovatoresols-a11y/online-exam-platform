@@ -32,7 +32,7 @@ export default function Create({
         marks: '1',
         order: String(next_order),
         difficulty: 'easy',
-        time_limit_ms: '2000',
+        time_limit_minutes: '1',
         supported_languages: ['php'],
         starter_code: {
             php: '',

@@ -27,7 +27,7 @@ export type CodingQuestionFormData = {
     marks: string;
     order: string;
     difficulty: string;
-    time_limit_ms: string;
+    time_limit_minutes: string;
     supported_languages: string[];
     starter_code: Record<string, string>;
     test_cases: CodingTestCaseForm[];
@@ -52,13 +52,18 @@ export default function CodingQuestionForm({
     submitRoute,
     method,
 }: Props) {
-    const { data, setData, post, patch, processing, errors } =
+    const { data, setData, post, patch, processing, errors, transform } =
         useForm<CodingQuestionFormData>(initialData);
 
     const formErrors = errors as Record<string, string>;
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
+
+        transform((formData) => ({
+            ...formData,
+            time_limit_ms: minutesToMilliseconds(formData.time_limit_minutes),
+        }));
 
         if (method === 'post') {
             post(submitRoute);
@@ -215,21 +220,32 @@ export default function CodingQuestionForm({
                 </div>
 
                 <div>
-                    <InputLabel htmlFor="time_limit_ms" value="Time limit" />
+                    <InputLabel
+                        htmlFor="time_limit_minutes"
+                        value="Time limit (minutes)"
+                    />
                     <TextInput
-                        id="time_limit_ms"
+                        id="time_limit_minutes"
                         type="number"
-                        min="500"
-                        max="10000"
+                        min="0.0083"
+                        max="60"
+                        step="0.0001"
                         className="mt-1 block w-full"
-                        value={data.time_limit_ms}
+                        value={data.time_limit_minutes}
                         onChange={(event) =>
-                            setData('time_limit_ms', event.target.value)
+                            setData('time_limit_minutes', event.target.value)
                         }
                         required
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                        Use minutes from 0.0083 up to 60. Decimal values are
+                        allowed, for example 0.5 for 30 seconds.
+                    </p>
                     <InputError
-                        message={errors.time_limit_ms}
+                        message={
+                            formErrors.time_limit_minutes ??
+                            formErrors.time_limit_ms
+                        }
                         className="mt-2"
                     />
                 </div>
@@ -445,4 +461,14 @@ export default function CodingQuestionForm({
             </div>
         </form>
     );
+}
+
+function minutesToMilliseconds(value: string): number {
+    const parsed = Number(value);
+
+    if (Number.isNaN(parsed)) {
+        return 0;
+    }
+
+    return Math.round(parsed * 60_000);
 }

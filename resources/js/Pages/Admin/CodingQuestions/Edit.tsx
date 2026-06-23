@@ -50,7 +50,9 @@ export default function Edit({
         marks: String(question.marks),
         order: String(question.order),
         difficulty: question.difficulty,
-        time_limit_ms: String(question.time_limit_ms),
+        time_limit_minutes: formatMillisecondsAsMinutes(
+            question.time_limit_ms,
+        ),
         supported_languages: question.supported_languages,
         starter_code: Object.fromEntries(
             Object.entries(question.starter_code).map(([language, code]) => [
@@ -97,4 +99,10 @@ export default function Edit({
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatMillisecondsAsMinutes(value: number): string {
+    const minutes = value / 60_000;
+
+    return Number(minutes.toFixed(4)).toString();
 }
