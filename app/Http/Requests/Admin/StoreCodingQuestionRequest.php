@@ -33,7 +33,7 @@ class StoreCodingQuestionRequest extends FormRequest
             'order' => ['nullable', 'integer', 'min:0'],
             'difficulty' => ['required', Rule::in($this->difficultyValues())],
             'time_limit_ms' => ['required', 'integer', 'min:500', 'max:10000'],
-            'memory_limit_kb' => ['required', 'integer', 'min:32000', 'max:512000'],
+            'memory_limit_kb' => ['nullable', 'integer', 'min:32000', 'max:512000'],
             'supported_languages' => ['required', 'array', 'min:1'],
             'supported_languages.*' => ['required', Rule::in($languages)],
             'starter_code' => ['nullable', 'array'],

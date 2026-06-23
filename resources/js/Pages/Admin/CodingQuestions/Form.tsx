@@ -28,7 +28,6 @@ export type CodingQuestionFormData = {
     order: string;
     difficulty: string;
     time_limit_ms: string;
-    memory_limit_kb: string;
     supported_languages: string[];
     starter_code: Record<string, string>;
     test_cases: CodingTestCaseForm[];
@@ -160,7 +159,7 @@ export default function CodingQuestionForm({
                 <InputError message={errors.body} className="mt-2" />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <InputLabel htmlFor="marks" value="Marks" />
                     <TextInput
@@ -231,26 +230,6 @@ export default function CodingQuestionForm({
                     />
                     <InputError
                         message={errors.time_limit_ms}
-                        className="mt-2"
-                    />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="memory_limit_kb" value="Memory" />
-                    <TextInput
-                        id="memory_limit_kb"
-                        type="number"
-                        min="32000"
-                        max="512000"
-                        className="mt-1 block w-full"
-                        value={data.memory_limit_kb}
-                        onChange={(event) =>
-                            setData('memory_limit_kb', event.target.value)
-                        }
-                        required
-                    />
-                    <InputError
-                        message={errors.memory_limit_kb}
                         className="mt-2"
                     />
                 </div>

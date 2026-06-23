@@ -35,6 +35,7 @@ class CodingQuestionBuilderTest extends TestCase
         $this->assertSame(QuestionType::Coding->value, $question->type);
         $this->assertSame('Reverse a string.', $question->body);
         $this->assertSame(CodingDifficulty::Easy->value, $question->difficulty);
+        $this->assertSame(128000, $question->memory_limit_kb);
         $this->assertSame(['php', 'javascript'], $question->supported_languages);
         $this->assertSame('<?php echo "ready";', $question->starter_code['php']);
         $this->assertSame(2, $question->testCases()->count());
@@ -201,8 +202,47 @@ class CodingQuestionBuilderTest extends TestCase
         $this->assertSame('Find the maximum number.', $question->body);
         $this->assertSame(10, $question->marks);
         $this->assertSame(CodingDifficulty::Medium->value, $question->difficulty);
+        $this->assertSame(128000, $question->memory_limit_kb);
         $this->assertSame(['python'], $question->supported_languages);
         $this->assertSame(1, $question->testCases()->count());
+    }
+
+    public function test_backend_defaults_memory_limit_when_frontend_does_not_send_it(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = $this->draftTestFor($admin, $organization);
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.tests.coding-questions.store', $test), $this->validPayload([
+                'memory_limit_kb' => null,
+            ]));
+
+        $response->assertRedirect(route('admin.tests.questions.index', $test));
+
+        $question = Question::query()->where('test_id', $test->id)->firstOrFail();
+
+        $this->assertSame(128000, $question->memory_limit_kb);
+    }
+
+    public function test_edit_keeps_existing_memory_limit_when_frontend_does_not_send_it(): void
+    {
+        $organization = Organization::factory()->create();
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $test = $this->draftTestFor($admin, $organization);
+        $question = $this->codingQuestionFor($test, [
+            'memory_limit_kb' => 256000,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->patch(route('admin.tests.coding-questions.update', [$test, $question]), $this->validPayload([
+                'body' => 'Keep memory limit while updating.',
+                'memory_limit_kb' => null,
+            ]));
+
+        $response->assertRedirect(route('admin.tests.questions.index', $test));
+
+        $this->assertSame(256000, $question->refresh()->memory_limit_kb);
     }
 
     public function test_admin_can_edit_coding_question_while_test_is_closed(): void
@@ -284,7 +324,6 @@ class CodingQuestionBuilderTest extends TestCase
             'order' => 1,
             'difficulty' => CodingDifficulty::Easy->value,
             'time_limit_ms' => 2000,
-            'memory_limit_kb' => 128000,
             'supported_languages' => ['php', 'javascript'],
             'starter_code' => [
                 'php' => '<?php echo "ready";',
@@ -325,7 +364,10 @@ class CodingQuestionBuilderTest extends TestCase
         ]);
     }
 
-    private function codingQuestionFor(Test $test): Question
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function codingQuestionFor(Test $test, array $overrides = []): Question
     {
         $question = $test->questions()->create([
             'type' => QuestionType::Coding->value,
@@ -337,6 +379,7 @@ class CodingQuestionBuilderTest extends TestCase
             'memory_limit_kb' => 128000,
             'supported_languages' => ['php'],
             'starter_code' => ['php' => '<?php'],
+            ...$overrides,
         ]);
 
         $question->testCases()->create([

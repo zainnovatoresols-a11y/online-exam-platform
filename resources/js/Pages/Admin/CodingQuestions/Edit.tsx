@@ -21,7 +21,6 @@ type CodingQuestion = {
     order: number;
     difficulty: string;
     time_limit_ms: number;
-    memory_limit_kb: number;
     supported_languages: string[];
     starter_code: Record<string, string | null>;
     test_cases: {
@@ -52,7 +51,6 @@ export default function Edit({
         order: String(question.order),
         difficulty: question.difficulty,
         time_limit_ms: String(question.time_limit_ms),
-        memory_limit_kb: String(question.memory_limit_kb),
         supported_languages: question.supported_languages,
         starter_code: Object.fromEntries(
             Object.entries(question.starter_code).map(([language, code]) => [

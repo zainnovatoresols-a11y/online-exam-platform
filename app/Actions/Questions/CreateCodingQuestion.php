@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 class CreateCodingQuestion
 {
+    private const DEFAULT_MEMORY_LIMIT_KB = 128000;
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -24,7 +26,7 @@ class CreateCodingQuestion
                 'order' => $data['order'] ?? ((int) $test->questions()->max('order')) + 1,
                 'difficulty' => $data['difficulty'],
                 'time_limit_ms' => $data['time_limit_ms'],
-                'memory_limit_kb' => $data['memory_limit_kb'],
+                'memory_limit_kb' => $data['memory_limit_kb'] ?? self::DEFAULT_MEMORY_LIMIT_KB,
                 'supported_languages' => $supportedLanguages,
                 'starter_code' => $this->starterCodeForSelectedLanguages(
                     $data['starter_code'] ?? [],

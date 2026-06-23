@@ -33,7 +33,6 @@ export default function Create({
         order: String(next_order),
         difficulty: 'easy',
         time_limit_ms: '2000',
-        memory_limit_kb: '128000',
         supported_languages: ['php'],
         starter_code: {
             php: '',
