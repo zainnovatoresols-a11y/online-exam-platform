@@ -13,6 +13,7 @@ use App\Policies\QuestionPolicy;
 use App\Policies\TestAttemptPolicy;
 use App\Policies\TestPolicy;
 use App\Services\CodeExecution\CodeExecutionService;
+use App\Services\CodeExecution\DockerCodeExecutionService;
 use App\Services\CodeExecution\FakeCodeExecutionService;
 use App\Services\CodeExecution\Judge0CodeExecutionService;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
             $driver = (string) config('code_execution.driver', 'judge0');
 
             return match ($driver) {
+                'docker' => $this->app->make(DockerCodeExecutionService::class),
                 'fake' => $this->app->make(FakeCodeExecutionService::class),
                 'judge0' => $this->app->make(Judge0CodeExecutionService::class),
                 default => throw new InvalidArgumentException("Unsupported code execution driver [{$driver}]."),
