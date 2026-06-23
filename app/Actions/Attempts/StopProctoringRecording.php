@@ -31,7 +31,9 @@ class StopProctoringRecording
         }
 
         $metadata = $this->sanitizeMetadata($metadata);
-        $status = $reason === 'attempt_completed' ? 'completed' : 'stopped';
+        $status = in_array($reason, ['attempt_completed', 'attempt_submitted'], true)
+            ? 'completed'
+            : 'stopped';
 
         $recording = ProctoringRecording::query()->firstOrNew([
             'test_attempt_id' => $attempt->id,

@@ -24,6 +24,7 @@ type MetadataValue = string | number | boolean | null;
 type Metadata = Record<string, MetadataValue>;
 
 const FRONTEND_DEDUPE_MS = 3000;
+const MEDIA_PERMISSION_PROMPT_GRACE_MS = 4000;
 
 export function useProctoringEvents(
     attempt: ProctoringAttempt,
@@ -94,6 +95,10 @@ export function useProctoringEvents(
         }
 
         const handleVisibilityChange = () => {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
+                return;
+            }
+
             sendEvent(
                 document.visibilityState === 'hidden'
                     ? 'tab_hidden'
@@ -105,10 +110,18 @@ export function useProctoringEvents(
         };
 
         const handleWindowBlur = () => {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
+                return;
+            }
+
             sendEvent('window_blur');
         };
 
         const handleWindowFocus = () => {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
+                return;
+            }
+
             sendEvent('window_focus');
         };
 
@@ -116,6 +129,11 @@ export function useProctoringEvents(
             const active = Boolean(document.fullscreenElement);
 
             setFullscreenActive(active);
+
+            if (mediaPermissionPromptIsActiveOrRecent()) {
+                return;
+            }
+
             sendEvent(active ? 'fullscreen_entered' : 'fullscreen_exited', {
                 fullscreen: active,
             });
@@ -264,6 +282,23 @@ function proctoringRoute(attempt: ProctoringAttempt): string {
     }
 
     return route('candidate.attempts.proctoring-events.store', attempt.id);
+}
+
+function mediaPermissionPromptIsActiveOrRecent(): boolean {
+    if (typeof document === 'undefined') {
+        return false;
+    }
+
+    if (document.documentElement.dataset.proctoringMediaPermissionPrompt === 'true') {
+        return true;
+    }
+
+    const endedAt = Number(
+        document.documentElement.dataset.proctoringMediaPermissionPromptEndedAt,
+    );
+
+    return Number.isFinite(endedAt)
+        && Date.now() - endedAt <= MEDIA_PERMISSION_PROMPT_GRACE_MS;
 }
 
 function baseMetadata(): Metadata {

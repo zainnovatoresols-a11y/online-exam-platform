@@ -671,8 +671,11 @@ function setMediaPermissionPromptActive(active: boolean): void {
 
     if (active) {
         document.documentElement.dataset.proctoringMediaPermissionPrompt = 'true';
+        delete document.documentElement.dataset.proctoringMediaPermissionPromptEndedAt;
     } else {
         delete document.documentElement.dataset.proctoringMediaPermissionPrompt;
+        document.documentElement.dataset.proctoringMediaPermissionPromptEndedAt =
+            String(Date.now());
     }
 }
 

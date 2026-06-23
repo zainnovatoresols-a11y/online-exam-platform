@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Actions\Proctoring\CalculateProctoringRiskScore;
 use App\Models\ProctoringEvent;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 
@@ -69,6 +70,72 @@ class CalculateProctoringRiskScoreTest extends TestCase
         $this->assertSame('critical', $calculator->handle($this->repeatedEvents('screen_share_ended', 'high', 3))['level']);
     }
 
+    public function test_compliance_events_do_not_add_risk_points(): void
+    {
+        $result = $this->calculator()->handle($this->events([
+            ['fullscreen_entered', 'low'],
+            ['window_focus', 'low'],
+            ['camera_recording_permission_granted', 'low'],
+            ['screen_recording_permission_granted', 'low'],
+            ['camera_recording_started', 'low'],
+            ['screen_recording_started', 'low'],
+            ['camera_recording_chunk_uploaded', 'low'],
+            ['screen_recording_chunk_uploaded', 'low'],
+        ]));
+
+        $this->assertSame(0, $result['score']);
+        $this->assertSame('low', $result['level']);
+        $this->assertSame(0, $result['event_count']);
+        $this->assertSame([], $result['breakdown']);
+    }
+
+    public function test_submit_cleanup_recording_stops_do_not_add_risk_points(): void
+    {
+        $result = $this->calculator()->handle(collect([
+            new ProctoringEvent([
+                'event_type' => 'camera_recording_stopped',
+                'severity' => 'medium',
+                'metadata' => ['reason' => 'attempt_submitted'],
+            ]),
+            new ProctoringEvent([
+                'event_type' => 'screen_recording_stopped',
+                'severity' => 'medium',
+                'metadata' => ['reason' => 'attempt_submitted'],
+            ]),
+        ]));
+
+        $this->assertSame(0, $result['score']);
+        $this->assertSame(0, $result['event_count']);
+        $this->assertSame([], $result['breakdown']);
+    }
+
+    public function test_media_permission_prompt_side_effects_do_not_add_risk_points(): void
+    {
+        $occurredAt = Carbon::parse('2026-06-23 10:00:00');
+
+        $result = $this->calculator()->handle(collect([
+            $this->rawEvent([
+                'event_type' => 'fullscreen_exited',
+                'severity' => 'high',
+                'occurred_at' => $occurredAt->toDateTimeString(),
+            ]),
+            $this->rawEvent([
+                'event_type' => 'window_blur',
+                'severity' => 'medium',
+                'occurred_at' => $occurredAt->copy()->addSecond()->toDateTimeString(),
+            ]),
+            $this->rawEvent([
+                'event_type' => 'screen_recording_permission_granted',
+                'severity' => 'low',
+                'occurred_at' => $occurredAt->copy()->addSeconds(2)->toDateTimeString(),
+            ]),
+        ]));
+
+        $this->assertSame(0, $result['score']);
+        $this->assertSame(0, $result['event_count']);
+        $this->assertSame([], $result['breakdown']);
+    }
+
     /**
      * @param  list<array{0: string, 1: string}>  $events
      * @return Collection<int, ProctoringEvent>
@@ -92,6 +159,17 @@ class CalculateProctoringRiskScoreTest extends TestCase
                 'event_type' => $eventType,
                 'severity' => $severity,
             ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function rawEvent(array $attributes): ProctoringEvent
+    {
+        $event = new ProctoringEvent;
+        $event->setRawAttributes($attributes);
+
+        return $event;
     }
 
     private function calculator(): CalculateProctoringRiskScore

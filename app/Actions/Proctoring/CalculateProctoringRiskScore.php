@@ -4,6 +4,7 @@ namespace App\Actions\Proctoring;
 
 use App\Models\ProctoringEvent;
 use App\Models\TestAttempt;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -35,6 +36,62 @@ class CalculateProctoringRiskScore
     ];
 
     /**
+     * These events are useful timeline evidence, but they prove normal
+     * proctoring activity rather than suspicious behavior.
+     *
+     * @var array<int, string>
+     */
+    private const ZERO_RISK_EVENT_TYPES = [
+        'tab_visible',
+        'window_focus',
+        'fullscreen_entered',
+        'proctoring_violation_acknowledged',
+        'camera_recording_permission_granted',
+        'camera_recording_started',
+        'camera_recording_chunk_uploaded',
+        'screen_recording_permission_granted',
+        'screen_recording_started',
+        'screen_recording_chunk_uploaded',
+    ];
+
+    /**
+     * Normal page lifecycle stops should remain in the evidence timeline but
+     * should not make the attempt look suspicious.
+     *
+     * @var array<int, string>
+     */
+    private const BENIGN_RECORDING_STOP_REASONS = [
+        'attempt_submitted',
+        'attempt_completed',
+        'attempt_inactive',
+        'component_unmounted',
+    ];
+
+    /**
+     * Browser camera/screen permission dialogs can briefly blur the window or
+     * interrupt fullscreen. Those events are not candidate cheating.
+     *
+     * @var array<int, string>
+     */
+    private const MEDIA_PERMISSION_EVENT_TYPES = [
+        'camera_recording_permission_granted',
+        'camera_recording_permission_denied',
+        'screen_recording_permission_granted',
+        'screen_recording_permission_denied',
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    private const MEDIA_PERMISSION_SIDE_EFFECT_TYPES = [
+        'tab_hidden',
+        'window_blur',
+        'fullscreen_exited',
+    ];
+
+    private const MEDIA_PERMISSION_GRACE_SECONDS = 10;
+
+    /**
      * @var array<string, int>
      */
     private const SEVERITY_WEIGHTS = [
@@ -53,7 +110,9 @@ class CalculateProctoringRiskScore
             ? $this->eventsForAttempt($source)
             : $source;
 
-        $breakdown = $events
+        $scoreableEvents = $this->scoreableEvents($events);
+
+        $breakdown = $scoreableEvents
             ->map(fn (ProctoringEvent $event): array => [
                 'event_type' => $event->event_type,
                 'label' => $this->label($event->event_type),
@@ -81,7 +140,7 @@ class CalculateProctoringRiskScore
         return [
             'score' => $score,
             'level' => $this->levelFor($score),
-            'event_count' => $events->count(),
+            'event_count' => $scoreableEvents->count(),
             'breakdown' => $breakdown->all(),
         ];
     }
@@ -100,9 +159,101 @@ class CalculateProctoringRiskScore
      */
     private function eventsForAttempt(TestAttempt $attempt): Collection
     {
-        $attempt->loadMissing('proctoringEvents:id,test_attempt_id,event_type,severity');
+        $attempt->loadMissing('proctoringEvents:id,test_attempt_id,event_type,severity,metadata,occurred_at');
 
         return $attempt->proctoringEvents;
+    }
+
+    /**
+     * @param  Collection<int, ProctoringEvent>  $events
+     * @return Collection<int, ProctoringEvent>
+     */
+    private function scoreableEvents(Collection $events): Collection
+    {
+        return $events
+            ->reject(fn (ProctoringEvent $event): bool => $this->isZeroRiskEvent($event, $events))
+            ->filter(fn (ProctoringEvent $event): bool => $this->pointsFor($event) > 0)
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, ProctoringEvent>  $events
+     */
+    private function isZeroRiskEvent(ProctoringEvent $event, Collection $events): bool
+    {
+        if (in_array($event->event_type, self::ZERO_RISK_EVENT_TYPES, true)) {
+            return true;
+        }
+
+        if ($this->isBenignRecordingStop($event)) {
+            return true;
+        }
+
+        return $this->isMediaPermissionSideEffect($event, $events);
+    }
+
+    private function isBenignRecordingStop(ProctoringEvent $event): bool
+    {
+        if (! in_array($event->event_type, ['camera_recording_stopped', 'screen_recording_stopped'], true)) {
+            return false;
+        }
+
+        $reason = $event->metadata['reason'] ?? null;
+
+        return is_string($reason)
+            && in_array($reason, self::BENIGN_RECORDING_STOP_REASONS, true);
+    }
+
+    /**
+     * @param  Collection<int, ProctoringEvent>  $events
+     */
+    private function isMediaPermissionSideEffect(ProctoringEvent $event, Collection $events): bool
+    {
+        if (! in_array($event->event_type, self::MEDIA_PERMISSION_SIDE_EFFECT_TYPES, true)) {
+            return false;
+        }
+
+        if (($event->metadata['media_permission_prompt'] ?? false) === true) {
+            return true;
+        }
+
+        $eventOccurredAt = $this->occurredAt($event);
+
+        if (! $eventOccurredAt) {
+            return false;
+        }
+
+        return $events->contains(function (ProctoringEvent $other) use ($eventOccurredAt): bool {
+            if (! in_array($other->event_type, self::MEDIA_PERMISSION_EVENT_TYPES, true)) {
+                return false;
+            }
+
+            $otherOccurredAt = $this->occurredAt($other);
+
+            return $otherOccurredAt
+                && abs($eventOccurredAt->diffInSeconds($otherOccurredAt, false)) <= self::MEDIA_PERMISSION_GRACE_SECONDS;
+        });
+    }
+
+    private function occurredAt(ProctoringEvent $event): ?Carbon
+    {
+        $value = $event->getRawOriginal('occurred_at')
+            ?? $event->getAttributes()['occurred_at']
+            ?? null;
+
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value);
+        }
+
+        if (is_string($value) && $value !== '') {
+            return Carbon::parse($value);
+        }
+
+        return null;
     }
 
     private function pointsFor(ProctoringEvent $event): int

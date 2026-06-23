@@ -30,6 +30,7 @@ export type ProctoringViolation = {
 };
 
 const FRONTEND_DEDUPE_MS = 3000;
+const MEDIA_PERMISSION_PROMPT_GRACE_MS = 4000;
 
 export function useProctoringGuards(
     attempt: ProctoringAttempt,
@@ -145,7 +146,7 @@ export function useProctoringGuards(
         };
 
         const handleVisibilityChange = () => {
-            if (mediaPermissionPromptIsActive()) {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
                 return;
             }
 
@@ -155,7 +156,7 @@ export function useProctoringGuards(
         };
 
         const handleWindowBlur = () => {
-            if (mediaPermissionPromptIsActive()) {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
                 return;
             }
 
@@ -163,7 +164,7 @@ export function useProctoringGuards(
         };
 
         const handleFullscreenChange = () => {
-            if (mediaPermissionPromptIsActive()) {
+            if (mediaPermissionPromptIsActiveOrRecent()) {
                 return;
             }
 
@@ -291,11 +292,21 @@ export function useProctoringGuards(
     };
 }
 
-function mediaPermissionPromptIsActive(): boolean {
-    return (
-        typeof document !== 'undefined' &&
-        document.documentElement.dataset.proctoringMediaPermissionPrompt === 'true'
+function mediaPermissionPromptIsActiveOrRecent(): boolean {
+    if (typeof document === 'undefined') {
+        return false;
+    }
+
+    if (document.documentElement.dataset.proctoringMediaPermissionPrompt === 'true') {
+        return true;
+    }
+
+    const endedAt = Number(
+        document.documentElement.dataset.proctoringMediaPermissionPromptEndedAt,
     );
+
+    return Number.isFinite(endedAt)
+        && Date.now() - endedAt <= MEDIA_PERMISSION_PROMPT_GRACE_MS;
 }
 
 function proctoringRoute(attempt: ProctoringAttempt): string {
