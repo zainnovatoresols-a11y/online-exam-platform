@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\QuestionType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\McqQuestionRequest;
+use App\Http\Requests\Admin\ReorderQuestionsRequest;
 use App\Models\Question;
 use App\Models\Test;
+use App\Actions\Questions\ReorderQuestions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -23,6 +25,7 @@ class QuestionController extends Controller
             'test' => $test,
             'canManageQuestions' => Gate::allows('create', [Question::class, $test]),
             'canManageCodingQuestions' => Gate::allows('create', [Question::class, $test]) && ! $test->isPublished(),
+            'canReorderQuestions' => Gate::allows('reorder', [Question::class, $test]),
             'questions' => $test->questions()
                 ->with('options:id,question_id,body,is_correct')
                 ->withCount(['options', 'testCases'])
@@ -46,6 +49,21 @@ class QuestionController extends Controller
                     ])->values(),
                 ]),
         ]);
+    }
+
+    public function reorder(
+        ReorderQuestionsRequest $request,
+        Test $test,
+        ReorderQuestions $reorderQuestions,
+    ): RedirectResponse {
+        Gate::authorize('reorder', [Question::class, $test]);
+
+        $validated = $request->validated();
+
+        $reorderQuestions->handle($test, $validated['question_ids']);
+
+        return to_route('admin.tests.questions.index', $test)
+            ->with('success', 'Question order updated successfully.');
     }
 
     public function create(Test $test): Response

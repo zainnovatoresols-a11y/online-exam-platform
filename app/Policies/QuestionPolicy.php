@@ -20,6 +20,11 @@ class QuestionPolicy
             && ($test->isDraft() || $test->isClosed());
     }
 
+    public function reorder(User $user, Test $test): bool
+    {
+        return $this->create($user, $test);
+    }
+
     public function update(User $user, Question $question): bool
     {
         return $this->ownsQuestionTest($user, $question)

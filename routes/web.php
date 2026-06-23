@@ -160,6 +160,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])
                 Route::delete('coding-questions/{question}', [AdminCodingQuestionController::class, 'destroy'])
                     ->name('coding-questions.destroy');
 
+                Route::patch('questions/reorder', [AdminQuestionController::class, 'reorder'])
+                    ->name('questions.reorder');
                 Route::resource('questions', AdminQuestionController::class)
                     ->except(['show']);
             });
