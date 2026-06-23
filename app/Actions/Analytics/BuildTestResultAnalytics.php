@@ -6,6 +6,7 @@ use App\Actions\Proctoring\CalculateProctoringRiskScore;
 use App\Enums\AttemptStatus;
 use App\Enums\QuestionType;
 use App\Models\AttemptAnswer;
+use App\Models\Invitation;
 use App\Models\Question;
 use App\Models\Test;
 use App\Models\TestAttempt;
@@ -26,6 +27,7 @@ class BuildTestResultAnalytics
     public function handle(Test $test, array $filters = []): array
     {
         $normalizedFilters = $this->normalizeFilters($filters);
+        $invitations = $this->filteredInvitations($test, $normalizedFilters);
         $attempts = $this->filteredAttempts($test, $normalizedFilters);
         $submittedAttempts = $attempts
             ->filter(fn (TestAttempt $attempt): bool => $attempt->submitted_at !== null || $attempt->status === AttemptStatus::Submitted)
@@ -46,9 +48,9 @@ class BuildTestResultAnalytics
 
         return [
             'filters' => $normalizedFilters,
-            'overview' => $this->overviewPayload($test, $attempts, $submittedAttempts),
+            'overview' => $this->overviewPayload($invitations, $attempts, $submittedAttempts),
             'score_summary' => $this->scoreSummaryPayload($submittedAttempts, $answers),
-            'status_breakdown' => $this->statusBreakdownPayload($test, $attempts),
+            'status_breakdown' => $this->statusBreakdownPayload($invitations, $attempts),
             'risk_breakdown' => $this->riskBreakdownPayload($riskRows),
             'review_breakdown' => $this->reviewBreakdownPayload($attempts),
             'timing_summary' => $this->timingSummaryPayload($submittedAttempts),
@@ -107,6 +109,39 @@ class BuildTestResultAnalytics
 
         return $query
             ->orderByDesc('submitted_at')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    /**
+     * @param  array{from: string|null, to: string|null, status: string|null, review_status: string|null}  $filters
+     * @return Collection<int, Invitation>
+     */
+    private function filteredInvitations(Test $test, array $filters): Collection
+    {
+        $query = $test->invitations()
+            ->select([
+                'id',
+                'test_id',
+                'status',
+                'accepted_at',
+                'created_at',
+            ])
+            ->with([
+                'attempt:id,invitation_id,status,started_at,submitted_at,expires_at,created_at',
+            ]);
+
+        if ($filters['status'] || $filters['review_status']) {
+            $query->whereHas('attempt', function (Builder $attemptQuery) use ($filters): void {
+                $this->applyAttemptFilters($attemptQuery, $filters);
+            });
+        } else {
+            $this->applyInvitationDateFilters($query, $filters);
+        }
+
+        return $query
+            ->orderByDesc('accepted_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
     }
@@ -190,15 +225,54 @@ class BuildTestResultAnalytics
     }
 
     /**
+     * @param  array{from: string|null, to: string|null, status: string|null, review_status: string|null}  $filters
+     */
+    private function applyInvitationDateFilters(Builder|HasMany $query, array $filters): void
+    {
+        if ($filters['from']) {
+            $query->where(function (Builder $dateQuery) use ($filters): void {
+                $dateQuery
+                    ->where(function (Builder $acceptedQuery) use ($filters): void {
+                        $acceptedQuery
+                            ->whereNotNull('accepted_at')
+                            ->whereDate('accepted_at', '>=', $filters['from']);
+                    })
+                    ->orWhere(function (Builder $fallbackQuery) use ($filters): void {
+                        $fallbackQuery
+                            ->whereNull('accepted_at')
+                            ->whereDate('created_at', '>=', $filters['from']);
+                    });
+            });
+        }
+
+        if ($filters['to']) {
+            $query->where(function (Builder $dateQuery) use ($filters): void {
+                $dateQuery
+                    ->where(function (Builder $acceptedQuery) use ($filters): void {
+                        $acceptedQuery
+                            ->whereNotNull('accepted_at')
+                            ->whereDate('accepted_at', '<=', $filters['to']);
+                    })
+                    ->orWhere(function (Builder $fallbackQuery) use ($filters): void {
+                        $fallbackQuery
+                            ->whereNull('accepted_at')
+                            ->whereDate('created_at', '<=', $filters['to']);
+                    });
+            });
+        }
+    }
+
+    /**
+     * @param  Collection<int, Invitation>  $invitations
      * @param  Collection<int, TestAttempt>  $attempts
      * @param  Collection<int, TestAttempt>  $submittedAttempts
      * @return array<string, int|float|null>
      */
-    private function overviewPayload(Test $test, Collection $attempts, Collection $submittedAttempts): array
+    private function overviewPayload(Collection $invitations, Collection $attempts, Collection $submittedAttempts): array
     {
-        $totalInvitations = $test->invitations()->count();
-        $acceptedInvitations = $test->invitations()
-            ->whereNotNull('accepted_at')
+        $totalInvitations = $invitations->count();
+        $acceptedInvitations = $invitations
+            ->filter(fn (Invitation $invitation): bool => $invitation->accepted_at !== null)
             ->count();
         $passCount = $submittedAttempts->where('passed', true)->count();
         $failCount = $submittedAttempts->where('passed', false)->count();
@@ -296,14 +370,15 @@ class BuildTestResultAnalytics
     }
 
     /**
+     * @param  Collection<int, Invitation>  $invitations
      * @param  Collection<int, TestAttempt>  $attempts
      * @return array<string, int>
      */
-    private function statusBreakdownPayload(Test $test, Collection $attempts): array
+    private function statusBreakdownPayload(Collection $invitations, Collection $attempts): array
     {
         return [
-            'not_started' => $test->invitations()
-                ->whereDoesntHave('attempt')
+            'not_started' => $invitations
+                ->filter(fn (Invitation $invitation): bool => $invitation->attempt === null)
                 ->count(),
             'in_progress' => $attempts
                 ->filter(fn (TestAttempt $attempt): bool => $attempt->status === AttemptStatus::InProgress && ! $attempt->isExpired())

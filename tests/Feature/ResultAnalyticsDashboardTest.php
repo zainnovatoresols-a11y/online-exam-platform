@@ -156,11 +156,41 @@ class ResultAnalyticsDashboardTest extends TestCase
                 ->where('filters.to', $today)
                 ->where('filters.status', 'submitted')
                 ->where('filters.review_status', 'flagged')
+                ->where('overview.total_invitations', 1)
+                ->where('overview.accepted_invitations', 1)
                 ->where('overview.started_attempts', 1)
                 ->where('overview.submitted_attempts', 1)
+                ->where('status_breakdown.not_started', 0)
                 ->where('review_breakdown.flagged', 1)
                 ->where('review_breakdown.approved', 0)
                 ->where('top_suspicious_attempts.0.candidate_email', 'bilal@example.com'));
+    }
+
+    public function test_analytics_date_filters_apply_to_invitation_metrics_and_status_breakdown(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        [$test] = $this->analyticsDataset($admin);
+        $today = now()->toDateString();
+
+        $this->actingAs($admin)
+            ->get(route('admin.tests.results.analytics', [
+                'test' => $test,
+                'from' => $today,
+                'to' => $today,
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Results/Analytics')
+                ->where('filters.from', $today)
+                ->where('filters.to', $today)
+                ->where('overview.total_invitations', 3)
+                ->where('overview.accepted_invitations', 2)
+                ->where('overview.started_attempts', 2)
+                ->where('overview.submitted_attempts', 1)
+                ->where('status_breakdown.not_started', 1)
+                ->where('status_breakdown.in_progress', 1)
+                ->where('status_breakdown.submitted', 1)
+                ->where('status_breakdown.expired', 0));
     }
 
     public function test_analytics_page_renders_safely_when_no_attempts_exist(): void
