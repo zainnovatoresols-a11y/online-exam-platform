@@ -376,10 +376,6 @@ function RunResultPanel({ run }: { run: RunResult }) {
                             </div>
                         )}
 
-                        <p className="mt-3 text-xs text-gray-500">
-                            Time: {result.time ?? 'n/a'} - Memory:{' '}
-                            {result.memory ?? 'n/a'}
-                        </p>
                     </div>
                 ))}
             </div>
