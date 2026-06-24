@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import CodingQuestionPanel, {
     CodingQuestion,
+    CodingQuestionDraft,
 } from '@/Components/Attempts/CodingQuestionPanel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -16,6 +17,7 @@ import {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PublicAssessmentLayout from '@/Layouts/PublicAssessmentLayout';
 import { Head, useForm } from '@inertiajs/react';
+import axios from 'axios';
 import {
     FormEventHandler,
     PropsWithChildren,
@@ -23,7 +25,6 @@ import {
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react';
 
@@ -75,15 +76,29 @@ export default function Show({
     questions: Question[];
     saved_answers: Record<string, number>;
 }) {
+    const orderedQuestions = useMemo(
+        () =>
+            [...questions].sort(
+                (left, right) =>
+                    questionTypePriority(left.type) -
+                    questionTypePriority(right.type),
+            ),
+        [questions],
+    );
     const { data, setData, post, processing, errors, clearErrors } = useForm<AttemptForm>({
         answers: saved_answers,
     });
 
     const formErrors = errors as Record<string, string>;
-    const codingSaveHandlers = useRef<Map<number, () => Promise<void>>>(
-        new Map(),
+    const [codingDrafts, setCodingDrafts] = useState<
+        Record<number, CodingQuestionDraft>
+    >({});
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() =>
+        findInitialQuestionIndex(orderedQuestions, saved_answers),
     );
     const [submitting, setSubmitting] = useState(false);
+    const [navigating, setNavigating] = useState(false);
+    const [navigationError, setNavigationError] = useState<string | null>(null);
     const [remainingSeconds, setRemainingSeconds] = useState(() =>
         secondsUntilExpiry(attempt.expires_at, attempt.server_now),
     );
@@ -108,10 +123,10 @@ export default function Show({
         proctoringDisabled || recordingPermissionRequestActive,
     );
     const acknowledgeAndReturnToFullscreen = useCallback(async () => {
-        if (fullscreenSupported && ! fullscreenActive) {
+        if (fullscreenSupported && !fullscreenActive) {
             const enteredFullscreen = await enterFullscreen();
 
-            if (! enteredFullscreen) {
+            if (!enteredFullscreen) {
                 return;
             }
         }
@@ -124,13 +139,13 @@ export default function Show({
         fullscreenSupported,
     ]);
     const startScreenAndReturnToFullscreen = useCallback(async () => {
-        if (fullscreenSupported && ! document.fullscreenElement) {
+        if (fullscreenSupported && !document.fullscreenElement) {
             await enterFullscreen();
         }
 
         await recordings.startScreen();
 
-        if (fullscreenSupported && ! document.fullscreenElement) {
+        if (fullscreenSupported && !document.fullscreenElement) {
             void enterFullscreen();
         }
     }, [enterFullscreen, fullscreenSupported, recordings]);
@@ -142,21 +157,34 @@ export default function Show({
     );
     const recordingUiSuppressed = submitting;
     const showRecordingWarning =
-        ! violation &&
-        ! proctoringDisabled &&
-        ! recordingUiSuppressed &&
-        ! recordingSetupCompleted &&
+        !violation &&
+        !proctoringDisabled &&
+        !recordingUiSuppressed &&
+        !recordingSetupCompleted &&
         recordingsNeedAttention;
     const showRecordingMessage =
-        ! violation &&
-        ! proctoringDisabled &&
-        ! recordingUiSuppressed &&
+        !violation &&
+        !proctoringDisabled &&
+        !recordingUiSuppressed &&
         recordingSetupCompleted &&
         recordingsNeedAttention;
     const hideAssessmentContent =
-        ! proctoringDisabled &&
-        ! recordingUiSuppressed &&
+        !proctoringDisabled &&
+        !recordingUiSuppressed &&
         recordingsNeedAttention;
+
+    const mcqCount = orderedQuestions.filter(
+        (question) => question.type === 'mcq',
+    ).length;
+    const codingCount = orderedQuestions.length - mcqCount;
+    const currentQuestion = orderedQuestions[currentQuestionIndex] ?? null;
+    const answeredCount = orderedQuestions.filter((question) =>
+        isQuestionAnswered(question, data.answers, codingDrafts),
+    ).length;
+    const isLastQuestion =
+        currentQuestionIndex === Math.max(orderedQuestions.length - 1, 0);
+    const questionNavigationDisabled =
+        expired || processing || submitting || navigating;
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -168,7 +196,7 @@ export default function Show({
 
     useEffect(() => {
         if (
-            ! recordingSetupCompleted &&
+            !recordingSetupCompleted &&
             recordings.cameraStatus === 'recording' &&
             recordings.screenStatus === 'recording'
         ) {
@@ -180,24 +208,173 @@ export default function Show({
         recordings.screenStatus,
     ]);
 
-    const registerCodingSave = useCallback(
-        (questionId: number, saveHandler: () => Promise<void>) => {
-            codingSaveHandlers.current.set(questionId, saveHandler);
+    useEffect(() => {
+        setCurrentQuestionIndex((current) =>
+            clampQuestionIndex(current, orderedQuestions.length),
+        );
+    }, [orderedQuestions.length]);
+
+    useEffect(() => {
+        const firstErrorIndex = orderedQuestions.findIndex((question) =>
+            hasQuestionError(question, formErrors),
+        );
+
+        if (firstErrorIndex >= 0) {
+            setCurrentQuestionIndex(firstErrorIndex);
+        }
+    }, [formErrors, orderedQuestions]);
+
+    const updateCodingDraft = useCallback(
+        (questionId: number, draft: CodingQuestionDraft) => {
+            setCodingDrafts((current) => ({
+                ...current,
+                [questionId]: draft,
+            }));
         },
         [],
+    );
+
+    const saveMcqAnswers = useCallback(async (): Promise<boolean> => {
+        setNavigationError(null);
+
+        try {
+            await axios.post(attemptRoute(attempt, 'save'), {
+                answers: data.answers,
+            });
+
+            return true;
+        } catch (error) {
+            setNavigationError(
+                validationMessage(
+                    error,
+                    'Unable to save your multiple-choice answers right now.',
+                ),
+            );
+
+            return false;
+        }
+    }, [attempt, data.answers]);
+
+    const saveCodingDraft = useCallback(
+        async (question: CodingQuestion): Promise<boolean> => {
+            const draft = codingDrafts[question.id];
+            const answer = draft ?? question.saved_answer;
+
+            if (!answer?.language) {
+                return true;
+            }
+
+            setNavigationError(null);
+
+            try {
+                await axios.post(codingAnswerRoute(attempt), {
+                    question_id: question.id,
+                    language: answer.language,
+                    submitted_code: answer.submitted_code ?? null,
+                });
+
+                return true;
+            } catch (error) {
+                setNavigationError(
+                    validationMessage(
+                        error,
+                        'Unable to save your coding answer right now.',
+                    ),
+                );
+
+                return false;
+            }
+        },
+        [attempt, codingDrafts],
+    );
+
+    const saveAllCodingDrafts = useCallback(async (): Promise<boolean> => {
+        for (const question of orderedQuestions) {
+            if (question.type !== 'coding') {
+                continue;
+            }
+
+            const saved = await saveCodingDraft(question);
+
+            if (!saved) {
+                return false;
+            }
+        }
+
+        return true;
+    }, [orderedQuestions, saveCodingDraft]);
+
+    const persistCurrentQuestion = useCallback(async (): Promise<boolean> => {
+        if (!currentQuestion) {
+            return true;
+        }
+
+        clearErrors();
+
+        const mcqSaved = await saveMcqAnswers();
+
+        if (!mcqSaved) {
+            return false;
+        }
+
+        if (currentQuestion.type === 'coding') {
+            return saveCodingDraft(currentQuestion);
+        }
+
+        return true;
+    }, [clearErrors, currentQuestion, saveCodingDraft, saveMcqAnswers]);
+
+    const navigateToQuestion = useCallback(
+        async (nextIndex: number) => {
+            if (
+                nextIndex === currentQuestionIndex ||
+                nextIndex < 0 ||
+                nextIndex >= orderedQuestions.length
+            ) {
+                return;
+            }
+
+            setNavigating(true);
+
+            try {
+                const saved = await persistCurrentQuestion();
+
+                if (saved) {
+                    setCurrentQuestionIndex(nextIndex);
+                }
+            } finally {
+                setNavigating(false);
+            }
+        },
+        [
+            currentQuestionIndex,
+            orderedQuestions.length,
+            persistCurrentQuestion,
+        ],
     );
 
     const submit: FormEventHandler = async (event) => {
         event.preventDefault();
 
         setSubmitting(true);
+        setNavigationError(null);
 
         try {
-            await Promise.all(
-                Array.from(codingSaveHandlers.current.values()).map(
-                    (saveHandler) => saveHandler(),
-                ),
-            );
+            clearErrors();
+
+            const mcqSaved = await saveMcqAnswers();
+
+            if (!mcqSaved) {
+                setSubmitting(false);
+                return;
+            }
+
+            const codingSaved = await saveAllCodingDrafts();
+
+            if (!codingSaved) {
+                setSubmitting(false);
+                return;
+            }
 
             post(attemptRoute(attempt, 'submit'), {
                 onSuccess: async () => {
@@ -211,18 +388,13 @@ export default function Show({
         }
     };
 
-    const save = () => {
-        post(attemptRoute(attempt, 'save'), {
-            preserveScroll: true,
-        });
-    };
-
     const selectAnswer = (questionId: number, optionId: number) => {
         setData('answers', {
             ...data.answers,
             [questionId]: optionId,
         });
         clearErrors(`answers.${questionId}`);
+        setNavigationError(null);
     };
 
     return (
@@ -253,49 +425,61 @@ export default function Show({
             )}
 
             <div className="py-12">
-                <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
                     <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                        <p className="text-sm font-medium uppercase text-gray-500">
-                            Assessment attempt
-                        </p>
-                        <h1 className="mt-2 text-2xl font-semibold text-gray-900">
-                            {test.title}
-                        </h1>
+                        <div className="flex flex-wrap items-start justify-between gap-6">
+                            <div>
+                                <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
+                                    Assessment attempt
+                                </p>
+                                <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+                                    {test.title}
+                                </h1>
+                                <p className="mt-3 max-w-3xl text-sm text-gray-600">
+                                    Questions appear one at a time. Multiple-choice
+                                    questions are shown first, followed by coding
+                                    questions. Moving between questions keeps your
+                                    current progress.
+                                </p>
+                            </div>
+                            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                                <p className="font-semibold">
+                                    Question {currentQuestionIndex + 1} of{' '}
+                                    {Math.max(orderedQuestions.length, 1)}
+                                </p>
+                                <p className="mt-1">
+                                    {answeredCount} answered
+                                </p>
+                            </div>
+                        </div>
 
-                        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
-                                    Duration
-                                </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {test.duration_minutes} minutes
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
-                                    Pass percentage
-                                </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {test.pass_mark}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
-                                    Questions
-                                </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {questions.length}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
-                                    Time remaining
-                                </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {timeRemaining}
-                                </dd>
-                            </div>
+                        <dl className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                            <SummaryStat
+                                label="Duration"
+                                value={`${test.duration_minutes} minutes`}
+                            />
+                            <SummaryStat
+                                label="Pass percentage"
+                                value={String(test.pass_mark)}
+                            />
+                            <SummaryStat
+                                label="Questions"
+                                value={String(orderedQuestions.length)}
+                            />
+                            <SummaryStat
+                                label="MCQs"
+                                value={String(mcqCount)}
+                            />
+                            <SummaryStat
+                                label="Coding"
+                                value={String(codingCount)}
+                            />
+                            <SummaryStat
+                                label="Time remaining"
+                                value={timeRemaining}
+                            />
                         </dl>
+
                         {expired && (
                             <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-700">
                                 Time is over. Answers can no longer be saved or
@@ -307,9 +491,8 @@ export default function Show({
                                 Proctoring controls active
                             </p>
                             <p className="mt-1 text-gray-500">
-                                Fullscreen is required. Copy, paste, right
-                                click, drag/drop, and restricted shortcuts are
-                                blocked.
+                                Fullscreen is required. Copy, paste, right click,
+                                drag/drop, and restricted shortcuts are blocked.
                             </p>
                         </div>
                         {latestBlockedAction && (
@@ -327,47 +510,86 @@ export default function Show({
 
                     {hideAssessmentContent ? (
                         <RecordingLockedNotice />
-                    ) : (
+                    ) : currentQuestion ? (
                         <form onSubmit={submit} className="space-y-6">
-                            {questions.map((question, questionIndex) => (
-                                <QuestionPanel
-                                    key={question.id}
-                                    attempt={attempt}
-                                    question={question}
-                                    questionNumber={questionIndex + 1}
-                                    selectedAnswer={data.answers[question.id]}
-                                    formErrors={formErrors}
-                                    expired={expired}
-                                    registerCodingSave={registerCodingSave}
-                                    onSelectAnswer={selectAnswer}
-                                />
-                            ))}
+                            <QuestionProgressStrip
+                                questions={orderedQuestions}
+                                currentQuestionIndex={currentQuestionIndex}
+                                answers={data.answers}
+                                codingDrafts={codingDrafts}
+                                onSelectQuestion={(index) =>
+                                    void navigateToQuestion(index)
+                                }
+                                disabled={questionNavigationDisabled}
+                            />
+
+                            <QuestionPanel
+                                attempt={attempt}
+                                question={currentQuestion}
+                                questionNumber={currentQuestionIndex + 1}
+                                selectedAnswer={data.answers[currentQuestion.id]}
+                                draftAnswer={codingDrafts[currentQuestion.id]}
+                                formErrors={formErrors}
+                                disabled={questionNavigationDisabled}
+                                onDraftChange={updateCodingDraft}
+                                onSelectAnswer={selectAnswer}
+                            />
 
                             <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
-                                <InputError
-                                    message={formErrors.attempt}
-                                    className="mt-0"
-                                />
-                                <div className="flex gap-3">
+                                <div className="space-y-2">
+                                    <InputError
+                                        message={navigationError ?? formErrors.attempt}
+                                        className="mt-0"
+                                    />
+                                    <p className="text-sm text-gray-500">
+                                        {currentQuestion.type === 'coding'
+                                            ? 'Use the editor on the right, run visible test cases, then move to the next question.'
+                                            : 'Select one option, then move forward when you are ready.'}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-wrap justify-end gap-3">
                                     <SecondaryButton
                                         type="button"
-                                        onClick={save}
+                                        onClick={() =>
+                                            void navigateToQuestion(
+                                                currentQuestionIndex - 1,
+                                            )
+                                        }
                                         disabled={
-                                            processing || submitting || expired
+                                            currentQuestionIndex === 0 ||
+                                            questionNavigationDisabled
                                         }
                                     >
-                                        Save MCQ answers
+                                        Previous
                                     </SecondaryButton>
-                                    <PrimaryButton
-                                        disabled={
-                                            processing || submitting || expired
-                                        }
-                                    >
-                                        Submit test
-                                    </PrimaryButton>
+
+                                    {isLastQuestion ? (
+                                        <PrimaryButton
+                                            disabled={questionNavigationDisabled}
+                                        >
+                                            Submit test
+                                        </PrimaryButton>
+                                    ) : (
+                                        <PrimaryButton
+                                            type="button"
+                                            onClick={() =>
+                                                void navigateToQuestion(
+                                                    currentQuestionIndex + 1,
+                                                )
+                                            }
+                                            disabled={questionNavigationDisabled}
+                                        >
+                                            Next
+                                        </PrimaryButton>
+                                    )}
                                 </div>
                             </div>
                         </form>
+                    ) : (
+                        <section className="rounded-md border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">
+                            No questions are available for this assessment yet.
+                        </section>
                     )}
                 </div>
             </div>
@@ -380,29 +602,33 @@ function QuestionPanel({
     question,
     questionNumber,
     selectedAnswer,
+    draftAnswer,
     formErrors,
-    expired,
-    registerCodingSave,
+    disabled,
+    onDraftChange,
     onSelectAnswer,
 }: {
     attempt: Attempt;
     question: Question;
     questionNumber: number;
     selectedAnswer: number | string | undefined;
+    draftAnswer: CodingQuestionDraft | undefined;
     formErrors: Record<string, string>;
-    expired: boolean;
-    registerCodingSave: (questionId: number, saveHandler: () => Promise<void>) => void;
+    disabled: boolean;
+    onDraftChange: (questionId: number, draft: CodingQuestionDraft) => void;
     onSelectAnswer: (questionId: number, optionId: number) => void;
 }) {
     if (question.type === 'coding') {
         return (
             <CodingQuestionPanel
+                key={question.id}
                 question={question}
                 questionNumber={questionNumber}
                 saveUrl={codingAnswerRoute(attempt)}
                 runUrl={codingRunRoute(attempt)}
-                disabled={expired}
-                registerSave={registerCodingSave}
+                disabled={disabled}
+                draftAnswer={draftAnswer}
+                onDraftChange={onDraftChange}
                 submitError={formErrors[`coding_answers.${question.id}`]}
             />
         );
@@ -411,45 +637,132 @@ function QuestionPanel({
     return (
         <div className="bg-white p-6 shadow-sm sm:rounded-lg">
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <h3 className="text-base font-semibold text-gray-900">
-                    Question {questionNumber}
-                </h3>
-                <span className="text-sm text-gray-500">
+                <div>
+                    <p className="text-sm font-medium uppercase tracking-wide text-indigo-600">
+                        Multiple choice
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                        Question {questionNumber}
+                    </h3>
+                </div>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
                     {question.marks} marks
                 </span>
             </div>
 
-            <p className="mt-3 whitespace-pre-line text-sm text-gray-800">
+            <p className="mt-5 whitespace-pre-line text-base leading-7 text-gray-800">
                 {question.body}
             </p>
 
-            <div className="mt-5 space-y-3">
-                {question.options.map((option) => (
-                    <label
-                        key={option.id}
-                        className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-800"
-                    >
-                        <input
-                            type="radio"
-                            name={`answers.${question.id}`}
-                            value={option.id}
-                            checked={selectedAnswer === option.id}
-                            onChange={() =>
-                                onSelectAnswer(question.id, option.id)
+            <div className="mt-6 space-y-3">
+                {question.options.map((option) => {
+                    const selected = selectedAnswer === option.id;
+
+                    return (
+                        <label
+                            key={option.id}
+                            className={
+                                'flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-sm transition ' +
+                                (selected
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950'
+                                    : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300')
                             }
-                            className="mt-1"
-                        />
-                        <span>{option.body}</span>
-                    </label>
-                ))}
+                        >
+                            <input
+                                type="radio"
+                                name={`answers.${question.id}`}
+                                value={option.id}
+                                checked={selected}
+                                onChange={() =>
+                                    onSelectAnswer(question.id, option.id)
+                                }
+                                className="mt-1"
+                                disabled={disabled}
+                            />
+                            <span className="leading-6">{option.body}</span>
+                        </label>
+                    );
+                })}
             </div>
 
             <InputError
                 message={
                     formErrors[`answers.${question.id}`] ?? formErrors.answers
                 }
-                className="mt-3"
+                className="mt-4"
             />
+        </div>
+    );
+}
+
+function QuestionProgressStrip({
+    questions,
+    currentQuestionIndex,
+    answers,
+    codingDrafts,
+    onSelectQuestion,
+    disabled,
+}: {
+    questions: Question[];
+    currentQuestionIndex: number;
+    answers: Record<string, number | string>;
+    codingDrafts: Record<number, CodingQuestionDraft>;
+    onSelectQuestion: (index: number) => void;
+    disabled: boolean;
+}) {
+    return (
+        <div className="bg-white p-4 shadow-sm sm:rounded-lg">
+            <div className="flex flex-wrap gap-3">
+                {questions.map((question, index) => {
+                    const active = index === currentQuestionIndex;
+                    const answered = isQuestionAnswered(
+                        question,
+                        answers,
+                        codingDrafts,
+                    );
+
+                    return (
+                        <button
+                            key={question.id}
+                            type="button"
+                            onClick={() => onSelectQuestion(index)}
+                            disabled={disabled}
+                            className={
+                                'min-w-[112px] rounded-lg border px-3 py-2 text-left text-sm transition ' +
+                                (active
+                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300')
+                            }
+                        >
+                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                {question.type === 'coding' ? 'Coding' : 'MCQ'}
+                            </span>
+                            <span className="mt-1 block font-semibold">
+                                Question {index + 1}
+                            </span>
+                            <span
+                                className={
+                                    'mt-1 block text-xs ' +
+                                    (answered
+                                        ? 'text-green-700'
+                                        : 'text-gray-500')
+                                }
+                            >
+                                {answered ? 'Answered' : 'Pending'}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <dt className="text-sm font-medium text-gray-500">{label}</dt>
+            <dd className="mt-1 text-sm font-medium text-gray-900">{value}</dd>
         </div>
     );
 }
@@ -698,4 +1011,86 @@ function formatRemainingTime(totalSeconds: number): string {
     }
 
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function questionTypePriority(type: Question['type']): number {
+    return type === 'mcq' ? 0 : 1;
+}
+
+function findInitialQuestionIndex(
+    questions: Question[],
+    savedAnswers: Record<string, number>,
+): number {
+    const firstPendingIndex = questions.findIndex((question) => {
+        if (question.type === 'coding') {
+            return blank(question.saved_answer?.submitted_code);
+        }
+
+        return !savedAnswers[String(question.id)];
+    });
+
+    return firstPendingIndex >= 0 ? firstPendingIndex : 0;
+}
+
+function clampQuestionIndex(current: number, questionCount: number): number {
+    if (questionCount <= 0) {
+        return 0;
+    }
+
+    return Math.min(Math.max(current, 0), questionCount - 1);
+}
+
+function hasQuestionError(
+    question: Question,
+    formErrors: Record<string, string>,
+): boolean {
+    return Boolean(
+        formErrors[`answers.${question.id}`] ||
+            formErrors[`coding_answers.${question.id}`],
+    );
+}
+
+function isQuestionAnswered(
+    question: Question,
+    answers: Record<string, number | string>,
+    codingDrafts: Record<number, CodingQuestionDraft>,
+): boolean {
+    if (question.type === 'coding') {
+        const draft = codingDrafts[question.id];
+
+        if (draft) {
+            return !blank(draft.submitted_code);
+        }
+
+        return !blank(question.saved_answer?.submitted_code);
+    }
+
+    return Boolean(answers[String(question.id)]);
+}
+
+function blank(value: string | null | undefined): boolean {
+    return value === null || value === undefined || value.trim() === '';
+}
+
+function validationMessage(error: unknown, fallback: string): string {
+    if (axios.isAxiosError(error) && error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors as Record<
+            string,
+            string[]
+        >;
+        const firstError = Object.values(validationErrors)[0]?.[0];
+
+        if (firstError) {
+            return firstError;
+        }
+    }
+
+    if (
+        axios.isAxiosError(error) &&
+        typeof error.response?.data?.message === 'string'
+    ) {
+        return error.response.data.message;
+    }
+
+    return fallback;
 }
