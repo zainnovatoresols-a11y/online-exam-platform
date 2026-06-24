@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Actions\Attempts\GradeCodingQuestion;
 use App\Enums\AttemptStatus;
 use App\Enums\CodingDifficulty;
 use App\Enums\InvitationStatus;
@@ -16,8 +15,6 @@ use App\Models\Question;
 use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\User;
-use App\Services\CodeExecution\CodeExecutionService;
-use App\Services\CodeExecution\FakeCodeExecutionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Role;
@@ -32,8 +29,10 @@ class QueuedFinalCodingGradingTest extends TestCase
     {
         parent::setUp();
 
-        config(['code_execution.queue_final_grading' => true]);
-        $this->app->bind(CodeExecutionService::class, FakeCodeExecutionService::class);
+        config([
+            'code_execution.queue_final_grading' => true,
+            'code_execution.driver' => 'fake',
+        ]);
     }
 
     public function test_final_submit_queues_coding_grading_and_returns_with_provisional_score(): void
@@ -71,7 +70,8 @@ class QueuedFinalCodingGradingTest extends TestCase
 
         Queue::assertPushed(
             GradeAttemptCodingAnswers::class,
-            fn (GradeAttemptCodingAnswers $job): bool => $job->attemptId === $attempt->id,
+            fn (GradeAttemptCodingAnswers $job): bool => $job->attemptId === $attempt->id
+                && $job->expectedDriver === 'fake',
         );
     }
 
@@ -95,7 +95,7 @@ class QueuedFinalCodingGradingTest extends TestCase
                 'answers' => [],
             ]);
 
-        (new GradeAttemptCodingAnswers($attempt->id))->handle(app(GradeCodingQuestion::class));
+        (new GradeAttemptCodingAnswers($attempt->id, 'fake'))->handle();
 
         $attempt->refresh();
         $this->assertSame(5, $attempt->score);
@@ -112,6 +112,35 @@ class QueuedFinalCodingGradingTest extends TestCase
         $this->assertSame('completed', $run->status);
         $this->assertSame('5.00', (string) $run->score_awarded);
         $this->assertSame(2, $run->testCaseResults()->count());
+    }
+
+    public function test_queued_job_uses_expected_driver_even_if_worker_config_changed(): void
+    {
+        Queue::fake();
+
+        [$candidate, $test] = $this->acceptedOrganizationInvitation();
+        $question = $this->codingQuestion($test, marks: 5);
+        $attempt = $this->startAttempt($candidate, $test);
+
+        $this->actingAs($candidate)
+            ->post(route('candidate.attempts.coding-answers.save', $attempt), [
+                'question_id' => $question->id,
+                'language' => 'javascript',
+                'submitted_code' => 'console.log("cba");',
+            ]);
+
+        $this->actingAs($candidate)
+            ->post(route('candidate.attempts.submit', $attempt), [
+                'answers' => [],
+            ]);
+
+        config(['code_execution.driver' => 'judge0']);
+
+        (new GradeAttemptCodingAnswers($attempt->id, 'fake'))->handle();
+
+        $attempt->refresh();
+        $this->assertSame(5, $attempt->score);
+        $this->assertTrue($attempt->passed);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Enums\QuestionType;
 use App\Models\CodeExecutionRun;
 use App\Models\Question;
 use App\Models\TestAttempt;
+use App\Services\CodeExecution\CodeExecutionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -20,10 +21,21 @@ class GradeAttemptCodingAnswers implements ShouldQueue
 
     public int $tries = 2;
 
-    public function __construct(public int $attemptId) {}
+    public function __construct(
+        public int $attemptId,
+        public ?string $expectedDriver = null,
+    ) {}
 
-    public function handle(GradeCodingQuestion $gradeCodingQuestion): void
+    public function handle(): void
     {
+        if (is_string($this->expectedDriver) && $this->expectedDriver !== '') {
+            config(['code_execution.driver' => $this->expectedDriver]);
+            app()->forgetInstance(CodeExecutionService::class);
+        }
+
+        /** @var GradeCodingQuestion $gradeCodingQuestion */
+        $gradeCodingQuestion = app(GradeCodingQuestion::class);
+
         $attempt = TestAttempt::query()
             ->with([
                 'test.questions' => fn ($query) => $query

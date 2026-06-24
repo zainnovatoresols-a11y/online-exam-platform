@@ -93,7 +93,10 @@ class SubmitMcqAttempt
         }
 
         if ($queueFinalGrading) {
-            GradeAttemptCodingAnswers::dispatch($submittedAttempt->id);
+            GradeAttemptCodingAnswers::dispatch(
+                $submittedAttempt->id,
+                (string) config('code_execution.driver', 'judge0'),
+            );
         }
 
         $this->queueProctoringRecordingMerges($submittedAttempt);
