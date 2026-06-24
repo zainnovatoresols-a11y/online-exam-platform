@@ -1484,10 +1484,10 @@ function TestCaseResultsTable({
                             <TableText value={result.input} />
                             <TableText value={result.expected_output} />
                             <TableText value={result.actual_output} />
-                            <TableText value={result.stdout} />
-                            <TableText value={result.stderr} />
-                            <TableText value={result.compile_output} />
-                            <TableText value={result.message} />
+                    <TableText value={result.stdout} emptyText="No standard output" />
+                    <TableText value={result.stderr} emptyText="No error output" />
+                    <TableText value={result.compile_output} emptyText="No compile output" />
+                    <TableText value={result.message} emptyText="No additional message" />
                             <TableText value={result.time} />
                             <TableText value={result.memory} />
                             <TableText
@@ -1504,10 +1504,25 @@ function TestCaseResultsTable({
     );
 }
 
-function TableText({ value }: { value: string | number | null }) {
+function TableText({
+    value,
+    emptyText,
+}: {
+    value: string | number | null;
+    emptyText?: string;
+}) {
+    const formattedValue = formatNullableValue(value, emptyText);
+
     return (
-        <td className="max-w-xs whitespace-pre-wrap break-words px-4 py-3 align-top text-gray-700">
-            {formatNullableValue(value)}
+        <td
+            className={
+                'max-w-xs whitespace-pre-wrap break-words px-4 py-3 align-top ' +
+                (emptyText && formattedValue === emptyText
+                    ? 'text-gray-500'
+                    : 'text-gray-700')
+            }
+        >
+            {formattedValue}
         </td>
     );
 }
@@ -1776,9 +1791,12 @@ function formatNullableNumber(value: number | null): string {
     return value === null ? '-' : String(value);
 }
 
-function formatNullableValue(value: string | number | null | undefined): string {
+function formatNullableValue(
+    value: string | number | null | undefined,
+    emptyText = '-',
+): string {
     if (value === null || value === undefined || value === '') {
-        return '-';
+        return emptyText;
     }
 
     return String(value);
