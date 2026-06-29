@@ -1,6 +1,3 @@
-import DangerButton from '@/Components/DangerButton';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -17,6 +14,24 @@ type Test = {
     public_access_enabled: boolean;
 };
 
+const statusTone: Record<string, string> = {
+    draft: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+    published: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+    closed: 'border-zinc-500/20 bg-zinc-500/10 text-zinc-300',
+};
+
+const actionLinkClass =
+    'inline-flex h-10 items-center justify-center rounded-xl border border-zinc-700 px-4 text-sm font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white';
+const detailPanelClass = 'rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5';
+const detailLabelClass = 'text-xs font-semibold uppercase tracking-wider text-zinc-500';
+const detailValueClass = 'mt-2 text-sm font-semibold text-white';
+const primaryButtonClass =
+    'inline-flex h-11 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-bold text-black transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40';
+const secondaryButtonClass =
+    'inline-flex h-11 items-center justify-center rounded-xl border border-zinc-700 px-5 text-sm font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-600/50';
+const dangerButtonClass =
+    'inline-flex h-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-5 text-sm font-semibold text-red-200 transition hover:border-red-400/50 hover:bg-red-500/15 focus:outline-none focus:ring-2 focus:ring-red-400/30';
+
 export default function Show({ test }: { test: Test }) {
     const publish = () => router.post(route('admin.tests.publish', test.id));
     const close = () => router.post(route('admin.tests.close', test.id));
@@ -24,32 +39,47 @@ export default function Show({ test }: { test: Test }) {
 
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    {test.title}
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Test Workspace
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        {test.title}
+                    </h2>
+                </div>
             }
         >
             <Head title={test.title} />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl space-y-6">
+                    <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20 sm:p-8">
+                        <div className="flex flex-wrap items-start justify-between gap-6 border-b border-zinc-800 pb-6">
                             <div>
                                 <Link
                                     href={route('admin.tests.index')}
-                                    className="text-sm font-medium text-gray-600 underline"
+                                    className="text-sm font-semibold text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                     Back to tests
                                 </Link>
-                                <p className="mt-3 text-sm font-medium uppercase text-gray-500">
-                                    {test.status}
-                                </p>
-                                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                                <div className="mt-5">
+                                    <span
+                                        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+                                            statusTone[
+                                                test.status.toLowerCase()
+                                            ] ??
+                                            'border-zinc-600 bg-zinc-950 text-zinc-300'
+                                        }`}
+                                    >
+                                        {formatStatus(test.status)}
+                                    </span>
+                                </div>
+                                <h1 className="mt-3 text-2xl font-bold text-white">
                                     {test.title}
-                                </h3>
-                                <p className="mt-2 max-w-3xl text-sm text-gray-600">
+                                </h1>
+                                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-500">
                                     {test.description || 'No description'}
                                 </p>
                             </div>
@@ -59,7 +89,7 @@ export default function Show({ test }: { test: Test }) {
                                         'admin.tests.results.index',
                                         test.id,
                                     )}
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                    className={actionLinkClass}
                                 >
                                     Results
                                 </Link>
@@ -68,7 +98,7 @@ export default function Show({ test }: { test: Test }) {
                                         'admin.tests.questions.index',
                                         test.id,
                                     )}
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                    className={actionLinkClass}
                                 >
                                     Questions
                                 </Link>
@@ -77,7 +107,7 @@ export default function Show({ test }: { test: Test }) {
                                         'admin.tests.invitations.index',
                                         test.id,
                                     )}
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                    className={actionLinkClass}
                                 >
                                     Invitations
                                 </Link>
@@ -87,7 +117,7 @@ export default function Show({ test }: { test: Test }) {
                                             'admin.tests.edit',
                                             test.id,
                                         )}
-                                        className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                        className={actionLinkClass}
                                     >
                                         Edit
                                     </Link>
@@ -95,60 +125,60 @@ export default function Show({ test }: { test: Test }) {
                             </div>
                         </div>
 
-                        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
+                        <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className={detailPanelClass}>
+                                <dt className={detailLabelClass}>
                                     Duration
                                 </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
+                                <dd className={detailValueClass}>
                                     {test.duration_minutes} minutes
                                 </dd>
                             </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
+                            <div className={detailPanelClass}>
+                                <dt className={detailLabelClass}>
                                     Pass mark
                                 </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
+                                <dd className={detailValueClass}>
                                     {test.pass_mark}
                                 </dd>
                             </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
+                            <div className={detailPanelClass}>
+                                <dt className={detailLabelClass}>
                                     Questions
                                 </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
+                                <dd className={detailValueClass}>
                                     {test.questions_count}
                                 </dd>
                             </div>
                             {test.public_access_enabled && (
-                                <div className="sm:col-span-2">
-                                    <dt className="text-sm font-medium text-gray-500">
+                                <div className={`${detailPanelClass} sm:col-span-2`}>
+                                    <dt className={detailLabelClass}>
                                         Public test URL
                                     </dt>
-                                    <dd className="mt-1 break-all text-sm text-gray-900">
+                                    <dd className="mt-2 break-all text-sm font-semibold text-emerald-200">
                                         {test.public_url ?? 'Not generated yet'}
                                     </dd>
-                                    <dd className="mt-2 text-xs text-gray-500">
+                                    <dd className="mt-2 text-xs leading-relaxed text-zinc-500">
                                         Anyone with this URL can register after
                                         accepting the policy.
                                     </dd>
                                 </div>
                             )}
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
+                            <div className={detailPanelClass}>
+                                <dt className={detailLabelClass}>
                                     Public access
                                 </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
+                                <dd className={detailValueClass}>
                                     {test.public_access_enabled
                                         ? 'Open'
                                         : 'Invite list only'}
                                 </dd>
                             </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">
+                            <div className={detailPanelClass}>
+                                <dt className={detailLabelClass}>
                                     Start time
                                 </dt>
-                                <dd className="mt-1 text-sm text-gray-900">
+                                <dd className={detailValueClass}>
                                     {test.starts_at
                                         ? formatDateTime(test.starts_at)
                                         : 'Available now'}
@@ -157,37 +187,63 @@ export default function Show({ test }: { test: Test }) {
                         </dl>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-3 rounded-[18px] border border-zinc-800 bg-zinc-900 p-5 shadow-2xl shadow-black/20">
                         {test.status === 'draft' && (
                             <>
-                                <PrimaryButton onClick={publish}>
+                                <button
+                                    type="button"
+                                    onClick={publish}
+                                    className={primaryButtonClass}
+                                >
                                     Publish
-                                </PrimaryButton>
-                                <DangerButton onClick={destroy}>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={destroy}
+                                    className={dangerButtonClass}
+                                >
                                     Delete draft test
-                                </DangerButton>
+                                </button>
                             </>
                         )}
                         {test.status === 'closed' && (
                             <>
-                                <PrimaryButton onClick={publish}>
+                                <button
+                                    type="button"
+                                    onClick={publish}
+                                    className={primaryButtonClass}
+                                >
                                     Republish
-                                </PrimaryButton>
-                                <DangerButton onClick={destroy}>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={destroy}
+                                    className={dangerButtonClass}
+                                >
                                     Delete closed test
-                                </DangerButton>
+                                </button>
                             </>
                         )}
                         {test.status === 'published' && (
-                            <SecondaryButton onClick={close}>
+                            <button
+                                type="button"
+                                onClick={close}
+                                className={secondaryButtonClass}
+                            >
                                 Close test
-                            </SecondaryButton>
+                            </button>
                         )}
                     </div>
                 </div>
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatStatus(status: string): string {
+    return status
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatDateTime(value: string): string {
