@@ -367,35 +367,36 @@ export default function Index({ test, results }: Props) {
                                 </tbody>
                                 </table>
 
-                            {(results.prev_page_url || results.next_page_url) && (
-                            <div className="flex flex-col gap-4 border-t border-zinc-800 px-6 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-zinc-500">
-                                    Showing {results.from ?? 0} to{' '}
-                                    {results.to ?? 0} of {results.total}
-                                </div>
-                                <div className="flex gap-3">
-                                    {results.prev_page_url && (
-                                        <Link
-                                            href={results.prev_page_url}
-                                            className={actionLinkClass}
-                                        >
-                                            Previous
-                                        </Link>
-                                    )}
-                                    {results.next_page_url && (
-                                        <Link
-                                            href={results.next_page_url}
-                                            className={actionLinkClass}
-                                        >
-                                            Next
-                                        </Link>
-                                    )}
-                                </div>
-                            </div>
-                            )}
                             </div>
                         </div>
                     </div>
+
+                    {(results.prev_page_url || results.next_page_url) && (
+                        <div className="flex flex-col gap-4 px-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-zinc-500">
+                                Showing {results.from ?? 0} to{' '}
+                                {results.to ?? 0} of {results.total}
+                            </div>
+                            <div className="flex gap-3">
+                                {results.prev_page_url && (
+                                    <Link
+                                        href={results.prev_page_url}
+                                        className={actionLinkClass}
+                                    >
+                                        Previous
+                                    </Link>
+                                )}
+                                {results.next_page_url && (
+                                    <Link
+                                        href={results.next_page_url}
+                                        className={actionLinkClass}
+                                    >
+                                        Next
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>

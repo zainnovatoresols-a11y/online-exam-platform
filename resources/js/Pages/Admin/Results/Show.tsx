@@ -267,15 +267,21 @@ export default function Show({
 }: Props) {
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Attempt Result
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Results Workspace
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        Attempt Result
+                    </h2>
+                </div>
             }
         >
             <Head title={`${candidate.name ?? 'Candidate'} Result`} />
 
-            <div className="py-8">
+            <div className="admin-result-show-theme bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
                     <section className="bg-white p-6 shadow-sm sm:rounded-lg">
                         <div className="flex flex-wrap items-start justify-between gap-4">
