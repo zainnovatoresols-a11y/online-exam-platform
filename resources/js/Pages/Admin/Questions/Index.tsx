@@ -41,6 +41,15 @@ type Props = {
     questions: Question[];
 };
 
+const primaryLinkClass =
+    'inline-flex h-10 items-center justify-center rounded-xl bg-emerald-500 px-4 text-sm font-bold text-black transition hover:bg-emerald-400';
+const secondaryLinkClass =
+    'inline-flex h-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-sm font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white';
+const pillClass =
+    'rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-xs font-semibold text-zinc-300';
+const questionCardBaseClass =
+    'rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20 transition';
+
 export default function Index({
     test,
     canManageQuestions,
@@ -177,22 +186,28 @@ export default function Index({
 
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Questions
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Question Bank
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        Questions
+                    </h2>
+                </div>
             }
         >
             <Head title="Questions" />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl space-y-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900">
+                            <h3 className="text-2xl font-bold text-white">
                                 {test.title}
                             </h3>
-                            <p className="text-sm text-gray-600">
+                            <p className="mt-1 text-sm text-zinc-500">
                                 Status: {test.status}
                             </p>
                         </div>
@@ -203,7 +218,7 @@ export default function Index({
                                         'admin.tests.questions.create',
                                         test.id,
                                     )}
-                                    className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                    className={primaryLinkClass}
                                 >
                                     Add MCQ
                                 </Link>
@@ -214,7 +229,7 @@ export default function Index({
                                         'admin.tests.coding-questions.create',
                                         test.id,
                                     )}
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                    className={secondaryLinkClass}
                                 >
                                     Add Coding Question
                                 </Link>
@@ -224,14 +239,14 @@ export default function Index({
 
                     <div className="space-y-4">
                         {reorderingEnabled && (
-                            <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+                            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <p>
                                         Drag a question card to update its
                                         order.
                                     </p>
                                     {isSavingOrder && (
-                                        <span className="font-medium text-gray-900">
+                                        <span className="font-semibold text-white">
                                             Saving order...
                                         </span>
                                     )}
@@ -253,7 +268,7 @@ export default function Index({
                                     handleDrop(event, question.id)
                                 }
                                 onDragEnd={resetDragState}
-                                className={`bg-white p-6 shadow-sm transition sm:rounded-lg ${
+                                className={`${questionCardBaseClass} ${
                                     reorderingEnabled
                                         ? 'cursor-grab active:cursor-grabbing'
                                         : ''
@@ -269,36 +284,36 @@ export default function Index({
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-start justify-between gap-4">
                                         <div>
-                                            <p className="text-sm font-medium uppercase text-gray-500">
+                                            <p className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
                                                 {formatLabel(question.type)} -
                                                 Marks: {question.marks} -
                                                 Order: {question.order}
                                             </p>
-                                            <h4 className="mt-2 text-base font-semibold text-gray-900">
+                                            <h4 className="mt-2 text-lg font-semibold text-white">
                                                 {preview(question.body)}
                                             </h4>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
+                                            <div className="mt-3 flex flex-wrap gap-2">
                                                 {question.type === 'mcq' && (
-                                                    <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                                                    <span className={pillClass}>
                                                         {question.options_count}{' '}
                                                         options
                                                     </span>
                                                 )}
                                                 {question.type === 'coding' && (
                                                     <>
-                                                        <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                                                        <span className={pillClass}>
                                                             {formatLabel(
                                                                 question.difficulty ??
                                                                     'difficulty',
                                                             )}
                                                         </span>
-                                                        <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                                                        <span className={pillClass}>
                                                             {
                                                                 question.test_cases_count
                                                             }{' '}
                                                             test cases
                                                         </span>
-                                                        <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                                                        <span className={pillClass}>
                                                             {languageLabel(
                                                                 question.supported_languages,
                                                             )}
@@ -308,15 +323,16 @@ export default function Index({
                                             </div>
                                         </div>
                                         {canManage(question) && (
-                                            <div className="flex gap-3">
+                                            <div className="flex shrink-0 items-center gap-3">
                                                 <Link
                                                     href={editRoute(question)}
-                                                    className="text-sm font-medium text-gray-900 underline"
+                                                    className="inline-flex h-11 min-w-24 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-bold text-black transition hover:bg-emerald-400"
                                                 >
                                                     Edit
                                                 </Link>
                                                 <DangerButton
                                                     type="button"
+                                                    className="!h-11 !min-w-24 !justify-center !rounded-xl !border !border-red-500/20 !bg-red-500/15 !px-5 !py-0 !text-sm !font-bold !tracking-normal !text-red-200 hover:!bg-red-500/25 focus:!ring-red-500/40 focus:!ring-offset-zinc-950 active:!bg-red-500/20"
                                                     onClick={() =>
                                                         destroy(question)
                                                     }
@@ -332,13 +348,13 @@ export default function Index({
                                             {question.options.map((option) => (
                                                 <li
                                                     key={option.id}
-                                                    className="flex items-start gap-2 text-sm text-gray-700"
+                                                    className="flex items-start gap-2 text-sm text-zinc-400"
                                                 >
-                                                    <span className="mt-1 h-2 w-2 rounded-full bg-gray-400" />
+                                                    <span className="mt-1 h-2 w-2 rounded-full bg-zinc-600" />
                                                     <span>
                                                         {option.body}
                                                         {option.is_correct && (
-                                                            <strong className="ml-2 text-gray-900">
+                                                            <strong className="ml-2 text-emerald-300">
                                                                 Correct
                                                             </strong>
                                                         )}
@@ -352,7 +368,7 @@ export default function Index({
                         ))}
 
                         {orderedQuestions.length === 0 && (
-                            <div className="bg-white p-6 text-sm text-gray-600 shadow-sm sm:rounded-lg">
+                            <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-500 shadow-2xl shadow-black/20">
                                 No questions added yet.
                             </div>
                         )}
@@ -455,8 +471,8 @@ function dropIndicatorClass(
     }
 
     return indicator.position === 'before'
-        ? 'border-t-4 border-t-gray-900'
-        : 'border-b-4 border-b-gray-900';
+        ? 'border-t-4 border-t-emerald-400'
+        : 'border-b-4 border-b-emerald-400';
 }
 
 function isInteractiveDragTarget(target: EventTarget): boolean {

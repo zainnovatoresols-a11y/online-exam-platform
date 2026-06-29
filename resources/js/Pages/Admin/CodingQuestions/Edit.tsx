@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import CodingQuestionForm, {
     CodingQuestionFormData,
 } from './Form';
@@ -39,6 +39,9 @@ type Props = {
     languages: SelectOption[];
 };
 
+const backLinkClass =
+    'mb-5 inline-flex h-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-sm font-semibold text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300';
+
 export default function Edit({
     test,
     question,
@@ -73,16 +76,29 @@ export default function Edit({
 
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit Coding Question
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Question Bank
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        Edit Coding Question
+                    </h2>
+                </div>
             }
         >
             <Head title="Edit Coding Question" />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-5xl sm:px-6 lg:px-8">
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-5xl">
+                    <Link
+                        href={route('admin.tests.questions.index', test.id)}
+                        className={backLinkClass}
+                    >
+                        Back to questions
+                    </Link>
+
                     <CodingQuestionForm
                         test={test}
                         difficulties={difficulties}
