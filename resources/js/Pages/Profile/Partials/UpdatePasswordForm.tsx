@@ -6,6 +6,12 @@ import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
+const labelClass = 'text-zinc-300';
+const fieldClass =
+    '!rounded-xl !border-zinc-700 !bg-zinc-950 !text-zinc-100 !shadow-none outline-none transition placeholder:!text-zinc-600 focus:!border-emerald-500 focus:!ring-2 focus:!ring-emerald-500/30';
+const primaryButtonClass =
+    '!h-11 !min-w-28 !justify-center !rounded-xl !bg-emerald-500 !px-5 !py-0 !text-sm !font-bold !tracking-normal !text-black hover:!bg-emerald-400 focus:!bg-emerald-400 focus:!ring-emerald-500/40 focus:!ring-offset-zinc-950 active:!bg-emerald-500 disabled:!opacity-60';
+
 export default function UpdatePasswordForm({
     className = '',
 }: {
@@ -51,11 +57,11 @@ export default function UpdatePasswordForm({
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900">
+                <h2 className="text-lg font-semibold text-white">
                     Update Password
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-zinc-400">
                     Ensure your account is using a long, random password to stay
                     secure.
                 </p>
@@ -66,6 +72,7 @@ export default function UpdatePasswordForm({
                     <InputLabel
                         htmlFor="current_password"
                         value="Current Password"
+                        className={labelClass}
                     />
 
                     <TextInput
@@ -76,7 +83,7 @@ export default function UpdatePasswordForm({
                             setData('current_password', e.target.value)
                         }
                         type="password"
-                        className="mt-1 block w-full"
+                        className={`mt-1 block w-full ${fieldClass}`}
                         autoComplete="current-password"
                     />
 
@@ -87,7 +94,11 @@ export default function UpdatePasswordForm({
                 </div>
 
                 <div>
-                    <InputLabel htmlFor="password" value="New Password" />
+                    <InputLabel
+                        htmlFor="password"
+                        value="New Password"
+                        className={labelClass}
+                    />
 
                     <TextInput
                         id="password"
@@ -95,7 +106,7 @@ export default function UpdatePasswordForm({
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
                         type="password"
-                        className="mt-1 block w-full"
+                        className={`mt-1 block w-full ${fieldClass}`}
                         autoComplete="new-password"
                     />
 
@@ -106,6 +117,7 @@ export default function UpdatePasswordForm({
                     <InputLabel
                         htmlFor="password_confirmation"
                         value="Confirm Password"
+                        className={labelClass}
                     />
 
                     <TextInput
@@ -115,7 +127,7 @@ export default function UpdatePasswordForm({
                             setData('password_confirmation', e.target.value)
                         }
                         type="password"
-                        className="mt-1 block w-full"
+                        className={`mt-1 block w-full ${fieldClass}`}
                         autoComplete="new-password"
                     />
 
@@ -126,7 +138,12 @@ export default function UpdatePasswordForm({
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    <PrimaryButton
+                        disabled={processing}
+                        className={primaryButtonClass}
+                    >
+                        Save
+                    </PrimaryButton>
 
                     <Transition
                         show={recentlySuccessful}
@@ -135,7 +152,7 @@ export default function UpdatePasswordForm({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-emerald-300">
                             Saved.
                         </p>
                     </Transition>
