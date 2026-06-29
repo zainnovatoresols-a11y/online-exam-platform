@@ -77,35 +77,59 @@ type Props = {
     results: PaginatedResults;
 };
 
+const actionLinkClass =
+    'inline-flex h-9 min-w-28 items-center justify-center rounded-xl border border-zinc-700 px-3 text-xs font-bold uppercase tracking-wider text-zinc-300 transition hover:border-zinc-600 hover:text-white';
+const metricPanelClass =
+    'flex min-h-24 flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5';
+const metricLabelClass =
+    'text-[11px] font-semibold uppercase tracking-wider text-zinc-500';
+const metricValueClass = 'mt-3 text-2xl font-bold text-white';
+const tableHeadingClass =
+    'whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500';
+const tableHeadingCenterClass =
+    'whitespace-nowrap px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-500';
+const tableCellClass =
+    'whitespace-nowrap px-5 py-4 align-middle text-sm text-zinc-400';
+const tableCellCenterClass =
+    'whitespace-nowrap px-5 py-4 text-center align-middle text-sm text-zinc-400';
+const scrollAreaClass =
+    'dark-horizontal-scrollbar overflow-x-auto bg-zinc-950';
+
 export default function Index({ test, results }: Props) {
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Test Results
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Results Workspace
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        Test Results
+                    </h2>
+                </div>
             }
         >
             <Head title={`${test.title} Results`} />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div>
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl space-y-6">
+                    <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20 sm:p-8">
+                        <div className="flex flex-col gap-6 border-b border-zinc-800 pb-6 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="max-w-3xl">
                                 <Link
                                     href={route('admin.tests.show', test.id)}
-                                    className="text-sm font-medium text-gray-600 underline"
+                                    className="text-sm font-semibold text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                     Back to test
                                 </Link>
-                                <p className="mt-3 text-sm font-medium uppercase text-gray-500">
-                                    {test.status}
-                                </p>
-                                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                                <div className="mt-5">
+                                    <StatusBadge value={test.status} />
+                                </div>
+                                <h1 className="mt-3 text-2xl font-bold text-white">
                                     {test.title}
-                                </h3>
-                                <p className="mt-2 text-sm text-gray-600">
+                                </h1>
+                                <p className="mt-3 text-sm leading-relaxed text-zinc-500">
                                     Owner:{' '}
                                     {test.organization?.name ??
                                         test.creator?.name ??
@@ -113,117 +137,123 @@ export default function Index({ test, results }: Props) {
                                 </p>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="flex flex-wrap justify-end gap-3">
-                                    <Link
-                                        href={route(
-                                            'admin.tests.results.analytics',
-                                            test.id,
-                                        )}
-                                        className="rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700"
-                                    >
-                                        Analytics
-                                    </Link>
-                                    <a
-                                        href={route(
-                                            'admin.tests.results.export.csv',
-                                            test.id,
-                                        )}
-                                        download
-                                        className="rounded-md bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white"
-                                    >
-                                        Export CSV
-                                    </a>
-                                </div>
-
-                                <dl className="grid min-w-64 grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <dt className="font-medium text-gray-500">
-                                            Invitations
-                                        </dt>
-                                        <dd className="mt-1 text-gray-900">
-                                            {test.invitations_count ?? 0}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="font-medium text-gray-500">
-                                            Attempts
-                                        </dt>
-                                        <dd className="mt-1 text-gray-900">
-                                            {test.attempts_count ?? 0}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="font-medium text-gray-500">
-                                            Pass mark
-                                        </dt>
-                                        <dd className="mt-1 text-gray-900">
-                                            {test.pass_mark}%
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="font-medium text-gray-500">
-                                            Duration
-                                        </dt>
-                                        <dd className="mt-1 text-gray-900">
-                                            {test.duration_minutes} min
-                                        </dd>
-                                    </div>
-                                </dl>
+                            <div className="flex w-full flex-wrap gap-3 sm:w-auto sm:justify-end">
+                                <Link
+                                    href={route(
+                                        'admin.tests.results.analytics',
+                                        test.id,
+                                    )}
+                                    className={actionLinkClass}
+                                >
+                                    Analytics
+                                </Link>
+                                <a
+                                    href={route(
+                                        'admin.tests.results.export.csv',
+                                        test.id,
+                                    )}
+                                    download
+                                    className="inline-flex h-9 min-w-28 items-center justify-center rounded-xl bg-emerald-500 px-3 text-xs font-bold uppercase tracking-wider text-black transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                                >
+                                    Export CSV
+                                </a>
                             </div>
                         </div>
+
+                        <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className={metricPanelClass}>
+                                <dt className={metricLabelClass}>
+                                    Invitations
+                                </dt>
+                                <dd className={metricValueClass}>
+                                    {test.invitations_count ?? 0}
+                                </dd>
+                            </div>
+                            <div className={metricPanelClass}>
+                                <dt className={metricLabelClass}>Attempts</dt>
+                                <dd className={metricValueClass}>
+                                    {test.attempts_count ?? 0}
+                                </dd>
+                            </div>
+                            <div className={metricPanelClass}>
+                                <dt className={metricLabelClass}>Pass mark</dt>
+                                <dd className={metricValueClass}>
+                                    {test.pass_mark}%
+                                </dd>
+                            </div>
+                            <div className={metricPanelClass}>
+                                <dt className={metricLabelClass}>Duration</dt>
+                                <dd className={metricValueClass}>
+                                    {test.duration_minutes} min
+                                </dd>
+                            </div>
+                        </dl>
                     </div>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                    <div className="overflow-hidden rounded-[18px] border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/20">
+                        <div className="border-b border-zinc-800 px-6 py-5">
+                            <h3 className="text-sm font-semibold text-white">
+                                Candidate results
+                            </h3>
+                            <p className="mt-1 text-xs text-zinc-500">
+                                {results.total} result
+                                {results.total === 1 ? '' : 's'} recorded
+                            </p>
+                        </div>
+
+                        <div className={scrollAreaClass}>
+                            <div className="min-w-[1400px]">
+                                <table className="w-full divide-y divide-zinc-800">
+                                <thead className="bg-zinc-950/70">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Candidate
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Invitation
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Attempt
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Risk
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Review
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Score
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingCenterClass}>
                                             Result
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Started
                                         </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Submitted
                                         </th>
-                                        <th className="px-6 py-3" />
+                                        <th className="px-5 py-3" />
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className="divide-y divide-zinc-800 bg-zinc-900">
                                     {results.data.map((row) => (
-                                        <tr key={row.invitation.id}>
-                                            <td className="px-6 py-4 text-sm">
-                                                <div className="font-medium text-gray-900">
+                                        <tr
+                                            key={row.invitation.id}
+                                            className="transition hover:bg-zinc-800/50"
+                                        >
+                                            <td className="min-w-72 px-5 py-4 align-middle text-sm">
+                                                <div className="font-semibold text-white">
                                                     {row.candidate.name ??
                                                         row.invitation.name ??
                                                         'Unnamed'}
                                                 </div>
-                                                <div className="text-gray-600">
+                                                <div className="mt-1 text-zinc-300">
                                                     {row.candidate.email ??
                                                         row.invitation.email ??
                                                         'No email'}
                                                 </div>
-                                                <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                                                <div className="mt-2 space-y-0.5 text-xs text-zinc-500">
                                                     {row.candidate.phone && (
                                                         <div>
                                                             Phone:{' '}
@@ -245,26 +275,26 @@ export default function Index({ test, results }: Props) {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellCenterClass}>
                                                 <StatusBadge
                                                     value={
                                                         row.invitation.status
                                                     }
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellCenterClass}>
                                                 <StatusBadge
                                                     value={row.attempt_status}
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellCenterClass}>
                                                 <RiskLevelBadge
                                                     level={
                                                         row.proctoring_risk
                                                             .level
                                                     }
                                                 />
-                                                <div className="mt-1 text-xs text-gray-500">
+                                                <div className="mt-2 text-xs text-zinc-500">
                                                     {
                                                         row.proctoring_risk
                                                             .score
@@ -272,40 +302,40 @@ export default function Index({ test, results }: Props) {
                                                     points
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellCenterClass}>
                                                 <StatusBadge
                                                     value={
                                                         row.proctoring_review_status
                                                     }
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={`${tableCellCenterClass} font-semibold text-white`}>
                                                 {scoreLabel(row.attempt)}
                                             </td>
-                                            <td className="px-6 py-4 text-sm">
+                                            <td className="whitespace-nowrap px-5 py-4 text-center align-middle text-sm">
                                                 <ResultBadge
                                                     passed={
                                                         row.attempt?.passed ??
                                                         null
                                                     }
                                                 />
-                                                <div className="mt-1 text-xs text-gray-500">
+                                                <div className="mt-2 text-xs text-zinc-500">
                                                     {percentageLabel(
                                                         row.attempt,
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {formatDateTime(
                                                     row.attempt?.started_at,
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {formatDateTime(
                                                     row.attempt?.submitted_at,
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-right text-sm">
+                                            <td className="whitespace-nowrap px-5 py-4 text-right align-middle text-sm">
                                                 {row.attempt && (
                                                     <Link
                                                         href={route(
@@ -315,7 +345,7 @@ export default function Index({ test, results }: Props) {
                                                                 row.attempt.id,
                                                             ],
                                                         )}
-                                                        className="font-medium text-gray-900 underline"
+                                                        className="font-semibold text-emerald-300 underline-offset-4 transition hover:text-emerald-200 hover:underline"
                                                     >
                                                         View details
                                                     </Link>
@@ -327,7 +357,7 @@ export default function Index({ test, results }: Props) {
                                         <tr>
                                             <td
                                                 colSpan={10}
-                                                className="px-6 py-4 text-sm text-gray-600"
+                                                className="px-6 py-14 text-center text-sm text-zinc-500"
                                             >
                                                 No candidates found for this
                                                 test yet.
@@ -335,12 +365,11 @@ export default function Index({ test, results }: Props) {
                                         </tr>
                                     )}
                                 </tbody>
-                            </table>
-                        </div>
+                                </table>
 
-                        {(results.prev_page_url || results.next_page_url) && (
-                            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 text-sm">
-                                <div className="text-gray-600">
+                            {(results.prev_page_url || results.next_page_url) && (
+                            <div className="flex flex-col gap-4 border-t border-zinc-800 px-6 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+                                <div className="text-zinc-500">
                                     Showing {results.from ?? 0} to{' '}
                                     {results.to ?? 0} of {results.total}
                                 </div>
@@ -348,7 +377,7 @@ export default function Index({ test, results }: Props) {
                                     {results.prev_page_url && (
                                         <Link
                                             href={results.prev_page_url}
-                                            className="rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-700"
+                                            className={actionLinkClass}
                                         >
                                             Previous
                                         </Link>
@@ -356,14 +385,16 @@ export default function Index({ test, results }: Props) {
                                     {results.next_page_url && (
                                         <Link
                                             href={results.next_page_url}
-                                            className="rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-700"
+                                            className={actionLinkClass}
                                         >
                                             Next
                                         </Link>
                                     )}
                                 </div>
                             </div>
-                        )}
+                            )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -373,7 +404,9 @@ export default function Index({ test, results }: Props) {
 
 function StatusBadge({ value }: { value: string }) {
     return (
-        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+        <span
+            className={`inline-flex min-w-24 justify-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClassFor(value)}`}
+        >
             {formatLabel(value)}
         </span>
     );
@@ -382,7 +415,7 @@ function StatusBadge({ value }: { value: string }) {
 function ResultBadge({ passed }: { passed: boolean | null }) {
     if (passed === null) {
         return (
-            <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+            <span className="inline-flex min-w-20 justify-center whitespace-nowrap rounded-full border border-zinc-600 bg-zinc-950 px-2.5 py-1 text-xs font-semibold text-zinc-300">
                 Pending
             </span>
         );
@@ -391,10 +424,10 @@ function ResultBadge({ passed }: { passed: boolean | null }) {
     return (
         <span
             className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                'inline-flex min-w-20 justify-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ' +
                 (passed
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700')
+                    ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                    : 'border-red-400/20 bg-red-400/10 text-red-200')
             }
         >
             {passed ? 'Passed' : 'Failed'}
@@ -404,22 +437,64 @@ function ResultBadge({ passed }: { passed: boolean | null }) {
 
 function RiskLevelBadge({ level }: { level: string }) {
     const classes: Record<string, string> = {
-        low: 'bg-green-100 text-green-700',
-        medium: 'bg-yellow-100 text-yellow-800',
-        high: 'bg-orange-100 text-orange-800',
-        critical: 'bg-red-100 text-red-700',
+        low: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+        medium: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+        high: 'border-orange-400/20 bg-orange-400/10 text-orange-200',
+        critical: 'border-red-400/20 bg-red-400/10 text-red-200',
     };
 
     return (
         <span
             className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
-                (classes[level] ?? 'bg-gray-100 text-gray-700')
+                'inline-flex min-w-20 justify-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ' +
+                (classes[level] ??
+                    'border-zinc-600 bg-zinc-950 text-zinc-300')
             }
         >
             {formatLabel(level)}
         </span>
     );
+}
+
+function statusClassFor(value: string): string {
+    const normalized = value.toLowerCase();
+
+    if (
+        ['accepted', 'approved', 'completed', 'passed', 'published'].includes(
+            normalized,
+        )
+    ) {
+        return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+    }
+
+    if (
+        [
+            'pending',
+            'pending_review',
+            'invited',
+            'sent',
+            'draft',
+            'not_started',
+        ].includes(normalized)
+    ) {
+        return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
+    }
+
+    if (
+        ['started', 'in_progress', 'running', 'submitted'].includes(normalized)
+    ) {
+        return 'border-sky-400/20 bg-sky-400/10 text-sky-200';
+    }
+
+    if (
+        ['expired', 'failed', 'rejected', 'cancelled', 'closed'].includes(
+            normalized,
+        )
+    ) {
+        return 'border-red-400/20 bg-red-400/10 text-red-200';
+    }
+
+    return 'border-zinc-600 bg-zinc-950 text-zinc-300';
 }
 
 function scoreLabel(attempt: Attempt | null): string {

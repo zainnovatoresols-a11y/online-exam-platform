@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 type Test = {
     id: number;
@@ -33,9 +34,14 @@ const dangerButtonClass =
     'inline-flex h-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-5 text-sm font-semibold text-red-200 transition hover:border-red-400/50 hover:bg-red-500/15 focus:outline-none focus:ring-2 focus:ring-red-400/30';
 
 export default function Show({ test }: { test: Test }) {
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+
     const publish = () => router.post(route('admin.tests.publish', test.id));
     const close = () => router.post(route('admin.tests.close', test.id));
-    const destroy = () => router.delete(route('admin.tests.destroy', test.id));
+    const destroy = () => {
+        setConfirmingDelete(false);
+        router.delete(route('admin.tests.destroy', test.id));
+    };
 
     return (
         <AuthenticatedLayout
@@ -199,7 +205,7 @@ export default function Show({ test }: { test: Test }) {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={destroy}
+                                    onClick={() => setConfirmingDelete(true)}
                                     className={dangerButtonClass}
                                 >
                                     Delete draft test
@@ -217,7 +223,7 @@ export default function Show({ test }: { test: Test }) {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={destroy}
+                                    onClick={() => setConfirmingDelete(true)}
                                     className={dangerButtonClass}
                                 >
                                     Delete closed test
@@ -236,6 +242,49 @@ export default function Show({ test }: { test: Test }) {
                     </div>
                 </div>
             </div>
+
+            {confirmingDelete && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="delete-test-title"
+                >
+                    <div className="w-full max-w-md rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/40">
+                        <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 text-lg font-bold text-red-200">
+                            !
+                        </div>
+
+                        <h3
+                            id="delete-test-title"
+                            className="text-lg font-bold text-white"
+                        >
+                            Are you sure you want to delete this test?
+                        </h3>
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+                            This will permanently delete "{test.title}". This
+                            action cannot be undone.
+                        </p>
+
+                        <div className="mt-6 flex flex-wrap justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmingDelete(false)}
+                                className={secondaryButtonClass}
+                            >
+                                No
+                            </button>
+                            <button
+                                type="button"
+                                onClick={destroy}
+                                className={dangerButtonClass}
+                            >
+                                Yes, delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

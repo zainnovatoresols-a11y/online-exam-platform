@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.dark-horizontal-scrollbar {
+    background: #09090b;
+    scrollbar-color: #71717a #09090b;
+    scrollbar-width: thin;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar {
+    height: 14px;
+    background: #09090b;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar-track,
+.dark-horizontal-scrollbar::-webkit-scrollbar-track-piece {
+    background: #09090b;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar-thumb {
+    border: 3px solid #09090b;
+    border-radius: 9999px;
+    background: #71717a;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a1a1aa;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+    background: #09090b;
+}
+
+.dark-horizontal-scrollbar::-webkit-scrollbar-corner {
+    background: #09090b;
+}
