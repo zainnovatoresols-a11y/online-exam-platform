@@ -13,6 +13,13 @@ type Props = {
     canCreateOrganizations: boolean;
 };
 
+const cardClass =
+    'rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20';
+const primaryLinkClass =
+    'inline-flex h-11 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-bold text-black transition hover:bg-emerald-400';
+const secondaryLinkClass =
+    'inline-flex h-11 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 text-sm font-bold text-zinc-300 transition hover:border-emerald-500 hover:text-emerald-300';
+
 export default function Dashboard({
     managedOrganization,
     canCreateOrganizations,
@@ -21,12 +28,18 @@ export default function Dashboard({
 
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    {isOrganizationOwner
-                        ? 'Organization Owner Dashboard'
-                        : 'Super Admin Dashboard'}
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Super Admin
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        {isOrganizationOwner
+                            ? 'Organization Owner Dashboard'
+                            : 'Super Admin Dashboard'}
+                    </h2>
+                </div>
             }
         >
             <Head
@@ -37,15 +50,18 @@ export default function Dashboard({
                 }
             />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                        <h1 className="text-2xl font-semibold text-gray-900">
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl space-y-6">
+                    <div className={cardClass}>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                            Workspace
+                        </p>
+                        <h1 className="mt-2 text-3xl font-bold text-white">
                             {isOrganizationOwner
                                 ? managedOrganization.name
                                 : 'Super Admin Dashboard'}
                         </h1>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
                             {isOrganizationOwner
                                 ? 'Manage your organization and add admin accounts from here.'
                                 : 'Manage organizations and their admin users from here.'}
@@ -55,37 +71,37 @@ export default function Dashboard({
                     <div className="grid gap-6 md:grid-cols-2">
                         {managedOrganization ? (
                             <>
-                                <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                                    <h3 className="text-lg font-semibold text-gray-900">
+                                <div className={cardClass}>
+                                    <h3 className="text-lg font-semibold text-white">
                                         Organization Overview
                                     </h3>
-                                    <dl className="mt-4 space-y-3 text-sm text-gray-600">
+                                    <dl className="mt-5 space-y-3 text-sm text-zinc-400">
                                         <div className="flex items-center justify-between gap-4">
                                             <dt>Organization</dt>
-                                            <dd className="font-medium text-gray-900">
+                                            <dd className="font-semibold text-white">
                                                 {managedOrganization.name}
                                             </dd>
                                         </div>
                                         <div className="flex items-center justify-between gap-4">
                                             <dt>Admins</dt>
-                                            <dd className="font-medium text-gray-900">
+                                            <dd className="font-semibold text-white">
                                                 {managedOrganization.admins_count}
                                             </dd>
                                         </div>
                                         <div className="flex items-center justify-between gap-4">
                                             <dt>Tests</dt>
-                                            <dd className="font-medium text-gray-900">
+                                            <dd className="font-semibold text-white">
                                                 {managedOrganization.tests_count}
                                             </dd>
                                         </div>
                                     </dl>
                                 </div>
 
-                                <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                                    <h3 className="text-lg font-semibold text-gray-900">
+                                <div className={cardClass}>
+                                    <h3 className="text-lg font-semibold text-white">
                                         Organization Access
                                     </h3>
-                                    <p className="mt-2 text-sm text-gray-600">
+                                    <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                                         Open your organization profile, update details,
                                         and create admin accounts for your team.
                                     </p>
@@ -95,7 +111,7 @@ export default function Dashboard({
                                                 'super-admin.organizations.show',
                                                 managedOrganization.id,
                                             )}
-                                            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                            className={primaryLinkClass}
                                         >
                                             View organization
                                         </Link>
@@ -104,7 +120,7 @@ export default function Dashboard({
                                                 'super-admin.organizations.admins.create',
                                                 managedOrganization.id,
                                             )}
-                                            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                            className={secondaryLinkClass}
                                         >
                                             Add admin
                                         </Link>
@@ -112,11 +128,11 @@ export default function Dashboard({
                                 </div>
                             </>
                         ) : (
-                            <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                                <h3 className="text-lg font-semibold text-gray-900">
+                            <div className={cardClass}>
+                                <h3 className="text-lg font-semibold text-white">
                                     Organizations
                                 </h3>
-                                <p className="mt-2 text-sm text-gray-600">
+                                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                                     Create and manage organizations for exam admins.
                                 </p>
                                 <div className="mt-6 flex flex-wrap gap-3">
@@ -125,7 +141,7 @@ export default function Dashboard({
                                             href={route(
                                                 'super-admin.organizations.create',
                                             )}
-                                            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                                            className={primaryLinkClass}
                                         >
                                             Create organization
                                         </Link>
@@ -134,7 +150,7 @@ export default function Dashboard({
                                         href={route(
                                             'super-admin.organizations.index',
                                         )}
-                                        className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                        className={secondaryLinkClass}
                                     >
                                         View organizations
                                     </Link>
