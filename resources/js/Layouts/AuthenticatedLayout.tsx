@@ -1,4 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -34,13 +33,7 @@ export default function Authenticated({
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
-                                    <ApplicationLogo
-                                        className={
-                                            isDark
-                                                ? 'block h-9 w-auto fill-current text-zinc-100'
-                                                : 'block h-9 w-auto fill-current text-gray-800'
-                                        }
-                                    />
+                                    <ExamPlatformLogo isDark={isDark} />
                                 </Link>
                             </div>
 
@@ -58,7 +51,7 @@ export default function Authenticated({
                                               : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700')
                                     }
                                 >
-                                    Dashboard
+                                    Online Exam Platform
                                 </Link>
                             </div>
                         </div>
@@ -195,7 +188,7 @@ export default function Authenticated({
                                       : 'border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800 focus:border-gray-300 focus:bg-gray-50 focus:text-gray-800')
                             }
                         >
-                            Dashboard
+                            Online Exam Platform
                         </Link>
                     </div>
 
@@ -309,5 +302,45 @@ export default function Authenticated({
 
             <main className={isDark ? 'bg-zinc-950' : undefined}>{children}</main>
         </div>
+    );
+}
+
+function ExamPlatformLogo({ isDark }: { isDark: boolean }) {
+    return (
+        <span
+            className={
+                'flex h-10 w-10 items-center justify-center rounded-xl border ' +
+                (isDark
+                    ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-600')
+            }
+            aria-hidden="true"
+        >
+            <svg
+                className="h-6 w-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    d="M7 4.75h10A1.25 1.25 0 0 1 18.25 6v12A1.25 1.25 0 0 1 17 19.25H7A1.25 1.25 0 0 1 5.75 18V6A1.25 1.25 0 0 1 7 4.75Z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                />
+                <path
+                    d="M9 9h6M9 12h3.5M9 15l1.25 1.25L13 13.5"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+                <path
+                    d="M8.25 3.75h7.5"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                />
+            </svg>
+        </span>
     );
 }

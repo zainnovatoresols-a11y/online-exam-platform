@@ -141,6 +141,24 @@ const reviewStatusOptions = [
     { value: 'rejected', label: 'Rejected' },
 ];
 
+const sectionClass =
+    'rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20';
+const primaryButtonClass =
+    'inline-flex h-10 items-center justify-center rounded-xl bg-emerald-500 px-4 text-xs font-bold uppercase tracking-wider text-black transition hover:bg-emerald-400 disabled:opacity-60';
+const secondaryButtonClass =
+    'inline-flex h-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-xs font-bold uppercase tracking-wider text-zinc-300 transition hover:border-zinc-600 hover:text-white';
+const fieldClass =
+    'w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
+const tableWrapperClass =
+    'dark-horizontal-scrollbar overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950';
+const tableClass = 'min-w-full divide-y divide-zinc-800';
+const tableHeadClass = 'bg-zinc-950/80';
+const tableBodyClass = 'divide-y divide-zinc-800 bg-zinc-900';
+const tableHeadingClass =
+    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500';
+const tableCellClass = 'px-4 py-3 text-sm text-zinc-400';
+const strongCellClass = 'px-4 py-3 text-sm text-zinc-100';
+
 export default function Analytics({
     test,
     filters,
@@ -188,17 +206,23 @@ export default function Analytics({
 
     return (
         <AuthenticatedLayout
+            theme="dark"
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Result Analytics
-                </h2>
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                        Results Workspace
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
+                        Result Analytics
+                    </h2>
+                </div>
             }
         >
             <Head title={`${test.title} Analytics`} />
 
-            <div className="py-10">
+            <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-                    <section className="bg-white p-6 shadow-sm sm:rounded-lg">
+                    <section className={sectionClass}>
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
                                 <Link
@@ -206,17 +230,17 @@ export default function Analytics({
                                         'admin.tests.results.index',
                                         test.id,
                                     )}
-                                    className="text-sm font-medium text-gray-600 underline"
+                                    className="text-sm font-semibold text-emerald-300 underline-offset-4 transition hover:text-emerald-200 hover:underline"
                                 >
                                     Back to results
                                 </Link>
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                     <StatusBadge value={test.status} />
                                 </div>
-                                <h3 className="mt-3 text-lg font-semibold text-gray-900">
+                                <h3 className="mt-3 text-2xl font-bold text-white">
                                     {test.title}
                                 </h3>
-                                <p className="mt-2 text-sm text-gray-600">
+                                <p className="mt-2 text-sm text-zinc-400">
                                     Owner:{' '}
                                     {test.organization?.name ??
                                         test.creator?.name ??
@@ -231,7 +255,7 @@ export default function Analytics({
                                         test.id,
                                     )}
                                     download
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700"
+                                    className={secondaryButtonClass}
                                 >
                                     Export CSV
                                 </a>
@@ -240,7 +264,7 @@ export default function Analytics({
                                         'admin.tests.results.index',
                                         test.id,
                                     )}
-                                    className="rounded-md bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white"
+                                    className={primaryButtonClass}
                                 >
                                     View Results
                                 </Link>
@@ -248,13 +272,13 @@ export default function Analytics({
                         </div>
                     </section>
 
-                    <section className="bg-white p-6 shadow-sm sm:rounded-lg">
+                    <section className={sectionClass}>
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <h4 className="text-base font-semibold text-gray-900">
+                                <h4 className="text-base font-semibold text-white">
                                     Filters
                                 </h4>
-                                <p className="mt-1 text-sm text-gray-600">
+                                <p className="mt-1 text-sm text-zinc-400">
                                     Narrow analytics by attempt window and review
                                     state.
                                 </p>
@@ -272,7 +296,7 @@ export default function Analytics({
                                     onChange={(event) =>
                                         form.setData('from', event.target.value)
                                     }
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                                    className={fieldClass}
                                 />
                             </FilterField>
 
@@ -283,7 +307,7 @@ export default function Analytics({
                                     onChange={(event) =>
                                         form.setData('to', event.target.value)
                                     }
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                                    className={fieldClass}
                                 />
                             </FilterField>
 
@@ -296,7 +320,7 @@ export default function Analytics({
                                             event.target.value,
                                         )
                                     }
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                                    className={fieldClass}
                                 >
                                     {statusOptions.map((option) => (
                                         <option
@@ -318,7 +342,7 @@ export default function Analytics({
                                             event.target.value,
                                         )
                                     }
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                                    className={fieldClass}
                                 >
                                     {reviewStatusOptions.map((option) => (
                                         <option
@@ -335,14 +359,14 @@ export default function Analytics({
                                 <button
                                     type="submit"
                                     disabled={form.processing}
-                                    className="rounded-md bg-gray-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white disabled:opacity-60"
+                                    className={primaryButtonClass}
                                 >
                                     Apply
                                 </button>
                                 <button
                                     type="button"
                                     onClick={resetFilters}
-                                    className="rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700"
+                                    className={secondaryButtonClass}
                                 >
                                     Reset
                                 </button>
@@ -554,9 +578,9 @@ export default function Analytics({
                         title="Question Analytics"
                         description="Per-question performance across submitted attempts."
                     >
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                        <div className={tableWrapperClass}>
+                            <table className={tableClass}>
+                                <thead className={tableHeadClass}>
                                     <tr>
                                         {[
                                             'Question',
@@ -571,53 +595,53 @@ export default function Analytics({
                                         ].map((heading) => (
                                             <th
                                                 key={heading}
-                                                className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                                className={tableHeadingClass}
                                             >
                                                 {heading}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className={tableBodyClass}>
                                     {question_analytics.map((question) => (
                                         <tr key={question.question_id}>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                <div className="font-medium">
+                                            <td className={strongCellClass}>
+                                                <div className="font-semibold text-white">
                                                     Q{question.order}
                                                 </div>
-                                                <div className="mt-1 max-w-xl text-gray-600">
+                                                <div className="mt-1 max-w-xl text-zinc-400">
                                                     {question.body}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 <TypeBadge
                                                     value={question.type}
                                                 />
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.marks}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.attempted_count}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.average_awarded_score.toFixed(
                                                     2,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.average_percentage.toFixed(
                                                     2,
                                                 )}
                                                 %
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.zero_score_count}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.full_score_count}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {question.success_rate.toFixed(
                                                     2,
                                                 )}
@@ -629,7 +653,7 @@ export default function Analytics({
                                         <tr>
                                             <td
                                                 colSpan={9}
-                                                className="px-4 py-6 text-sm text-gray-600"
+                                                className="px-4 py-6 text-sm text-zinc-500"
                                             >
                                                 No question analytics are
                                                 available for this test yet.
@@ -645,9 +669,9 @@ export default function Analytics({
                         title="Top Suspicious Attempts"
                         description="Highest-risk attempts sorted for quick review."
                     >
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                        <div className={tableWrapperClass}>
+                            <table className={tableClass}>
+                                <thead className={tableHeadClass}>
                                     <tr>
                                         {[
                                             'Candidate',
@@ -659,51 +683,51 @@ export default function Analytics({
                                         ].map((heading) => (
                                             <th
                                                 key={heading}
-                                                className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                                className={tableHeadingClass}
                                             >
                                                 {heading}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className={tableBodyClass}>
                                     {top_suspicious_attempts.map((attempt) => (
                                         <tr key={attempt.attempt_id}>
                                             <td className="px-4 py-3 text-sm">
-                                                <div className="font-medium text-gray-900">
+                                                <div className="font-semibold text-white">
                                                     {attempt.candidate_name ??
                                                         'Unnamed'}
                                                 </div>
-                                                <div className="text-gray-600">
+                                                <div className="text-zinc-400">
                                                     {attempt.candidate_email ??
                                                         'No email'}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {formatDateTime(
                                                     attempt.submitted_at,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {attempt.score}/
                                                 {attempt.max_score}
-                                                <div className="mt-1 text-xs text-gray-500">
+                                                <div className="mt-1 text-xs text-zinc-500">
                                                     {formatPercent(
                                                         attempt.percentage,
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 <RiskLevelBadge
                                                     level={
                                                         attempt.risk.level
                                                     }
                                                 />
-                                                <div className="mt-1 text-xs text-gray-500">
+                                                <div className="mt-1 text-xs text-zinc-500">
                                                     {attempt.risk.score} points
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 <ReviewStatusBadge
                                                     value={
                                                         attempt.review_status
@@ -713,7 +737,7 @@ export default function Analytics({
                                             <td className="px-4 py-3 text-right text-sm">
                                                 <Link
                                                     href={attempt.result_url}
-                                                    className="font-medium text-gray-900 underline"
+                                                    className="font-semibold text-emerald-300 underline-offset-4 transition hover:text-emerald-200 hover:underline"
                                                 >
                                                     View result
                                                 </Link>
@@ -724,7 +748,7 @@ export default function Analytics({
                                         <tr>
                                             <td
                                                 colSpan={6}
-                                                className="px-4 py-6 text-sm text-gray-600"
+                                                className="px-4 py-6 text-sm text-zinc-500"
                                             >
                                                 No suspicious attempts are
                                                 available for the current
@@ -741,31 +765,31 @@ export default function Analytics({
                         title="Submission Trend"
                         description="Daily submission count and average score."
                     >
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                        <div className={tableWrapperClass}>
+                            <table className={tableClass}>
+                                <thead className={tableHeadClass}>
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Date
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Submitted
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                        <th className={tableHeadingClass}>
                                             Average score
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className={tableBodyClass}>
                                     {submission_trend.map((point) => (
                                         <tr key={point.date}>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                            <td className={strongCellClass}>
                                                 {formatDateOnly(point.date)}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {point.submitted_count}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">
+                                            <td className={tableCellClass}>
                                                 {point.average_score.toFixed(2)}
                                             </td>
                                         </tr>
@@ -774,7 +798,7 @@ export default function Analytics({
                                         <tr>
                                             <td
                                                 colSpan={3}
-                                                className="px-4 py-6 text-sm text-gray-600"
+                                                className="px-4 py-6 text-sm text-zinc-500"
                                             >
                                                 No submitted attempts are
                                                 available for the current
@@ -802,12 +826,12 @@ function AnalyticsSection({
     children: ReactNode;
 }) {
     return (
-        <section className="bg-white p-6 shadow-sm sm:rounded-lg">
+        <section className={sectionClass}>
             <div>
-                <h4 className="text-base font-semibold text-gray-900">
+                <h4 className="text-base font-semibold text-white">
                     {title}
                 </h4>
-                <p className="mt-1 text-sm text-gray-600">{description}</p>
+                <p className="mt-1 text-sm text-zinc-400">{description}</p>
             </div>
             <div className="mt-5">{children}</div>
         </section>
@@ -823,7 +847,9 @@ function FilterField({
 }) {
     return (
         <label className="block">
-            <span className="text-sm font-medium text-gray-500">{label}</span>
+            <span className="text-sm font-semibold text-zinc-400">
+                {label}
+            </span>
             <div className="mt-1">{children}</div>
         </label>
     );
@@ -837,9 +863,9 @@ function MetricCard({
     value: ReactNode;
 }) {
     return (
-        <div className="rounded-md border border-gray-200 px-4 py-4">
-            <p className="text-sm font-medium text-gray-500">{label}</p>
-            <p className="mt-2 text-2xl font-semibold text-gray-900">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-4">
+            <p className="text-sm font-semibold text-zinc-500">{label}</p>
+            <p className="mt-2 text-2xl font-bold text-white">
                 {value}
             </p>
         </div>
@@ -848,7 +874,7 @@ function MetricCard({
 
 function StatusBadge({ value }: { value: string }) {
     return (
-        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+        <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-200">
             {formatLabel(value)}
         </span>
     );
@@ -857,17 +883,17 @@ function StatusBadge({ value }: { value: string }) {
 function ReviewStatusBadge({ value }: { value: string }) {
     const className =
         value === 'approved'
-            ? 'bg-green-100 text-green-700'
+            ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
             : value === 'rejected'
-              ? 'bg-red-100 text-red-700'
+              ? 'border-red-400/20 bg-red-400/10 text-red-200'
               : value === 'flagged'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-blue-100 text-blue-700';
+                ? 'border-amber-400/20 bg-amber-400/10 text-amber-200'
+                : 'border-zinc-600 bg-zinc-950 text-zinc-300';
 
     return (
         <span
             className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ' +
                 className
             }
         >
@@ -878,17 +904,17 @@ function ReviewStatusBadge({ value }: { value: string }) {
 
 function RiskLevelBadge({ level }: { level: string }) {
     const classes: Record<string, string> = {
-        low: 'bg-green-100 text-green-700',
-        medium: 'bg-yellow-100 text-yellow-800',
-        high: 'bg-orange-100 text-orange-800',
-        critical: 'bg-red-100 text-red-700',
+        low: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+        medium: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
+        high: 'border-orange-400/20 bg-orange-400/10 text-orange-200',
+        critical: 'border-red-400/20 bg-red-400/10 text-red-200',
     };
 
     return (
         <span
             className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
-                (classes[level] ?? 'bg-gray-100 text-gray-700')
+                'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ' +
+                (classes[level] ?? 'border-zinc-600 bg-zinc-950 text-zinc-300')
             }
         >
             {formatLabel(level)}
@@ -900,10 +926,10 @@ function TypeBadge({ value }: { value: string }) {
     return (
         <span
             className={
-                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium ' +
+                'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ' +
                 (value === 'coding'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-100 text-gray-700')
+                    ? 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200'
+                    : 'border-zinc-600 bg-zinc-950 text-zinc-300')
             }
         >
             {value === 'coding' ? 'Coding' : 'MCQ'}

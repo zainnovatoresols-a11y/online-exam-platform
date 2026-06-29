@@ -65,11 +65,20 @@ type ResultRow = {
 
 type PaginatedResults = {
     data: ResultRow[];
+    current_page?: number;
     from: number | null;
+    last_page?: number;
+    links?: PaginationLink[];
     to: number | null;
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;
+};
+
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
 };
 
 type Props = {
@@ -94,6 +103,12 @@ const tableCellCenterClass =
     'whitespace-nowrap px-5 py-4 text-center align-middle text-sm text-zinc-400';
 const scrollAreaClass =
     'dark-horizontal-scrollbar overflow-x-auto bg-zinc-950';
+const paginationButtonClass =
+    'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-600 hover:text-white';
+const paginationActiveClass =
+    'border-emerald-500 bg-emerald-500 text-black hover:border-emerald-400 hover:bg-emerald-400 hover:text-black';
+const paginationDisabledClass =
+    'cursor-not-allowed border-zinc-900 bg-zinc-950/70 text-zinc-600';
 
 export default function Index({ test, results }: Props) {
     return (
@@ -371,35 +386,95 @@ export default function Index({ test, results }: Props) {
                         </div>
                     </div>
 
-                    {(results.prev_page_url || results.next_page_url) && (
-                        <div className="flex flex-col gap-4 px-1 text-sm sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-zinc-500">
-                                Showing {results.from ?? 0} to{' '}
-                                {results.to ?? 0} of {results.total}
-                            </div>
-                            <div className="flex gap-3">
-                                {results.prev_page_url && (
-                                    <Link
-                                        href={results.prev_page_url}
-                                        className={actionLinkClass}
-                                    >
-                                        Previous
-                                    </Link>
-                                )}
-                                {results.next_page_url && (
-                                    <Link
-                                        href={results.next_page_url}
-                                        className={actionLinkClass}
-                                    >
-                                        Next
-                                    </Link>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    <ResultsPagination results={results} />
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function ResultsPagination({ results }: { results: PaginatedResults }) {
+    if (results.total === 0) {
+        return null;
+    }
+
+    const links = results.links ?? [];
+
+    return (
+        <div className="flex flex-col gap-4 px-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-zinc-500">
+                Showing {results.from ?? 0} to {results.to ?? 0} of{' '}
+                {results.total} results
+            </p>
+
+            {links.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                    {links.map((link, index) =>
+                        link.active ? (
+                            <span
+                                key={`${link.label}-${index}`}
+                                className={`${paginationButtonClass} ${paginationActiveClass}`}
+                            >
+                                {paginationLabel(link.label)}
+                            </span>
+                        ) : link.url ? (
+                            <Link
+                                key={`${link.label}-${index}`}
+                                href={link.url}
+                                preserveScroll
+                                preserveState
+                                className={paginationButtonClass}
+                            >
+                                {paginationLabel(link.label)}
+                            </Link>
+                        ) : (
+                            <span
+                                key={`${link.label}-${index}`}
+                                className={`${paginationButtonClass} ${paginationDisabledClass}`}
+                            >
+                                {paginationLabel(link.label)}
+                            </span>
+                        ),
+                    )}
+                </div>
+            ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                    {results.prev_page_url ? (
+                        <Link
+                            href={results.prev_page_url}
+                            preserveScroll
+                            preserveState
+                            className={paginationButtonClass}
+                        >
+                            {'< Prev'}
+                        </Link>
+                    ) : (
+                        <span
+                            className={`${paginationButtonClass} ${paginationDisabledClass}`}
+                        >
+                            {'< Prev'}
+                        </span>
+                    )}
+
+                    {results.next_page_url ? (
+                        <Link
+                            href={results.next_page_url}
+                            preserveScroll
+                            preserveState
+                            className={paginationButtonClass}
+                        >
+                            {'Next >'}
+                        </Link>
+                    ) : (
+                        <span
+                            className={`${paginationButtonClass} ${paginationDisabledClass}`}
+                        >
+                            {'Next >'}
+                        </span>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -512,6 +587,14 @@ function percentageLabel(attempt: Attempt | null): string {
     }
 
     return `${attempt.percentage.toFixed(2)}%`;
+}
+
+function paginationLabel(label: string): string {
+    return label
+        .replace('&laquo;', '<')
+        .replace('&raquo;', '>')
+        .replace('Previous', 'Prev')
+        .trim();
 }
 
 function formatDateTime(value?: string | null): string {
