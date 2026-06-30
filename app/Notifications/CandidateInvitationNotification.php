@@ -32,7 +32,7 @@ class CandidateInvitationNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $test = $this->invitation->test;
-        $owner = $test->organization?->name ?? $test->creator?->name ?? 'Exam Admin';
+        $owner = $test->organization?->name ?? $test->creator?->name ?? 'Quiz Admin';
         $url = $test->public_token
             ? route('candidate.public-tests.policy', [
                 'publicToken' => $test->public_token,
@@ -41,22 +41,19 @@ class CandidateInvitationNotification extends Notification
             ])
             : route('candidate.invitations.show', $this->invitation->token);
 
-        $message = (new MailMessage)
+        return (new MailMessage)
+            ->from((string) config('mail.from.address'), 'Online Quiz Platform')
             ->subject('You are invited to take '.$test->title)
-            ->greeting('Hello'.($this->invitation->name ? ' '.$this->invitation->name : '').',')
-            ->line('You have been invited to take the following test:')
-            ->line($test->title)
-            ->line('From: '.$owner)
-            ->action('Open Test Link', $url);
-
-        if ($this->invitation->starts_at) {
-            $message->line('Starts on: '.$this->invitation->starts_at->toDayDateTimeString().'.');
-        }
-
-        if ($this->invitation->expires_at) {
-            $message->line('This invitation expires on '.$this->invitation->expires_at->toDayDateTimeString().'.');
-        }
-
-        return $message->line('Please read and accept the test policy before entering your candidate details.');
+            ->view([
+                'html' => 'emails.candidate-invitation',
+                'text' => 'emails.candidate-invitation-text',
+            ], [
+                'candidateName' => $this->invitation->name,
+                'testTitle' => $test->title,
+                'owner' => $owner,
+                'url' => $url,
+                'startsAt' => $this->invitation->starts_at?->toDayDateTimeString(),
+                'expiresAt' => $this->invitation->expires_at?->toDayDateTimeString(),
+            ]);
     }
 }
