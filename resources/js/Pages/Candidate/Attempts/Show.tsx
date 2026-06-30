@@ -65,6 +65,12 @@ type AttemptForm = {
     answers: Record<string, number | string>;
 };
 
+const primaryActionClassName =
+    '!rounded-xl !border-emerald-500 !bg-emerald-500 !px-5 !py-2.5 !text-black hover:!bg-emerald-400 focus:!ring-emerald-500 focus:!ring-offset-zinc-950 disabled:!opacity-50';
+
+const secondaryActionClassName =
+    '!rounded-xl !border-zinc-700 !bg-zinc-950 !px-5 !py-2.5 !text-zinc-100 hover:!border-emerald-400 hover:!text-emerald-300 focus:!ring-emerald-500 focus:!ring-offset-zinc-950 disabled:!opacity-50';
+
 export default function Show({
     attempt,
     test,
@@ -401,7 +407,7 @@ export default function Show({
         <AssessmentLayout
             isPublic={Boolean(attempt.is_public)}
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-xl font-semibold leading-tight text-zinc-100">
                     {test.title}
                 </h2>
             }
@@ -424,25 +430,25 @@ export default function Show({
                 />
             )}
 
-            <div className="py-12">
+            <div className="bg-zinc-950 py-10">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+                    <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20">
                         <div className="flex flex-wrap items-start justify-between gap-6">
                             <div>
-                                <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
+                                <p className="text-sm font-medium uppercase tracking-[0.28em] text-emerald-300">
                                     Assessment attempt
                                 </p>
-                                <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+                                <h1 className="mt-3 text-2xl font-semibold text-white">
                                     {test.title}
                                 </h1>
-                                <p className="mt-3 max-w-3xl text-sm text-gray-600">
+                                <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
                                     Questions appear one at a time. Multiple-choice
                                     questions are shown first, followed by coding
                                     questions. Moving between questions keeps your
                                     current progress.
                                 </p>
                             </div>
-                            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
                                 <p className="font-semibold">
                                     Question {currentQuestionIndex + 1} of{' '}
                                     {Math.max(orderedQuestions.length, 1)}
@@ -481,22 +487,22 @@ export default function Show({
                         </dl>
 
                         {expired && (
-                            <p className="mt-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-700">
+                            <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-200">
                                 Time is over. Answers can no longer be saved or
                                 submitted.
                             </p>
                         )}
-                        <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
-                            <p className="font-medium text-gray-700">
+                        <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/80 p-3 text-sm">
+                            <p className="font-medium text-zinc-100">
                                 Proctoring controls active
                             </p>
-                            <p className="mt-1 text-gray-500">
+                            <p className="mt-1 text-zinc-500">
                                 Fullscreen is required. Copy, paste, right click,
                                 drag/drop, and restricted shortcuts are blocked.
                             </p>
                         </div>
                         {latestBlockedAction && (
-                            <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm font-medium text-amber-800">
+                            <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm font-medium text-amber-200">
                                 {latestBlockedAction}
                             </p>
                         )}
@@ -535,13 +541,13 @@ export default function Show({
                                 onSelectAnswer={selectAnswer}
                             />
 
-                            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-6 shadow-sm sm:rounded-lg">
+                            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20">
                                 <div className="space-y-2">
                                     <InputError
                                         message={navigationError ?? formErrors.attempt}
                                         className="mt-0"
                                     />
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-zinc-500">
                                         {currentQuestion.type === 'coding'
                                             ? 'Use the editor on the right, run visible test cases, then move to the next question.'
                                             : 'Select one option, then move forward when you are ready.'}
@@ -551,6 +557,7 @@ export default function Show({
                                 <div className="flex flex-wrap justify-end gap-3">
                                     <SecondaryButton
                                         type="button"
+                                        className={secondaryActionClassName}
                                         onClick={() =>
                                             void navigateToQuestion(
                                                 currentQuestionIndex - 1,
@@ -566,6 +573,7 @@ export default function Show({
 
                                     {isLastQuestion ? (
                                         <PrimaryButton
+                                            className={primaryActionClassName}
                                             disabled={questionNavigationDisabled}
                                         >
                                             Submit test
@@ -573,6 +581,7 @@ export default function Show({
                                     ) : (
                                         <PrimaryButton
                                             type="button"
+                                            className={primaryActionClassName}
                                             onClick={() =>
                                                 void navigateToQuestion(
                                                     currentQuestionIndex + 1,
@@ -587,7 +596,7 @@ export default function Show({
                             </div>
                         </form>
                     ) : (
-                        <section className="rounded-md border border-gray-200 bg-white p-6 text-sm text-gray-600 shadow-sm">
+                        <section className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 text-sm text-zinc-400 shadow-2xl shadow-black/20">
                             No questions are available for this assessment yet.
                         </section>
                     )}
@@ -635,22 +644,22 @@ function QuestionPanel({
     }
 
     return (
-        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+        <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20">
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p className="text-sm font-medium uppercase tracking-wide text-indigo-600">
+                    <p className="text-sm font-medium uppercase tracking-[0.28em] text-emerald-300">
                         Multiple choice
                     </p>
-                    <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                    <h3 className="mt-2 text-lg font-semibold text-white">
                         Question {questionNumber}
                     </h3>
                 </div>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-medium text-emerald-200">
                     {question.marks} marks
                 </span>
             </div>
 
-            <p className="mt-5 whitespace-pre-line text-base leading-7 text-gray-800">
+            <p className="mt-5 whitespace-pre-line text-base leading-7 text-zinc-200">
                 {question.body}
             </p>
 
@@ -664,8 +673,8 @@ function QuestionPanel({
                             className={
                                 'flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-sm transition ' +
                                 (selected
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950'
-                                    : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300')
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-100'
+                                    : 'border-zinc-800 bg-zinc-950/70 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100')
                             }
                         >
                             <input
@@ -676,7 +685,7 @@ function QuestionPanel({
                                 onChange={() =>
                                     onSelectAnswer(question.id, option.id)
                                 }
-                                className="mt-1"
+                                className="mt-1 border-zinc-600 bg-zinc-950 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-zinc-900"
                                 disabled={disabled}
                             />
                             <span className="leading-6">{option.body}</span>
@@ -711,7 +720,7 @@ function QuestionProgressStrip({
     disabled: boolean;
 }) {
     return (
-        <div className="bg-white p-4 shadow-sm sm:rounded-lg">
+        <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-4 shadow-2xl shadow-black/20">
             <div className="flex flex-wrap gap-3">
                 {questions.map((question, index) => {
                     const active = index === currentQuestionIndex;
@@ -730,11 +739,11 @@ function QuestionProgressStrip({
                             className={
                                 'min-w-[112px] rounded-lg border px-3 py-2 text-left text-sm transition ' +
                                 (active
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300')
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-100'
+                                    : 'border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100')
                             }
                         >
-                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                 {question.type === 'coding' ? 'Coding' : 'MCQ'}
                             </span>
                             <span className="mt-1 block font-semibold">
@@ -744,8 +753,8 @@ function QuestionProgressStrip({
                                 className={
                                     'mt-1 block text-xs ' +
                                     (answered
-                                        ? 'text-green-700'
-                                        : 'text-gray-500')
+                                        ? 'text-emerald-300'
+                                        : 'text-zinc-500')
                                 }
                             >
                                 {answered ? 'Answered' : 'Pending'}
@@ -760,9 +769,11 @@ function QuestionProgressStrip({
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
     return (
-        <div>
-            <dt className="text-sm font-medium text-gray-500">{label}</dt>
-            <dd className="mt-1 text-sm font-medium text-gray-900">{value}</dd>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+            <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                {label}
+            </dt>
+            <dd className="mt-2 text-sm font-semibold text-zinc-100">{value}</dd>
         </div>
     );
 }
@@ -780,7 +791,11 @@ function AssessmentLayout({
         );
     }
 
-    return <AuthenticatedLayout header={header}>{children}</AuthenticatedLayout>;
+    return (
+        <AuthenticatedLayout header={header} theme="dark">
+            {children}
+        </AuthenticatedLayout>
+    );
 }
 
 function ProctoringViolationOverlay({
@@ -794,25 +809,25 @@ function ProctoringViolationOverlay({
     onAcknowledgeAndReturnToFullscreen: () => void;
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 px-4">
-            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <p className="text-sm font-medium uppercase text-red-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 px-4">
+            <div className="w-full max-w-md rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/30">
+                <p className="text-sm font-medium uppercase text-red-300">
                     Proctoring interruption
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                <h3 className="mt-2 text-lg font-semibold text-white">
                     {violation.title}
                 </h3>
-                <p className="mt-3 text-sm text-gray-700">
+                <p className="mt-3 text-sm text-zinc-300">
                     {violation.message}
                 </p>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-zinc-500">
                     Your timer continues while this notice is open.
                 </p>
 
                 <div className="mt-6 flex justify-end">
                     <PrimaryButton
                         type="button"
-                        className="w-full justify-center whitespace-normal text-center leading-5 tracking-normal sm:w-auto"
+                        className={`${primaryActionClassName} w-full justify-center whitespace-normal text-center leading-5 tracking-normal sm:w-auto`}
                         onClick={onAcknowledgeAndReturnToFullscreen}
                     >
                         I understand and go back to fullscreen
@@ -834,15 +849,15 @@ function RecordingPermissionOverlay({
     const screenNeedsAttention = recordings.screenStatus !== 'recording';
 
     return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/70 px-4">
-            <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-                <p className="text-sm font-medium uppercase text-amber-600">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/70 px-4">
+            <div className="w-full max-w-lg rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/30">
+                <p className="text-sm font-medium uppercase text-amber-300">
                     Proctoring recording required
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                <h3 className="mt-2 text-lg font-semibold text-white">
                     Do not change camera or screen settings
                 </h3>
-                <div className="mt-4 space-y-3 text-sm text-gray-700">
+                <div className="mt-4 space-y-3 text-sm text-zinc-300">
                     <p>
                         Camera and screen recording are important for this
                         assessment and must remain active during the test.
@@ -859,7 +874,7 @@ function RecordingPermissionOverlay({
                             sharing.
                         </p>
                     )}
-                    <p className="text-gray-500">
+                    <p className="text-zinc-500">
                         Your timer continues while this notice is open.
                     </p>
                 </div>
@@ -868,6 +883,7 @@ function RecordingPermissionOverlay({
                     {cameraNeedsAttention && (
                         <SecondaryButton
                             type="button"
+                            className={secondaryActionClassName}
                             disabled={recordings.cameraStatus === 'requesting'}
                             onClick={() => void recordings.startCamera()}
                         >
@@ -879,6 +895,7 @@ function RecordingPermissionOverlay({
                     {screenNeedsAttention && (
                         <SecondaryButton
                             type="button"
+                            className={secondaryActionClassName}
                             disabled={recordings.screenStatus === 'requesting'}
                             onClick={onStartScreen}
                         >
@@ -902,7 +919,7 @@ function RecordingStoppedMessage({
     const screenNeedsAttention = recordings.screenStatus !== 'recording';
 
     return (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-100">
             <p className="font-medium">
                 You cannot stop camera or screen sharing during the assessment.
             </p>
@@ -914,6 +931,7 @@ function RecordingStoppedMessage({
                 {cameraNeedsAttention && (
                     <SecondaryButton
                         type="button"
+                        className={secondaryActionClassName}
                         disabled={recordings.cameraStatus === 'requesting'}
                         onClick={() => void recordings.startCamera()}
                     >
@@ -923,6 +941,7 @@ function RecordingStoppedMessage({
                 {screenNeedsAttention && (
                     <SecondaryButton
                         type="button"
+                        className={secondaryActionClassName}
                         disabled={recordings.screenStatus === 'requesting'}
                         onClick={onStartScreen}
                     >
@@ -936,7 +955,7 @@ function RecordingStoppedMessage({
 
 function RecordingLockedNotice() {
     return (
-        <section className="rounded-md border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 shadow-sm">
+        <section className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 p-6 text-sm text-amber-100 shadow-2xl shadow-black/20">
             <p className="font-medium">Assessment content is hidden.</p>
             <p className="mt-1">
                 Camera and screen recording must be active before questions,

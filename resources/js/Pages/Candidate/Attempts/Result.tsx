@@ -34,27 +34,27 @@ export default function Result({
         <AssessmentLayout
             isPublic={Boolean(attempt.is_public)}
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-xl font-semibold leading-tight text-zinc-100">
                     Assessment Submitted
                 </h2>
             }
         >
             <Head title={`${test.title} Submitted`} />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-4xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow-sm sm:rounded-lg">
-                        <p className="text-sm font-medium uppercase text-gray-500">
+            <div className="bg-zinc-950 py-10">
+                <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
+                    <div className="rounded-[18px] border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/20">
+                        <p className="text-sm font-medium uppercase tracking-[0.28em] text-emerald-300">
                             Assessment submitted
                         </p>
-                        <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+                        <h1 className="mt-3 text-2xl font-semibold text-white">
                             Thank you for completing the assessment.
                         </h1>
 
-                        <div className="mt-6 rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                        <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-sm text-zinc-300">
                             <p>
                                 Your answers have been received for{' '}
-                                <span className="font-medium text-gray-900">
+                                <span className="font-medium text-white">
                                     {test.title}
                                 </span>
                                 .
@@ -66,7 +66,7 @@ export default function Result({
                         </div>
 
                         {attempt.submitted_at && (
-                            <p className="mt-4 text-sm text-gray-600">
+                            <p className="mt-4 text-sm text-zinc-500">
                                 Submitted on{' '}
                                 {formatDateTime(attempt.submitted_at)}
                             </p>
@@ -75,7 +75,7 @@ export default function Result({
                         {!attempt.is_public && (
                             <Link
                                 href={route('candidate.dashboard')}
-                                className="mt-6 inline-flex rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+                                className="mt-6 inline-flex h-11 items-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 text-sm font-semibold text-zinc-100 transition hover:border-emerald-400 hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                             >
                                 Back to dashboard
                             </Link>
@@ -107,5 +107,9 @@ function AssessmentLayout({
         );
     }
 
-    return <AuthenticatedLayout header={header}>{children}</AuthenticatedLayout>;
+    return (
+        <AuthenticatedLayout header={header} theme="dark">
+            {children}
+        </AuthenticatedLayout>
+    );
 }

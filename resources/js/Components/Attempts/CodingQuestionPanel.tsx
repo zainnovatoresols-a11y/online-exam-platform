@@ -67,6 +67,12 @@ type Props = {
     submitError?: string;
 };
 
+const secondaryActionClassName =
+    '!rounded-xl !border-zinc-700 !bg-zinc-950 !px-5 !py-2.5 !text-zinc-100 hover:!border-emerald-400 hover:!text-emerald-300 focus:!ring-emerald-500 focus:!ring-offset-zinc-950 disabled:!opacity-50';
+
+const selectInputClassName =
+    'mt-1 block w-full !rounded-xl !border-zinc-700 !bg-zinc-950 !text-zinc-100 !shadow-none outline-none transition focus:!border-emerald-500 focus:!ring-2 focus:!ring-emerald-500/30 sm:w-64';
+
 export default function CodingQuestionPanel({
     question,
     questionNumber,
@@ -200,51 +206,51 @@ export default function CodingQuestionPanel({
     };
 
     return (
-        <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-            <div className="border-b border-gray-200 px-6 py-5">
+        <div className="overflow-hidden rounded-[18px] border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/20">
+            <div className="border-b border-zinc-800 px-6 py-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p className="text-sm font-medium uppercase tracking-wide text-indigo-600">
+                        <p className="text-sm font-medium uppercase tracking-[0.28em] text-emerald-300">
                             Coding question
                         </p>
-                        <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                        <h3 className="mt-2 text-lg font-semibold text-white">
                             Question {questionNumber}
                         </h3>
-                        <p className="mt-2 text-sm text-gray-500">
+                        <p className="mt-2 text-sm text-zinc-500">
                             {question.marks} marks
                             {question.difficulty
                                 ? ` - ${formatLabel(question.difficulty)}`
                                 : ''}
                         </p>
                     </div>
-                    <div className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
+                    <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-medium text-emerald-200">
                         {statusLabel(saveStatus)}
                     </div>
                 </div>
             </div>
 
-            <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:divide-x lg:divide-gray-200">
+            <div className="grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:divide-x lg:divide-zinc-800">
                 <section className="space-y-6 p-6">
                     <div>
-                        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
                             Problem
                         </h4>
-                        <p className="mt-3 whitespace-pre-line text-sm leading-7 text-gray-800">
+                        <p className="mt-3 whitespace-pre-line text-sm leading-7 text-zinc-200">
                             {question.body}
                         </p>
                     </div>
 
                     <div>
-                        <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
                             Visible test cases
                         </h4>
                         <div className="mt-4 space-y-3">
                             {question.visible_test_cases.map((testCase, index) => (
                                 <div
                                     key={testCase.id}
-                                    className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                                    className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4"
                                 >
-                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                         Test case {index + 1}
                                     </p>
                                     <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -261,7 +267,7 @@ export default function CodingQuestionPanel({
                             ))}
 
                             {question.visible_test_cases.length === 0 && (
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-zinc-500">
                                     No visible test cases provided.
                                 </p>
                             )}
@@ -270,17 +276,17 @@ export default function CodingQuestionPanel({
                 </section>
 
                 <section className="flex min-h-full flex-col">
-                    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-gray-200 px-6 py-5">
+                    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800 px-6 py-5">
                         <div>
                             <label
                                 htmlFor={`coding_language_${question.id}`}
-                                className="text-sm font-medium text-gray-700"
+                                className="text-sm font-medium text-zinc-300"
                             >
                                 Language
                             </label>
                             <select
                                 id={`coding_language_${question.id}`}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:w-64"
+                                className={selectInputClassName}
                                 value={selectedLanguage}
                                 onChange={(event) =>
                                     changeLanguage(event.target.value)
@@ -298,6 +304,7 @@ export default function CodingQuestionPanel({
                         <div className="flex flex-wrap justify-end gap-3">
                             <SecondaryButton
                                 type="button"
+                                className={secondaryActionClassName}
                                 onClick={() =>
                                     void saveAnswer(selectedLanguage, currentCode)
                                 }
@@ -307,6 +314,7 @@ export default function CodingQuestionPanel({
                             </SecondaryButton>
                             <SecondaryButton
                                 type="button"
+                                className={secondaryActionClassName}
                                 onClick={runCode}
                                 disabled={
                                     disabled ||
@@ -319,7 +327,7 @@ export default function CodingQuestionPanel({
                         </div>
                     </div>
 
-                    <div className="border-b border-gray-200">
+                    <div className="border-b border-zinc-800 bg-zinc-950">
                         <MonacoCodeEditor
                             language={selectedLanguage}
                             value={currentCode}
@@ -330,7 +338,7 @@ export default function CodingQuestionPanel({
 
                     <div className="space-y-3 px-6 py-5">
                         {errorMessage && (
-                            <p className="text-sm font-medium text-red-600">
+                            <p className="text-sm font-medium text-red-300">
                                 {errorMessage}
                             </p>
                         )}
@@ -347,12 +355,12 @@ export default function CodingQuestionPanel({
 
 function RunResultPanel({ run }: { run: RunResult }) {
     return (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h4 className="text-sm font-semibold text-gray-900">
+                <h4 className="text-sm font-semibold text-white">
                     Run results
                 </h4>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-zinc-400">
                     {run.summary.passed}/{run.summary.total} passed
                 </p>
             </div>
@@ -361,24 +369,24 @@ function RunResultPanel({ run }: { run: RunResult }) {
                 {run.results.map((result, index) => (
                     <div
                         key={result.question_test_case_id}
-                        className="rounded-md border border-gray-200 bg-white p-4"
+                        className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"
                     >
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-semibold text-white">
                                 Test Case #{index + 1}
                             </p>
                             <span
                                 className={
                                     'rounded-full px-2.5 py-1 text-xs font-medium ' +
                                     (result.passed
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700')
+                                        ? 'border border-emerald-400/20 bg-emerald-400/10 text-emerald-200'
+                                        : 'border border-red-400/20 bg-red-400/10 text-red-200')
                                 }
                             >
                                 {result.passed ? 'Passed' : 'Failed'}
                             </span>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-zinc-500">
                             Status:{' '}
                             {result.judge0_status_description ??
                                 formatLabel(result.status)}
@@ -444,15 +452,15 @@ function OutputBlock({
 
     return (
         <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                 {label}
             </p>
             <pre
                 className={
-                    'mt-1 min-h-16 whitespace-pre-wrap rounded-md bg-white p-3 text-xs ' +
+                    'mt-1 min-h-16 whitespace-pre-wrap rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs ' +
                     (displayValue === emptyText && emptyText !== ''
-                        ? 'text-gray-500'
-                        : 'text-gray-800')
+                        ? 'text-zinc-600'
+                        : 'text-zinc-200')
                 }
             >
                 {displayValue}

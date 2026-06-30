@@ -17,6 +17,16 @@ type Test = {
     creator: { id: number; name: string; email: string } | null;
 };
 
+const inputClassName =
+    'mt-1 block h-11 w-full !rounded-xl !border-zinc-700 !bg-zinc-950 !text-zinc-100 !shadow-none outline-none transition placeholder:!text-zinc-600 focus:!border-emerald-500 focus:!ring-2 focus:!ring-emerald-500/30';
+
+const labelClassName = '!text-zinc-300';
+
+const errorClassName = 'mt-2 !text-red-300';
+
+const primaryActionClassName =
+    'w-full justify-center !rounded-xl !border-emerald-500 !bg-emerald-500 !px-5 !py-2.5 !text-black hover:!bg-emerald-400 focus:!ring-emerald-500 focus:!ring-offset-zinc-950 disabled:!opacity-50 sm:w-auto';
+
 export default function Register({
     test,
     email,
@@ -43,18 +53,18 @@ export default function Register({
         test.candidate_fields.includes(field);
 
     return (
-        <GuestLayout>
+        <GuestLayout theme="dark">
             <Head title="Candidate Details" />
 
             <form onSubmit={submit} className="space-y-6">
                 <div>
-                    <p className="text-sm font-medium uppercase text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">
                         Candidate details
                     </p>
-                    <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+                    <h1 className="mt-3 text-2xl font-semibold text-white">
                         {test.title}
                     </h1>
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="mt-3 text-sm text-zinc-400">
                         From:{' '}
                         {test.organization?.name ??
                             test.creator?.name ??
@@ -63,7 +73,7 @@ export default function Register({
                 </div>
 
                 {!test.public_access_enabled && (
-                    <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-700">
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
                         This test is restricted to invited email addresses.
                         Please enter the same email that received the test
                         email.
@@ -71,32 +81,46 @@ export default function Register({
                 )}
 
                 <div>
-                    <InputLabel htmlFor="name" value="Full name" />
+                    <InputLabel
+                        htmlFor="name"
+                        value="Full name"
+                        className={labelClassName}
+                    />
                     <TextInput
                         id="name"
-                        className="mt-1 block w-full"
+                        className={inputClassName}
                         value={data.name}
                         onChange={(event) =>
                             setData('name', event.target.value)
                         }
                         required
                     />
-                    <InputError message={errors.name} className="mt-2" />
+                    <InputError
+                        message={errors.name}
+                        className={errorClassName}
+                    />
                 </div>
 
                 <div>
-                    <InputLabel htmlFor="email" value="Email" />
+                    <InputLabel
+                        htmlFor="email"
+                        value="Email"
+                        className={labelClassName}
+                    />
                     <TextInput
                         id="email"
                         type="email"
-                        className="mt-1 block w-full"
+                        className={inputClassName}
                         value={data.email}
                         onChange={(event) =>
                             setData('email', event.target.value)
                         }
                         required
                     />
-                    <InputError message={errors.email} className="mt-2" />
+                    <InputError
+                        message={errors.email}
+                        className={errorClassName}
+                    />
                 </div>
 
                 <input
@@ -111,37 +135,48 @@ export default function Register({
                     <InputLabel
                         htmlFor="phone"
                         value={`Phone${requires('phone') ? '' : ' (optional)'}`}
+                        className={labelClassName}
                     />
                     <TextInput
                         id="phone"
-                        className="mt-1 block w-full"
+                        className={inputClassName}
                         value={data.phone}
                         onChange={(event) =>
                             setData('phone', event.target.value)
                         }
                         required={requires('phone')}
                     />
-                    <InputError message={errors.phone} className="mt-2" />
+                    <InputError
+                        message={errors.phone}
+                        className={errorClassName}
+                    />
                 </div>
 
                 <div>
                     <InputLabel
                         htmlFor="stack_name"
                         value={`Stack / Skill${requires('stack_name') ? '' : ' (optional)'}`}
+                        className={labelClassName}
                     />
                     <TextInput
                         id="stack_name"
-                        className="mt-1 block w-full"
+                        className={inputClassName}
                         value={data.stack_name}
                         onChange={(event) =>
                             setData('stack_name', event.target.value)
                         }
                         required={requires('stack_name')}
                     />
-                    <InputError message={errors.stack_name} className="mt-2" />
+                    <InputError
+                        message={errors.stack_name}
+                        className={errorClassName}
+                    />
                 </div>
 
-                <PrimaryButton disabled={processing}>
+                <PrimaryButton
+                    disabled={processing}
+                    className={primaryActionClassName}
+                >
                     Continue to test
                 </PrimaryButton>
             </form>

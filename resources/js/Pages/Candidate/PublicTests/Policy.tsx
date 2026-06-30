@@ -15,6 +15,9 @@ type Test = {
     creator: { id: number; name: string; email: string } | null;
 };
 
+const primaryActionClassName =
+    'w-full justify-center !rounded-xl !border-emerald-500 !bg-emerald-500 !px-5 !py-2.5 !text-black hover:!bg-emerald-400 focus:!ring-emerald-500 focus:!ring-offset-zinc-950 disabled:!opacity-50 sm:w-auto';
+
 export default function Policy({
     test,
     email,
@@ -35,18 +38,18 @@ export default function Policy({
     };
 
     return (
-        <GuestLayout>
+        <GuestLayout theme="dark">
             <Head title="Test Policy" />
 
             <form onSubmit={submit} className="space-y-6">
                 <div>
-                    <p className="text-sm font-medium uppercase text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">
                         Test policy
                     </p>
-                    <h1 className="mt-2 text-2xl font-semibold text-gray-900">
+                    <h1 className="mt-3 text-2xl font-semibold text-white">
                         {test.title}
                     </h1>
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="mt-3 text-sm text-zinc-400">
                         From:{' '}
                         {test.organization?.name ??
                             test.creator?.name ??
@@ -54,26 +57,22 @@ export default function Policy({
                     </p>
                 </div>
 
-                <dl className="grid gap-4 rounded-md bg-gray-50 p-4 text-sm sm:grid-cols-2">
-                    <div>
-                        <dt className="font-medium text-gray-900">Duration</dt>
-                        <dd className="mt-1 text-gray-600">
-                            {test.duration_minutes} minutes
-                        </dd>
-                    </div>
-                    <div>
-                        <dt className="font-medium text-gray-900">Pass mark</dt>
-                        <dd className="mt-1 text-gray-600">
-                            {test.pass_mark}
-                        </dd>
-                    </div>
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                    <PolicyDetail
+                        label="Duration"
+                        value={`${test.duration_minutes} minutes`}
+                    />
+                    <PolicyDetail
+                        label="Pass mark"
+                        value={String(test.pass_mark)}
+                    />
                 </dl>
 
-                <div className="rounded-md border border-gray-200 p-4">
-                    <h2 className="text-base font-semibold text-gray-900">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                    <h2 className="text-base font-semibold text-white">
                         Guidelines
                     </h2>
-                    <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-gray-700">
+                    <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-zinc-300">
                         {test.policy_text
                             .split('\n')
                             .filter((line) => line.trim() !== '')
@@ -96,10 +95,24 @@ export default function Policy({
                     }
                 />
 
-                <PrimaryButton disabled={processing}>
+                <PrimaryButton
+                    disabled={processing}
+                    className={primaryActionClassName}
+                >
                     Accept guidelines
                 </PrimaryButton>
             </form>
         </GuestLayout>
+    );
+}
+
+function PolicyDetail({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {label}
+            </dt>
+            <dd className="mt-2 font-medium text-zinc-100">{value}</dd>
+        </div>
     );
 }

@@ -28,7 +28,7 @@ export default function MonacoCodeEditor({
             language={monacoLanguageByKey[language] ?? language}
             value={value}
             loading={
-                <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-400">
                     Loading editor...
                 </div>
             }
