@@ -1,4 +1,4 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
+import QuizPlatformLogo from '@/Components/QuizPlatformLogo';
 import { User } from '@/types';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode } from 'react';
@@ -28,12 +28,13 @@ export default function PublicEntryLayout({
             <header className="border-b border-zinc-200 bg-white">
                 <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="rounded-lg bg-zinc-900 p-2 text-white shadow-sm">
-                            <ApplicationLogo className="h-7 w-7 fill-current" />
-                        </div>
+                        <QuizPlatformLogo
+                            showLabel={false}
+                            markClassName="h-11 w-11"
+                        />
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-zinc-950">
-                                Online Exam Platform
+                                Online Quiz Platform
                             </p>
                             <p className="text-sm text-zinc-600">
                                 Assessment operations workspace

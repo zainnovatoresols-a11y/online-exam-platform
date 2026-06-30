@@ -1,4 +1,5 @@
 import { PageProps } from '@/types';
+import QuizPlatformLogo from '@/Components/QuizPlatformLogo';
 import { Head, Link } from '@inertiajs/react';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -92,7 +93,7 @@ const metrics = [
 export default function Welcome({ auth }: PageProps) {
     return (
         <>
-            <Head title="Online Exam Platform" />
+            <Head title="Online Quiz Platform" />
 
             <div className="min-h-screen bg-zinc-950 text-zinc-100" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" }}>
 
@@ -102,12 +103,7 @@ export default function Welcome({ auth }: PageProps) {
                     style={{ background: 'rgba(9,9,11,0.85)' }}
                 >
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500">
-                            <svg className="h-3.5 w-3.5 text-black" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M8 1L1 5v6l7 4 7-4V5L8 1zm0 2.18L13.09 6 8 8.82 2.91 6 8 3.18zM2.5 7.27l5 2.87v4.04L2.5 11.3V7.27zm6.5 6.91V10.14l5-2.87v4.04l-5 2.87z" />
-                            </svg>
-                        </div>
-                        <span className="text-sm font-semibold text-white">ExamPlatform</span>
+                        <QuizPlatformLogo markClassName="h-7 w-7 rounded-lg" />
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -457,14 +453,11 @@ export default function Welcome({ auth }: PageProps) {
                     style={{ borderTop: '1px solid rgba(39,39,42,0.5)' }}
                 >
                     <div className="flex items-center gap-2.5">
-                        <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg bg-emerald-500">
-                            <svg className="h-3 w-3 text-black" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M8 1L1 5v6l7 4 7-4V5L8 1zm0 2.18L13.09 6 8 8.82 2.91 6 8 3.18zM2.5 7.27l5 2.87v4.04L2.5 11.3V7.27zm6.5 6.91V10.14l5-2.87v4.04l-5 2.87z" />
-                            </svg>
-                        </div>
-                        <span className="text-sm font-semibold text-white">ExamPlatform</span>
+                        <QuizPlatformLogo markClassName="h-[26px] w-[26px] rounded-lg" />
                     </div>
-                    <span className="text-[10px] text-zinc-700">© 2025 ExamPlatform. All rights reserved.</span>
+                    <span className="text-[10px] text-zinc-700">
+                        (c) 2025 Online Quiz Platform. All rights reserved.
+                    </span>
                 </footer>
 
             </div>

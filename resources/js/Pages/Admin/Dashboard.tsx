@@ -51,12 +51,12 @@ export default function Dashboard() {
                         Admin Workspace
                     </p>
                     <h2 className="mt-2 text-xl font-semibold leading-tight text-white">
-                        Online Exam Platform
+                        Online Quiz Platform
                     </h2>
                 </div>
             }
         >
-            <Head title="Online Exam Platform" />
+            <Head title="Online Quiz Platform" />
 
             <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl space-y-8">
