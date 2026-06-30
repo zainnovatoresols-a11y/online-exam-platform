@@ -1,6 +1,5 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { PageProps } from '@/types';
 import { Transition } from '@headlessui/react';
@@ -9,9 +8,9 @@ import { FormEventHandler } from 'react';
 
 const labelClass = 'text-zinc-300';
 const fieldClass =
-    '!rounded-xl !border-zinc-700 !bg-zinc-950 !text-zinc-100 !shadow-none outline-none transition placeholder:!text-zinc-600 focus:!border-emerald-500 focus:!ring-2 focus:!ring-emerald-500/30';
+    '!h-11 !rounded-xl !border-zinc-700 !bg-zinc-950 !text-zinc-100 !shadow-none outline-none transition placeholder:!text-zinc-600 focus:!border-emerald-500 focus:!ring-2 focus:!ring-emerald-500/30';
 const primaryButtonClass =
-    '!h-11 !min-w-28 !justify-center !rounded-xl !bg-emerald-500 !px-5 !py-0 !text-sm !font-bold !tracking-normal !text-black hover:!bg-emerald-400 focus:!bg-emerald-400 focus:!ring-emerald-500/40 focus:!ring-offset-zinc-950 active:!bg-emerald-500 disabled:!opacity-60';
+    'inline-flex h-11 min-w-28 items-center justify-center rounded-xl bg-emerald-500 px-5 text-sm font-bold text-black transition hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-2 focus:ring-offset-zinc-950 active:bg-emerald-500 disabled:opacity-60';
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
@@ -97,7 +96,7 @@ export default function UpdateProfileInformation({
                                 href={route('verification.send')}
                                 method="post"
                                 as="button"
-                                className="rounded-md text-sm font-semibold text-emerald-300 underline-offset-4 hover:text-emerald-200 hover:underline focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                                className="rounded-lg text-sm font-semibold text-emerald-300 underline-offset-4 hover:text-emerald-200 hover:underline focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:ring-offset-2 focus:ring-offset-zinc-900"
                             >
                                 Click here to re-send the verification email.
                             </Link>
@@ -113,12 +112,13 @@ export default function UpdateProfileInformation({
                 )}
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton
+                    <button
+                        type="submit"
                         disabled={processing}
                         className={primaryButtonClass}
                     >
                         Save
-                    </PrimaryButton>
+                    </button>
 
                     <Transition
                         show={recentlySuccessful}
