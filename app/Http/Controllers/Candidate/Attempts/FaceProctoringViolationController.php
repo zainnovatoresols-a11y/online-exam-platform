@@ -6,9 +6,12 @@ use App\Actions\Attempts\StoreFaceProctoringViolation;
 use App\Enums\InvitationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Candidate\Attempts\StoreFaceProctoringViolationRequest;
+use App\Http\Requests\Candidate\Attempts\UpdateFaceProctoringDurationRequest;
 use App\Models\Invitation;
+use App\Models\ProctoringFaceSnapshot;
 use App\Models\TestAttempt;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -48,6 +51,9 @@ class FaceProctoringViolationController extends Controller
                 (int) $request->validated('face_count'),
                 $request->file('snapshot'),
                 $request->validated('captured_at'),
+                $request->validated('started_at'),
+                $request->validated('ended_at'),
+                $request->validated('duration_seconds'),
                 $request->validated('metadata', []),
                 $request,
             );
@@ -63,6 +69,80 @@ class FaceProctoringViolationController extends Controller
             'snapshot_id' => $snapshot->id,
             'event_id' => $snapshot->proctoring_event_id,
         ], 201);
+    }
+
+    public function updateDuration(
+        UpdateFaceProctoringDurationRequest $request,
+        TestAttempt $attempt,
+        ProctoringFaceSnapshot $snapshot,
+    ): JsonResponse {
+        Gate::authorize('save', $attempt);
+
+        abort_unless((int) $snapshot->test_attempt_id === (int) $attempt->id, 404);
+
+        return $this->updateSnapshotDuration($request, $attempt, $snapshot);
+    }
+
+    public function updatePublicDuration(
+        UpdateFaceProctoringDurationRequest $request,
+        string $attemptToken,
+        ProctoringFaceSnapshot $snapshot,
+    ): JsonResponse {
+        $attempt = $this->attemptForToken($attemptToken);
+
+        abort_unless($attempt && $attempt->isInProgress(), 403);
+        abort_unless((int) $snapshot->test_attempt_id === (int) $attempt->id, 404);
+
+        return $this->updateSnapshotDuration($request, $attempt, $snapshot);
+    }
+
+    private function updateSnapshotDuration(
+        UpdateFaceProctoringDurationRequest $request,
+        TestAttempt $attempt,
+        ProctoringFaceSnapshot $snapshot,
+    ): JsonResponse {
+        if (! $attempt->isInProgress()) {
+            return response()->json([
+                'message' => 'Face monitoring duration can only be updated for an in-progress attempt.',
+            ], 422);
+        }
+
+        if ($attempt->isExpired()) {
+            return response()->json([
+                'message' => 'Face monitoring duration can no longer be updated after the attempt has expired.',
+            ], 422);
+        }
+
+        $metadata = $snapshot->metadata ?? [];
+        $newMetadata = $request->validated('metadata', []);
+
+        foreach ($newMetadata as $key => $value) {
+            if (is_string($key)) {
+                $metadata[$key] = $value;
+            }
+        }
+
+        $endedAt = Carbon::parse($request->validated('ended_at'));
+        $durationSeconds = max((int) $request->validated('duration_seconds'), 0);
+
+        $snapshot->forceFill([
+            'ended_at' => $endedAt,
+            'duration_seconds' => $durationSeconds,
+            'metadata' => $metadata,
+        ])->save();
+
+        $snapshot->event?->update([
+            'metadata' => array_merge($snapshot->event->metadata ?? [], [
+                'ended_at' => $endedAt->toISOString(),
+                'duration_seconds' => $durationSeconds,
+            ]),
+        ]);
+
+        return response()->json([
+            'updated' => true,
+            'snapshot_id' => $snapshot->id,
+            'duration_seconds' => $snapshot->duration_seconds,
+        ]);
     }
 
     private function attemptForToken(string $attemptToken): ?TestAttempt

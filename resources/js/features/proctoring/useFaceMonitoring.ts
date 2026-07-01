@@ -39,6 +39,7 @@ export type FaceMonitoringControls = {
     status: FaceMonitoringStatus;
     warning: string | null;
     counts: FaceMonitoringCounts;
+    noFaceDurationSeconds: number;
 };
 
 const MEDIAPIPE_VERSION = '0.10.35';
@@ -65,6 +66,8 @@ export function useFaceMonitoring(
         checks: number;
     }>({ type: null, checks: 0 });
     const activeViolationRef = useRef<FaceViolationType | null>(null);
+    const noFaceStartedAtRef = useRef<number | null>(null);
+    const activeNoFaceSnapshotIdRef = useRef<number | null>(null);
     const uploadInProgressRef = useRef(false);
     const warningTimerRef = useRef<number | null>(null);
     const [status, setStatus] = useState<FaceMonitoringStatus>('idle');
@@ -73,6 +76,7 @@ export function useFaceMonitoring(
         no_face: 0,
         multiple_faces: 0,
     });
+    const [noFaceDurationSeconds, setNoFaceDurationSeconds] = useState(0);
 
     useEffect(() => {
         disabledRef.current = disabled;
@@ -101,6 +105,7 @@ export function useFaceMonitoring(
             violationType: FaceViolationType,
             faceCount: number,
             video: HTMLVideoElement,
+            startedAtMs: number | null,
         ) => {
             if (uploadInProgressRef.current || disabledRef.current) {
                 return;
@@ -117,10 +122,20 @@ export function useFaceMonitoring(
 
                 const metadata = baseMetadata(video);
                 const formData = new FormData();
+                const now = Date.now();
+                const effectiveStartedAtMs = startedAtMs ?? now;
 
                 formData.append('violation_type', violationType);
                 formData.append('face_count', String(faceCount));
-                formData.append('captured_at', new Date().toISOString());
+                formData.append('captured_at', new Date(now).toISOString());
+                formData.append(
+                    'started_at',
+                    new Date(effectiveStartedAtMs).toISOString(),
+                );
+                formData.append(
+                    'duration_seconds',
+                    String(secondsBetween(effectiveStartedAtMs, now)),
+                );
                 formData.append('snapshot', snapshot, `${violationType}.jpg`);
 
                 Object.entries(metadata).forEach(([key, value]) => {
@@ -129,18 +144,38 @@ export function useFaceMonitoring(
                     }
                 });
 
-                await axios.post(storeUrl, formData, {
+                const response = await axios.post(storeUrl, formData, {
                     headers: {
                         Accept: 'application/json',
                     },
                 });
+
+                const snapshotId = Number(response.data?.snapshot_id);
+
+                if (
+                    violationType === 'no_face' &&
+                    Number.isFinite(snapshotId)
+                ) {
+                    if (noFaceStartedAtRef.current !== null) {
+                        activeNoFaceSnapshotIdRef.current = snapshotId;
+                    } else {
+                        void updateNoFaceDuration(
+                            attempt,
+                            snapshotId,
+                            effectiveStartedAtMs,
+                            Date.now(),
+                            setNoFaceDurationSeconds,
+                            setStatus,
+                        );
+                    }
+                }
             } catch {
                 setStatus('upload_error');
             } finally {
                 uploadInProgressRef.current = false;
             }
         },
-        [storeUrl],
+        [attempt, storeUrl],
     );
 
     useEffect(() => {
@@ -194,11 +229,16 @@ export function useFaceMonitoring(
                         handleFaceCount(
                             result.detections.length,
                             video,
+                            attempt,
                             uploadViolation,
                             showWarning,
                             setCounts,
+                            setNoFaceDurationSeconds,
+                            setStatus,
                             consecutiveRef,
                             activeViolationRef,
+                            noFaceStartedAtRef,
+                            activeNoFaceSnapshotIdRef,
                         );
                     } catch {
                         setStatus('model_error');
@@ -222,10 +262,25 @@ export function useFaceMonitoring(
 
             video.pause();
             video.srcObject = null;
+            if (
+                activeNoFaceSnapshotIdRef.current !== null &&
+                noFaceStartedAtRef.current !== null
+            ) {
+                void updateNoFaceDuration(
+                    attempt,
+                    activeNoFaceSnapshotIdRef.current,
+                    noFaceStartedAtRef.current,
+                    Date.now(),
+                    setNoFaceDurationSeconds,
+                    setStatus,
+                );
+            }
             consecutiveRef.current = { type: null, checks: 0 };
             activeViolationRef.current = null;
+            noFaceStartedAtRef.current = null;
+            activeNoFaceSnapshotIdRef.current = null;
         };
-    }, [cameraStream, disabled, showWarning, uploadViolation]);
+    }, [attempt, cameraStream, disabled, showWarning, uploadViolation]);
 
     useEffect(() => {
         return () => {
@@ -239,24 +294,31 @@ export function useFaceMonitoring(
         status,
         warning,
         counts,
+        noFaceDurationSeconds,
     };
 }
 
 function handleFaceCount(
     faceCount: number,
     video: HTMLVideoElement,
+    attempt: ProctoringAttempt,
     uploadViolation: (
         violationType: FaceViolationType,
         faceCount: number,
         video: HTMLVideoElement,
+        startedAtMs: number | null,
     ) => Promise<void>,
     showWarning: (violationType: FaceViolationType) => void,
     setCounts: Dispatch<SetStateAction<FaceMonitoringCounts>>,
+    setNoFaceDurationSeconds: Dispatch<SetStateAction<number>>,
+    setStatus: Dispatch<SetStateAction<FaceMonitoringStatus>>,
     consecutiveRef: MutableRefObject<{
         type: FaceViolationType | null;
         checks: number;
     }>,
     activeViolationRef: MutableRefObject<FaceViolationType | null>,
+    noFaceStartedAtRef: MutableRefObject<number | null>,
+    activeNoFaceSnapshotIdRef: MutableRefObject<number | null>,
 ) {
     const violationType =
         faceCount === 0
@@ -264,6 +326,20 @@ function handleFaceCount(
             : faceCount > 1
               ? 'multiple_faces'
               : null;
+
+    if (violationType === 'no_face' && noFaceStartedAtRef.current === null) {
+        noFaceStartedAtRef.current = Date.now();
+    }
+
+    if (violationType !== 'no_face') {
+        finalizeNoFaceIfNeeded(
+            attempt,
+            noFaceStartedAtRef,
+            activeNoFaceSnapshotIdRef,
+            setNoFaceDurationSeconds,
+            setStatus,
+        );
+    }
 
     if (!violationType) {
         consecutiveRef.current = { type: null, checks: 0 };
@@ -290,7 +366,74 @@ function handleFaceCount(
         [violationType]: current[violationType] + 1,
     }));
     showWarning(violationType);
-    void uploadViolation(violationType, faceCount, video);
+    void uploadViolation(
+        violationType,
+        faceCount,
+        video,
+        violationType === 'no_face' ? noFaceStartedAtRef.current : null,
+    );
+}
+
+function finalizeNoFaceIfNeeded(
+    attempt: ProctoringAttempt,
+    noFaceStartedAtRef: MutableRefObject<number | null>,
+    activeNoFaceSnapshotIdRef: MutableRefObject<number | null>,
+    setNoFaceDurationSeconds: Dispatch<SetStateAction<number>>,
+    setStatus: Dispatch<SetStateAction<FaceMonitoringStatus>>,
+): void {
+    const startedAtMs = noFaceStartedAtRef.current;
+    const snapshotId = activeNoFaceSnapshotIdRef.current;
+
+    noFaceStartedAtRef.current = null;
+    activeNoFaceSnapshotIdRef.current = null;
+
+    if (startedAtMs === null || snapshotId === null) {
+        return;
+    }
+
+    void updateNoFaceDuration(
+        attempt,
+        snapshotId,
+        startedAtMs,
+        Date.now(),
+        setNoFaceDurationSeconds,
+        setStatus,
+    );
+}
+
+async function updateNoFaceDuration(
+    attempt: ProctoringAttempt,
+    snapshotId: number,
+    startedAtMs: number,
+    endedAtMs: number,
+    setNoFaceDurationSeconds: Dispatch<SetStateAction<number>>,
+    setStatus: Dispatch<SetStateAction<FaceMonitoringStatus>>,
+): Promise<void> {
+    const durationSeconds = secondsBetween(startedAtMs, endedAtMs);
+
+    if (durationSeconds <= 0) {
+        return;
+    }
+
+    setNoFaceDurationSeconds((current) => current + durationSeconds);
+
+    try {
+        await axios.patch(
+            faceViolationDurationRoute(attempt, snapshotId),
+            {
+                ended_at: new Date(endedAtMs).toISOString(),
+                duration_seconds: durationSeconds,
+                metadata: durationMetadata(),
+            },
+            {
+                headers: {
+                    Accept: 'application/json',
+                },
+            },
+        );
+    } catch {
+        setStatus('upload_error');
+    }
 }
 
 async function faceDetector(): Promise<FaceDetector> {
@@ -376,6 +519,23 @@ function faceViolationRoute(attempt: ProctoringAttempt): string {
     return route('candidate.attempts.face-proctoring-violations.store', attempt.id);
 }
 
+function faceViolationDurationRoute(
+    attempt: ProctoringAttempt,
+    snapshotId: number,
+): string {
+    if (attempt.is_public && attempt.access_token) {
+        return route(
+            'candidate.public-attempts.face-proctoring-violations.duration.update',
+            [attempt.access_token, snapshotId],
+        );
+    }
+
+    return route('candidate.attempts.face-proctoring-violations.duration.update', [
+        attempt.id,
+        snapshotId,
+    ]);
+}
+
 function baseMetadata(video: HTMLVideoElement): Metadata {
     return {
         video_width: video.videoWidth,
@@ -386,4 +546,18 @@ function baseMetadata(video: HTMLVideoElement): Metadata {
         fullscreen: Boolean(document.fullscreenElement),
         language: navigator.language,
     };
+}
+
+function durationMetadata(): Metadata {
+    return {
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        visibility_state: document.visibilityState,
+        fullscreen: Boolean(document.fullscreenElement),
+        language: navigator.language,
+    };
+}
+
+function secondsBetween(startedAtMs: number, endedAtMs: number): number {
+    return Math.max(0, Math.round((endedAtMs - startedAtMs) / 1000));
 }

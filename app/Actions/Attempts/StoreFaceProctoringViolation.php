@@ -31,6 +31,9 @@ class StoreFaceProctoringViolation
         int $faceCount,
         UploadedFile $snapshot,
         ?string $capturedAt,
+        ?string $startedAt,
+        ?string $endedAt,
+        ?int $durationSeconds,
         array $metadata,
         Request $request,
     ): ProctoringFaceSnapshot {
@@ -45,6 +48,13 @@ class StoreFaceProctoringViolation
         $metadata = $this->sanitizeMetadata($metadata);
         $mimeType = $snapshot->getMimeType();
         $capturedAtValue = $capturedAt ? Carbon::parse($capturedAt) : now();
+        $startedAtValue = $startedAt ? Carbon::parse($startedAt) : $capturedAtValue;
+        $endedAtValue = $endedAt ? Carbon::parse($endedAt) : null;
+        $durationSeconds = $this->durationSeconds(
+            $durationSeconds,
+            $startedAtValue,
+            $endedAtValue,
+        );
 
         $directory = "proctoring/attempts/{$attempt->id}/face-violations";
         $filename = sprintf(
@@ -71,6 +81,9 @@ class StoreFaceProctoringViolation
                 'face_count' => $faceCount,
                 'snapshot_mime_type' => $mimeType,
                 'snapshot_size_bytes' => $snapshot->getSize(),
+                'started_at' => $startedAtValue->toISOString(),
+                'ended_at' => $endedAtValue?->toISOString(),
+                'duration_seconds' => $durationSeconds,
             ], $metadata),
             $request,
         )['event'];
@@ -85,6 +98,9 @@ class StoreFaceProctoringViolation
             'mime_type' => $mimeType,
             'size_bytes' => $snapshot->getSize(),
             'captured_at' => $capturedAtValue,
+            'started_at' => $startedAtValue,
+            'ended_at' => $endedAtValue,
+            'duration_seconds' => $durationSeconds,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'metadata' => $metadata,
@@ -113,5 +129,21 @@ class StoreFaceProctoringViolation
             'image/webp' => 'webp',
             default => 'jpg',
         };
+    }
+
+    private function durationSeconds(
+        ?int $durationSeconds,
+        Carbon $startedAt,
+        ?Carbon $endedAt,
+    ): int {
+        if ($durationSeconds !== null) {
+            return max($durationSeconds, 0);
+        }
+
+        if (! $endedAt) {
+            return 0;
+        }
+
+        return (int) max($startedAt->diffInSeconds($endedAt, false), 0);
     }
 }

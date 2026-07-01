@@ -65,6 +65,9 @@ Route::post('/public-attempts/{attemptToken}/proctoring-events', [ProctoringEven
 Route::post('/public-attempts/{attemptToken}/face-proctoring-violations', [FaceProctoringViolationController::class, 'storePublic'])
     ->middleware('throttle:30,1')
     ->name('candidate.public-attempts.face-proctoring-violations.store');
+Route::patch('/public-attempts/{attemptToken}/face-proctoring-violations/{snapshot}/duration', [FaceProctoringViolationController::class, 'updatePublicDuration'])
+    ->middleware('throttle:60,1')
+    ->name('candidate.public-attempts.face-proctoring-violations.duration.update');
 Route::post('/public-attempts/{attemptToken}/proctoring-recordings/start', [ProctoringRecordingController::class, 'startPublic'])
     ->middleware('throttle:20,1')
     ->name('candidate.public-attempts.proctoring-recordings.start');
@@ -197,6 +200,9 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
         Route::post('/attempts/{attempt}/face-proctoring-violations', [FaceProctoringViolationController::class, 'store'])
             ->middleware('throttle:30,1')
             ->name('attempts.face-proctoring-violations.store');
+        Route::patch('/attempts/{attempt}/face-proctoring-violations/{snapshot}/duration', [FaceProctoringViolationController::class, 'updateDuration'])
+            ->middleware('throttle:60,1')
+            ->name('attempts.face-proctoring-violations.duration.update');
         Route::post('/attempts/{attempt}/proctoring-recordings/start', [ProctoringRecordingController::class, 'start'])
             ->middleware('throttle:20,1')
             ->name('attempts.proctoring-recordings.start');

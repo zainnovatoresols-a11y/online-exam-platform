@@ -521,6 +521,15 @@ export default function Show({
                                             No face:{' '}
                                             {faceMonitoring.counts.no_face}
                                         </span>
+                                        {faceMonitoring.noFaceDurationSeconds >
+                                            0 && (
+                                            <span className="rounded-full border border-orange-400/20 bg-orange-400/10 px-2.5 py-1 font-semibold text-orange-100">
+                                                Away time:{' '}
+                                                {formatDuration(
+                                                    faceMonitoring.noFaceDurationSeconds,
+                                                )}
+                                            </span>
+                                        )}
                                         <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 font-semibold text-red-100">
                                             Multiple faces:{' '}
                                             {
@@ -1019,6 +1028,18 @@ function faceMonitoringStatusLabel(status: string): string {
             upload_error: 'Evidence upload issue',
         }[status] ?? status
     );
+}
+
+function formatDuration(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.round(totalSeconds));
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (minutes <= 0) {
+        return `${remainingSeconds}s`;
+    }
+
+    return `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s`;
 }
 
 function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {

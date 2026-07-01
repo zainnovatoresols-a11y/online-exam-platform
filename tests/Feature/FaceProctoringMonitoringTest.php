@@ -40,6 +40,8 @@ class FaceProctoringMonitoringTest extends TestCase
                 'face_count' => 0,
                 'snapshot' => UploadedFile::fake()->image('no-face.jpg', 640, 360),
                 'captured_at' => now()->toISOString(),
+                'started_at' => now()->subSeconds(5)->toISOString(),
+                'duration_seconds' => 5,
                 'metadata' => [
                     'video_width' => 640,
                     'fullscreen' => true,
@@ -60,6 +62,7 @@ class FaceProctoringMonitoringTest extends TestCase
         $this->assertSame($candidate->id, $snapshot->candidate_user_id);
         $this->assertSame('no_face', $snapshot->violation_type);
         $this->assertSame(0, $snapshot->face_count);
+        $this->assertSame(5, $snapshot->duration_seconds);
         $this->assertSame('10.20.30.40', $snapshot->ip_address);
         $this->assertSame('FaceBrowser/1.0', $snapshot->user_agent);
         Storage::disk('local')->assertExists($snapshot->path);
@@ -71,6 +74,36 @@ class FaceProctoringMonitoringTest extends TestCase
             'event_type' => 'face_no_face_detected',
             'severity' => 'high',
         ]);
+    }
+
+    public function test_candidate_can_update_no_face_duration_when_face_returns(): void
+    {
+        Storage::fake('local');
+
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        [, $attempt] = $this->attemptForCandidate($candidate);
+        $snapshot = $this->storeSnapshot($attempt, 'no_face', 0);
+
+        $this->actingAs($candidate)
+            ->patchJson(route('candidate.attempts.face-proctoring-violations.duration.update', [$attempt, $snapshot]), [
+                'ended_at' => now()->toISOString(),
+                'duration_seconds' => 17,
+                'metadata' => [
+                    'visibility_state' => 'visible',
+                ],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'updated' => true,
+                'duration_seconds' => 17,
+            ]);
+
+        $snapshot->refresh();
+
+        $this->assertSame(17, $snapshot->duration_seconds);
+        $this->assertNotNull($snapshot->ended_at);
+        $this->assertSame('visible', $snapshot->metadata['visibility_state']);
+        $this->assertSame(17, $snapshot->event->refresh()->metadata['duration_seconds']);
     }
 
     public function test_public_candidate_can_upload_face_violation_using_attempt_token(): void
@@ -216,8 +249,10 @@ class FaceProctoringMonitoringTest extends TestCase
             ->where('face_proctoring_summary.total', 2)
             ->where('face_proctoring_summary.no_face', 1)
             ->where('face_proctoring_summary.multiple_faces', 1)
+            ->where('face_proctoring_summary.no_face_duration_seconds', 12)
             ->where('face_proctoring_snapshots.total', 2)
             ->has('face_proctoring_snapshots.data', 2)
+            ->where('face_proctoring_snapshots.data.1.duration_seconds', 12)
             ->where('face_proctoring_snapshots.data.0.url', fn (string $url): bool => str_contains($url, '/admin/proctoring-face-snapshots/')));
     }
 
@@ -273,6 +308,9 @@ class FaceProctoringMonitoringTest extends TestCase
             'mime_type' => 'image/jpeg',
             'size_bytes' => 18,
             'captured_at' => now(),
+            'started_at' => now()->subSeconds(12),
+            'ended_at' => $violationType === 'no_face' ? now() : null,
+            'duration_seconds' => $violationType === 'no_face' ? 12 : 0,
             'ip_address' => '127.0.0.1',
             'user_agent' => 'FaceBrowser/1.0',
             'metadata' => [

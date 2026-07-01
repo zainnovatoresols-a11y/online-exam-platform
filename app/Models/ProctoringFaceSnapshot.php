@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'mime_type',
     'size_bytes',
     'captured_at',
+    'started_at',
+    'ended_at',
+    'duration_seconds',
     'ip_address',
     'user_agent',
     'metadata',
@@ -30,6 +33,8 @@ class ProctoringFaceSnapshot extends Model
     {
         return [
             'captured_at' => 'datetime',
+            'started_at' => 'datetime',
+            'ended_at' => 'datetime',
             'metadata' => 'array',
         ];
     }

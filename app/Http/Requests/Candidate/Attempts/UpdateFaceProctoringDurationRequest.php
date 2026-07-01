@@ -6,10 +6,9 @@ use App\Http\Requests\Concerns\ValidatesSafeMetadata;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class StoreFaceProctoringViolationRequest extends FormRequest
+class UpdateFaceProctoringDurationRequest extends FormRequest
 {
     use ValidatesSafeMetadata;
 
@@ -24,13 +23,8 @@ class StoreFaceProctoringViolationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'violation_type' => ['required', 'string', Rule::in(['no_face', 'multiple_faces'])],
-            'face_count' => ['required', 'integer', 'min:0', 'max:20'],
-            'snapshot' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
-            'captured_at' => ['nullable', 'date'],
-            'started_at' => ['nullable', 'date'],
-            'ended_at' => ['nullable', 'date'],
-            'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
+            'ended_at' => ['required', 'date'],
+            'duration_seconds' => ['required', 'integer', 'min:0', 'max:86400'],
             'metadata' => ['nullable', 'array'],
         ];
     }

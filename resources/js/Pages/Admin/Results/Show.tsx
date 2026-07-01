@@ -154,6 +154,7 @@ type FaceProctoringSummary = {
     total: number;
     no_face: number;
     multiple_faces: number;
+    no_face_duration_seconds: number;
     first_captured_at: string | null;
     last_captured_at: string | null;
 };
@@ -165,6 +166,9 @@ type FaceProctoringSnapshot = {
     mime_type: string | null;
     size_bytes: number | null;
     captured_at: string | null;
+    started_at: string | null;
+    ended_at: string | null;
+    duration_seconds: number;
     ip_address: string | null;
     user_agent: string | null;
     metadata: Record<string, unknown>;
@@ -786,9 +790,12 @@ function FaceMonitoringReview({
             </div>
 
             <div className="space-y-6 p-6">
-                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
                     <Metric label="Total violations">{summary.total}</Metric>
                     <Metric label="No face">{summary.no_face}</Metric>
+                    <Metric label="No-face time">
+                        {formatDuration(summary.no_face_duration_seconds)}
+                    </Metric>
                     <Metric label="Multiple faces">
                         {summary.multiple_faces}
                     </Metric>
@@ -849,6 +856,14 @@ function FaceSnapshotCard({
                     </Detail>
                     <Detail label="Captured">
                         {formatDateTime(snapshot.captured_at)}
+                    </Detail>
+                    <Detail label="Duration">
+                        {snapshot.violation_type === 'no_face'
+                            ? formatDuration(snapshot.duration_seconds)
+                            : 'Not tracked'}
+                    </Detail>
+                    <Detail label="Returned">
+                        {formatDateTime(snapshot.ended_at)}
                     </Detail>
                     <Detail label="IP address">
                         {formatNullableValue(snapshot.ip_address)}
@@ -1967,6 +1982,23 @@ function formatDateTime(value?: string | null): string {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));
+}
+
+function formatDuration(totalSeconds: number | null | undefined): string {
+    const seconds = Math.max(0, Math.round(totalSeconds ?? 0));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(remainingSeconds).padStart(2, '0')}s`;
+    }
+
+    if (minutes > 0) {
+        return `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s`;
+    }
+
+    return `${remainingSeconds}s`;
 }
 
 function formatLabel(value: string): string {

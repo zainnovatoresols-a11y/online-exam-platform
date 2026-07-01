@@ -92,7 +92,7 @@ class TestResultController extends Controller
 
         $proctoringRecordings = $attempt->proctoringRecordings()->get();
         $faceSnapshotsSummary = $attempt->proctoringFaceSnapshots()
-            ->get(['violation_type', 'face_count', 'captured_at']);
+            ->get(['violation_type', 'face_count', 'captured_at', 'duration_seconds']);
 
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
@@ -450,6 +450,9 @@ class TestResultController extends Controller
             'total' => $snapshots->count(),
             'no_face' => $snapshots->where('violation_type', 'no_face')->count(),
             'multiple_faces' => $snapshots->where('violation_type', 'multiple_faces')->count(),
+            'no_face_duration_seconds' => (int) $snapshots
+                ->where('violation_type', 'no_face')
+                ->sum('duration_seconds'),
             'first_captured_at' => $ordered->first()?->captured_at?->toISOString(),
             'last_captured_at' => $ordered->last()?->captured_at?->toISOString(),
         ];
@@ -482,6 +485,9 @@ class TestResultController extends Controller
             'mime_type' => $snapshot->mime_type,
             'size_bytes' => $snapshot->size_bytes,
             'captured_at' => $snapshot->captured_at?->toISOString(),
+            'started_at' => $snapshot->started_at?->toISOString(),
+            'ended_at' => $snapshot->ended_at?->toISOString(),
+            'duration_seconds' => $snapshot->duration_seconds,
             'ip_address' => $snapshot->ip_address,
             'user_agent' => $snapshot->user_agent,
             'metadata' => $snapshot->metadata ?? [],
