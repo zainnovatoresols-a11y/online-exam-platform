@@ -42,6 +42,8 @@ class RecordProctoringEvent
         'screen_recording_chunk_failed' => 'medium',
         'screen_recording_error' => 'medium',
         'screen_share_ended' => 'high',
+        'face_no_face_detected' => 'high',
+        'face_multiple_faces_detected' => 'high',
     ];
 
     /**

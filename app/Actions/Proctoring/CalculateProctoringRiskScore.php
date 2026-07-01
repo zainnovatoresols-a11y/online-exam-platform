@@ -33,6 +33,8 @@ class CalculateProctoringRiskScore
         'screen_share_ended' => 20,
         'camera_recording_chunk_failed' => 4,
         'screen_recording_chunk_failed' => 5,
+        'face_no_face_detected' => 12,
+        'face_multiple_faces_detected' => 20,
     ];
 
     /**

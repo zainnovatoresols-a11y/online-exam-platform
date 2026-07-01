@@ -10,6 +10,7 @@ use App\Models\CandidateTestDetail;
 use App\Models\CodeExecutionRun;
 use App\Models\Invitation;
 use App\Models\ProctoringEvent;
+use App\Models\ProctoringFaceSnapshot;
 use App\Models\ProctoringRecording;
 use App\Models\ProctoringRecordingChunk;
 use App\Models\Test;
@@ -90,6 +91,8 @@ class TestResultController extends Controller
         $proctoringEvents->through(fn (ProctoringEvent $event): array => $this->proctoringEventPayload($event));
 
         $proctoringRecordings = $attempt->proctoringRecordings()->get();
+        $faceSnapshotsSummary = $attempt->proctoringFaceSnapshots()
+            ->get(['violation_type', 'face_count', 'captured_at']);
 
         return Inertia::render('Admin/Results/Show', [
             'test' => $this->testPayload($test),
@@ -120,6 +123,8 @@ class TestResultController extends Controller
             'proctoring_recording_summary' => $this->proctoringRecordingSummary($proctoringRecordings),
             'proctoring_camera_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'camera', 'camera_recording_page'),
             'proctoring_screen_recording_chunks' => $this->proctoringRecordingChunks($attempt, 'screen', 'screen_recording_page'),
+            'face_proctoring_summary' => $this->faceProctoringSummary($faceSnapshotsSummary),
+            'face_proctoring_snapshots' => $this->faceProctoringSnapshots($attempt),
         ]);
     }
 
@@ -356,6 +361,8 @@ class TestResultController extends Controller
             'recording_errors' => $events->filter(fn (ProctoringEvent $event): bool => str_ends_with($event->event_type, '_recording_error')
                 || str_ends_with($event->event_type, '_recording_chunk_failed'))->count(),
             'screen_share_ended' => $events->where('event_type', 'screen_share_ended')->count(),
+            'no_face_violations' => $events->where('event_type', 'face_no_face_detected')->count(),
+            'multiple_face_violations' => $events->where('event_type', 'face_multiple_faces_detected')->count(),
         ];
     }
 
@@ -428,6 +435,63 @@ class TestResultController extends Controller
             'screen_merged_at' => $screen?->merged_at?->toISOString(),
             'screen_merged_size_bytes' => $screen?->merged_size_bytes ?? 0,
             'screen_merge_error' => $screen?->merge_error,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ProctoringFaceSnapshot>  $snapshots
+     * @return array<string, mixed>
+     */
+    private function faceProctoringSummary(Collection $snapshots): array
+    {
+        $ordered = $snapshots->sortBy('captured_at');
+
+        return [
+            'total' => $snapshots->count(),
+            'no_face' => $snapshots->where('violation_type', 'no_face')->count(),
+            'multiple_faces' => $snapshots->where('violation_type', 'multiple_faces')->count(),
+            'first_captured_at' => $ordered->first()?->captured_at?->toISOString(),
+            'last_captured_at' => $ordered->last()?->captured_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    private function faceProctoringSnapshots(TestAttempt $attempt): LengthAwarePaginator
+    {
+        $snapshots = $attempt->proctoringFaceSnapshots()
+            ->with('event:id,event_type,severity,occurred_at')
+            ->latest('captured_at')
+            ->latest('id')
+            ->paginate(12, ['*'], 'face_page')
+            ->withQueryString();
+
+        return $snapshots->through(fn (ProctoringFaceSnapshot $snapshot): array => $this->faceSnapshotPayload($snapshot));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function faceSnapshotPayload(ProctoringFaceSnapshot $snapshot): array
+    {
+        return [
+            'id' => $snapshot->id,
+            'violation_type' => $snapshot->violation_type,
+            'face_count' => $snapshot->face_count,
+            'mime_type' => $snapshot->mime_type,
+            'size_bytes' => $snapshot->size_bytes,
+            'captured_at' => $snapshot->captured_at?->toISOString(),
+            'ip_address' => $snapshot->ip_address,
+            'user_agent' => $snapshot->user_agent,
+            'metadata' => $snapshot->metadata ?? [],
+            'url' => route('admin.proctoring-face-snapshots.show', $snapshot),
+            'event' => $snapshot->event ? [
+                'id' => $snapshot->event->id,
+                'event_type' => $snapshot->event->event_type,
+                'severity' => $snapshot->event->severity,
+                'occurred_at' => $snapshot->event->occurred_at?->toISOString(),
+            ] : null,
         ];
     }
 

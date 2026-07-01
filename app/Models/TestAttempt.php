@@ -139,6 +139,16 @@ class TestAttempt extends Model
     }
 
     /**
+     * Get webcam face monitoring snapshots for this attempt.
+     *
+     * @return HasMany<ProctoringFaceSnapshot, $this>
+     */
+    public function proctoringFaceSnapshots(): HasMany
+    {
+        return $this->hasMany(ProctoringFaceSnapshot::class);
+    }
+
+    /**
      * Get the admin proctoring review decision for this attempt.
      *
      * @return HasOne<AttemptProctoringReview, $this>

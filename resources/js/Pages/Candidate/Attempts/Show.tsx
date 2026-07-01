@@ -5,6 +5,7 @@ import CodingQuestionPanel, {
 } from '@/Components/Attempts/CodingQuestionPanel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import { useFaceMonitoring } from '@/features/proctoring/useFaceMonitoring';
 import { useProctoringEvents } from '@/features/proctoring/useProctoringEvents';
 import {
     useProctoringGuards,
@@ -115,6 +116,11 @@ export default function Show({
     );
     const proctoringDisabled = expired || attempt.status !== 'in_progress';
     const recordings = useProctoringRecordings(attempt, proctoringDisabled);
+    const faceMonitoring = useFaceMonitoring(
+        attempt,
+        recordings.cameraStream,
+        proctoringDisabled || recordings.cameraStatus !== 'recording',
+    );
     const recordingPermissionRequestActive =
         recordings.cameraStatus === 'requesting' ||
         recordings.screenStatus === 'requesting';
@@ -178,6 +184,8 @@ export default function Show({
         !proctoringDisabled &&
         !recordingUiSuppressed &&
         recordingsNeedAttention;
+    const faceViolationCount =
+        faceMonitoring.counts.no_face + faceMonitoring.counts.multiple_faces;
 
     const mcqCount = orderedQuestions.filter(
         (question) => question.type === 'mcq',
@@ -500,10 +508,38 @@ export default function Show({
                                 Fullscreen is required. Copy, paste, right click,
                                 drag/drop, and restricted shortcuts are blocked.
                             </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 font-semibold uppercase tracking-wide text-emerald-200">
+                                    Face monitoring:{' '}
+                                    {faceMonitoringStatusLabel(
+                                        faceMonitoring.status,
+                                    )}
+                                </span>
+                                {faceViolationCount > 0 && (
+                                    <>
+                                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 font-semibold text-amber-100">
+                                            No face:{' '}
+                                            {faceMonitoring.counts.no_face}
+                                        </span>
+                                        <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 font-semibold text-red-100">
+                                            Multiple faces:{' '}
+                                            {
+                                                faceMonitoring.counts
+                                                    .multiple_faces
+                                            }
+                                        </span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                         {latestBlockedAction && (
                             <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm font-medium text-amber-200">
                                 {latestBlockedAction}
+                            </p>
+                        )}
+                        {faceMonitoring.warning && (
+                            <p className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-100">
+                                {faceMonitoring.warning}
                             </p>
                         )}
                         {showRecordingMessage && (
@@ -970,6 +1006,19 @@ function recordingNeedsAttention(
     screenStatus: RecordingStatus,
 ): boolean {
     return cameraStatus !== 'recording' || screenStatus !== 'recording';
+}
+
+function faceMonitoringStatusLabel(status: string): string {
+    return (
+        {
+            idle: 'Waiting',
+            loading: 'Starting',
+            active: 'Active',
+            camera_unavailable: 'Waiting for camera',
+            model_error: 'Needs attention',
+            upload_error: 'Evidence upload issue',
+        }[status] ?? status
+    );
 }
 
 function attemptRoute(attempt: Attempt, action: 'save' | 'submit'): string {

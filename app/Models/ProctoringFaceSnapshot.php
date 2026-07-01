@@ -5,36 +5,36 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'test_attempt_id',
     'candidate_user_id',
-    'event_type',
-    'severity',
-    'occurred_at',
+    'proctoring_event_id',
+    'violation_type',
+    'face_count',
+    'disk',
+    'path',
+    'mime_type',
+    'size_bytes',
+    'captured_at',
     'ip_address',
     'user_agent',
     'metadata',
 ])]
-class ProctoringEvent extends Model
+class ProctoringFaceSnapshot extends Model
 {
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'occurred_at' => 'datetime',
+            'captured_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
 
     /**
-     * Get the attempt this event belongs to.
-     *
      * @return BelongsTo<TestAttempt, $this>
      */
     public function attempt(): BelongsTo
@@ -43,8 +43,6 @@ class ProctoringEvent extends Model
     }
 
     /**
-     * Get the authenticated candidate for this event when available.
-     *
      * @return BelongsTo<User, $this>
      */
     public function candidate(): BelongsTo
@@ -53,12 +51,10 @@ class ProctoringEvent extends Model
     }
 
     /**
-     * Get the face monitoring snapshot linked to this event.
-     *
-     * @return HasOne<ProctoringFaceSnapshot, $this>
+     * @return BelongsTo<ProctoringEvent, $this>
      */
-    public function faceSnapshot(): HasOne
+    public function event(): BelongsTo
     {
-        return $this->hasOne(ProctoringFaceSnapshot::class);
+        return $this->belongsTo(ProctoringEvent::class, 'proctoring_event_id');
     }
 }

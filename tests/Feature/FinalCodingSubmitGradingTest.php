@@ -156,7 +156,7 @@ class FinalCodingSubmitGradingTest extends TestCase
         ]);
     }
 
-    public function test_coding_question_without_saved_code_gets_zero_without_calling_executor(): void
+    public function test_coding_question_without_saved_code_is_rejected_before_submit(): void
     {
         [$candidate, $test] = $this->acceptedOrganizationInvitation();
         $question = $this->codingQuestion($test, marks: 5);
@@ -166,17 +166,18 @@ class FinalCodingSubmitGradingTest extends TestCase
             ->post(route('candidate.attempts.submit', $attempt), [
                 'answers' => [],
             ])
-            ->assertRedirect(route('candidate.attempts.show', $attempt));
+            ->assertSessionHasErrors([
+                "coding_answers.{$question->id}" => 'Please write and save code before submitting this question.',
+            ]);
 
         $attempt->refresh();
+        $this->assertSame(AttemptStatus::InProgress, $attempt->status);
         $this->assertSame(0, $attempt->score);
-        $this->assertSame(5, $attempt->max_score);
-        $this->assertFalse($attempt->passed);
-        $this->assertDatabaseHas('attempt_answers', [
+        $this->assertSame(0, $attempt->max_score);
+        $this->assertNull($attempt->passed);
+        $this->assertDatabaseMissing('attempt_answers', [
             'test_attempt_id' => $attempt->id,
             'question_id' => $question->id,
-            'score' => 0,
-            'is_correct' => false,
         ]);
         $this->assertDatabaseMissing('code_execution_runs', [
             'test_attempt_id' => $attempt->id,

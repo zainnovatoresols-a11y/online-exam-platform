@@ -62,6 +62,8 @@ type ProctoringSummary = {
     recording_permission_denials: number;
     recording_errors: number;
     screen_share_ended: number;
+    no_face_violations: number;
+    multiple_face_violations: number;
 };
 
 type ProctoringEvent = {
@@ -136,6 +138,33 @@ type ProctoringRecordingChunk = {
     duration_ms: number | null;
     recorded_at: string | null;
     uploaded_at: string | null;
+    ip_address: string | null;
+    user_agent: string | null;
+    metadata: Record<string, unknown>;
+    url: string;
+    event: {
+        id: number;
+        event_type: string;
+        severity: 'low' | 'medium' | 'high' | string;
+        occurred_at: string | null;
+    } | null;
+};
+
+type FaceProctoringSummary = {
+    total: number;
+    no_face: number;
+    multiple_faces: number;
+    first_captured_at: string | null;
+    last_captured_at: string | null;
+};
+
+type FaceProctoringSnapshot = {
+    id: number;
+    violation_type: 'no_face' | 'multiple_faces' | string;
+    face_count: number;
+    mime_type: string | null;
+    size_bytes: number | null;
+    captured_at: string | null;
     ip_address: string | null;
     user_agent: string | null;
     metadata: Record<string, unknown>;
@@ -249,6 +278,8 @@ type Props = {
     proctoring_recording_summary: ProctoringRecordingSummary;
     proctoring_camera_recording_chunks: Paginated<ProctoringRecordingChunk>;
     proctoring_screen_recording_chunks: Paginated<ProctoringRecordingChunk>;
+    face_proctoring_summary: FaceProctoringSummary;
+    face_proctoring_snapshots: Paginated<FaceProctoringSnapshot>;
 };
 
 export default function Show({
@@ -264,6 +295,8 @@ export default function Show({
     proctoring_recording_summary,
     proctoring_camera_recording_chunks,
     proctoring_screen_recording_chunks,
+    face_proctoring_summary,
+    face_proctoring_snapshots,
 }: Props) {
     return (
         <AuthenticatedLayout
@@ -443,6 +476,11 @@ export default function Show({
                         reviewStatus={proctoring_review.status}
                     />
 
+                    <FaceMonitoringReview
+                        summary={face_proctoring_summary}
+                        snapshots={face_proctoring_snapshots}
+                    />
+
                     <ProctoringRecordingReview
                         summary={proctoring_recording_summary}
                         cameraChunks={proctoring_camera_recording_chunks}
@@ -549,6 +587,12 @@ function ProctoringReview({
                     </Metric>
                     <Metric label="Screen ended">
                         {summary.screen_share_ended}
+                    </Metric>
+                    <Metric label="No face">
+                        {summary.no_face_violations}
+                    </Metric>
+                    <Metric label="Multiple faces">
+                        {summary.multiple_face_violations}
                     </Metric>
                     <Metric label="Low / Medium">
                         {summary.low} / {summary.medium}
@@ -720,6 +764,153 @@ function ProctoringRiskScore({
                 </div>
             </div>
         </section>
+    );
+}
+
+function FaceMonitoringReview({
+    summary,
+    snapshots,
+}: {
+    summary: FaceProctoringSummary;
+    snapshots: Paginated<FaceProctoringSnapshot>;
+}) {
+    return (
+        <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+            <div className="border-b border-gray-200 px-6 py-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                    Face Monitoring Evidence
+                </h4>
+                <p className="mt-1 text-sm text-gray-600">
+                    Confirmed webcam violations with private snapshot evidence.
+                </p>
+            </div>
+
+            <div className="space-y-6 p-6">
+                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    <Metric label="Total violations">{summary.total}</Metric>
+                    <Metric label="No face">{summary.no_face}</Metric>
+                    <Metric label="Multiple faces">
+                        {summary.multiple_faces}
+                    </Metric>
+                    <Metric label="First captured">
+                        {formatDateTime(summary.first_captured_at)}
+                    </Metric>
+                    <Metric label="Last captured">
+                        {formatDateTime(summary.last_captured_at)}
+                    </Metric>
+                </dl>
+
+                {snapshots.data.length > 0 ? (
+                    <div className="space-y-4">
+                        <div className="grid max-h-[720px] gap-4 overflow-y-auto pr-2 md:grid-cols-2 xl:grid-cols-3">
+                            {snapshots.data.map((snapshot) => (
+                                <FaceSnapshotCard
+                                    key={snapshot.id}
+                                    snapshot={snapshot}
+                                />
+                            ))}
+                        </div>
+                        <FaceSnapshotPagination snapshots={snapshots} />
+                    </div>
+                ) : (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        No confirmed face monitoring violations were recorded
+                        for this attempt.
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
+
+function FaceSnapshotCard({
+    snapshot,
+}: {
+    snapshot: FaceProctoringSnapshot;
+}) {
+    return (
+        <article className="overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+            <img
+                src={snapshot.url}
+                alt={`${faceViolationLabel(snapshot.violation_type)} evidence`}
+                className="aspect-video w-full object-cover"
+                loading="lazy"
+            />
+            <div className="space-y-3 p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <StatusBadge value={faceViolationLabel(snapshot.violation_type)} />
+                    {snapshot.event && (
+                        <SeverityBadge value={snapshot.event.severity} />
+                    )}
+                </div>
+                <dl className="grid gap-3 sm:grid-cols-2">
+                    <Detail label="Faces detected">
+                        {snapshot.face_count}
+                    </Detail>
+                    <Detail label="Captured">
+                        {formatDateTime(snapshot.captured_at)}
+                    </Detail>
+                    <Detail label="IP address">
+                        {formatNullableValue(snapshot.ip_address)}
+                    </Detail>
+                    <Detail label="Size">
+                        {snapshot.size_bytes
+                            ? `${Math.round(snapshot.size_bytes / 1024)} KB`
+                            : '-'}
+                    </Detail>
+                </dl>
+                <MetadataDetails metadata={snapshot.metadata} />
+            </div>
+        </article>
+    );
+}
+
+function FaceSnapshotPagination({
+    snapshots,
+}: {
+    snapshots: Paginated<FaceProctoringSnapshot>;
+}) {
+    if (snapshots.total === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <p className="text-gray-600">
+                Showing {snapshots.from ?? 0} to {snapshots.to ?? 0} of{' '}
+                {snapshots.total} face snapshots
+            </p>
+
+            {snapshots.last_page > 1 && (
+                <div className="flex flex-wrap items-center gap-1">
+                    {snapshots.links.map((link, index) =>
+                        link.url ? (
+                            <Link
+                                key={`${link.label}-${index}`}
+                                href={link.url}
+                                preserveScroll
+                                preserveState
+                                className={
+                                    'rounded-md border px-3 py-1.5 text-sm font-medium ' +
+                                    (link.active
+                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50')
+                                }
+                            >
+                                {paginationLabel(link.label)}
+                            </Link>
+                        ) : (
+                            <span
+                                key={`${link.label}-${index}`}
+                                className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-400"
+                            >
+                                {paginationLabel(link.label)}
+                            </span>
+                        ),
+                    )}
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -1256,6 +1447,14 @@ function paginationLabel(label: string): string {
         .replace('&raquo;', '›')
         .replace('Previous', 'Prev')
         .trim();
+}
+
+function faceViolationLabel(value: string): string {
+    return value === 'no_face'
+        ? 'No face visible'
+        : value === 'multiple_faces'
+          ? 'Multiple faces'
+          : formatLabel(value);
 }
 
 type RecordingMerge = {

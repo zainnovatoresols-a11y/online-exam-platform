@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\CodingQuestionController as AdminCodingQuestionController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\Invitations\InvitationController as AdminInvitationController;
+use App\Http\Controllers\Admin\ProctoringFaceSnapshotController;
 use App\Http\Controllers\Admin\ProctoringRecordingChunkController;
 use App\Http\Controllers\Admin\ProctoringRecordingController as AdminProctoringRecordingController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Admin\Results\TestResultController as AdminTestResultCo
 use App\Http\Controllers\Admin\Results\TestResultExportController;
 use App\Http\Controllers\Admin\TestController as AdminTestController;
 use App\Http\Controllers\Admin\TestLifecycleController;
+use App\Http\Controllers\Candidate\Attempts\FaceProctoringViolationController;
 use App\Http\Controllers\Candidate\Attempts\ProctoringEventController;
 use App\Http\Controllers\Candidate\Attempts\ProctoringRecordingController;
 use App\Http\Controllers\Candidate\Attempts\RunCodingQuestionController;
@@ -60,6 +62,9 @@ Route::post('/public-attempts/{attemptToken}/coding-questions/run', [RunCodingQu
 Route::post('/public-attempts/{attemptToken}/proctoring-events', [ProctoringEventController::class, 'storePublic'])
     ->middleware('throttle:60,1')
     ->name('candidate.public-attempts.proctoring-events.store');
+Route::post('/public-attempts/{attemptToken}/face-proctoring-violations', [FaceProctoringViolationController::class, 'storePublic'])
+    ->middleware('throttle:30,1')
+    ->name('candidate.public-attempts.face-proctoring-violations.store');
 Route::post('/public-attempts/{attemptToken}/proctoring-recordings/start', [ProctoringRecordingController::class, 'startPublic'])
     ->middleware('throttle:20,1')
     ->name('candidate.public-attempts.proctoring-recordings.start');
@@ -101,6 +106,8 @@ Route::middleware(['auth', 'verified', 'role:super_admin|admin'])
     ->group(function (): void {
         Route::get('/proctoring-recordings/{recording}/merged-video', [AdminProctoringRecordingController::class, 'showMerged'])
             ->name('proctoring-recordings.merged-video.show');
+        Route::get('/proctoring-face-snapshots/{snapshot}', [ProctoringFaceSnapshotController::class, 'show'])
+            ->name('proctoring-face-snapshots.show');
         Route::get('/proctoring-recording-chunks/{chunk}', [ProctoringRecordingChunkController::class, 'show'])
             ->name('proctoring-recording-chunks.show');
         Route::scopeBindings()
@@ -187,6 +194,9 @@ Route::middleware(['auth', 'verified', 'role:candidate'])
         Route::post('/attempts/{attempt}/proctoring-events', [ProctoringEventController::class, 'store'])
             ->middleware('throttle:60,1')
             ->name('attempts.proctoring-events.store');
+        Route::post('/attempts/{attempt}/face-proctoring-violations', [FaceProctoringViolationController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('attempts.face-proctoring-violations.store');
         Route::post('/attempts/{attempt}/proctoring-recordings/start', [ProctoringRecordingController::class, 'start'])
             ->middleware('throttle:20,1')
             ->name('attempts.proctoring-recordings.start');

@@ -36,6 +36,7 @@ export type ProctoringRecordingControls = {
     screenStatus: RecordingStatus;
     cameraMessage: string | null;
     screenMessage: string | null;
+    cameraStream: MediaStream | null;
     startCamera: () => Promise<void>;
     startScreen: () => Promise<void>;
     stopAllRecordings: (reason?: string) => Promise<void>;
@@ -68,6 +69,7 @@ export function useProctoringRecordings(
     const [screenStatus, setScreenStatus] = useState<RecordingStatus>('idle');
     const [cameraMessage, setCameraMessage] = useState<string | null>(null);
     const [screenMessage, setScreenMessage] = useState<string | null>(null);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
     useEffect(() => {
         disabledRef.current = disabled;
@@ -230,6 +232,10 @@ export function useProctoringRecordings(
 
                 if (streamRef.current === stream) {
                     streamRef.current = null;
+
+                    if (recordingType === 'camera') {
+                        setCameraStream(null);
+                    }
                 }
 
                 if (recorderRef.current === recorder) {
@@ -435,6 +441,7 @@ export function useProctoringRecordings(
             const mimeType = preferredMimeType();
 
             cameraStreamRef.current = stream;
+            setCameraStream(stream);
             sendEvent('camera_recording_permission_granted');
             await startRecordingSession('camera', mimeType, {
                 video_tracks: stream.getVideoTracks().length,
@@ -593,6 +600,7 @@ export function useProctoringRecordings(
         screenStatus,
         cameraMessage,
         screenMessage,
+        cameraStream,
         startCamera,
         startScreen,
         stopAllRecordings,
