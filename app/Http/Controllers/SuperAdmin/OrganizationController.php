@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SuperAdmin\StoreOrganizationRequest;
 use App\Http\Requests\SuperAdmin\UpdateOrganizationRequest;
 use App\Models\Organization;
+use App\Models\Test;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
@@ -65,6 +65,39 @@ class OrganizationController extends Controller
                 ->where('organization_id', $organization->id)
                 ->latest('id')
                 ->get(['id', 'name', 'email', 'created_at']),
+            'tests' => $organization->tests()
+                ->with(['creator:id,name,email'])
+                ->withCount(['questions', 'attempts', 'invitations'])
+                ->latest('id')
+                ->get([
+                    'id',
+                    'organization_id',
+                    'created_by_id',
+                    'title',
+                    'status',
+                    'published_at',
+                    'closed_at',
+                    'created_at',
+                ])
+                ->map(fn (Test $test): array => [
+                    'id' => $test->id,
+                    'title' => $test->title,
+                    'status' => $test->status,
+                    'creator' => $test->creator ? [
+                        'id' => $test->creator->id,
+                        'name' => $test->creator->name,
+                        'email' => $test->creator->email,
+                    ] : null,
+                    'questions_count' => $test->questions_count,
+                    'attempts_count' => $test->attempts_count,
+                    'invitations_count' => $test->invitations_count,
+                    'published_at' => $test->published_at?->toISOString(),
+                    'closed_at' => $test->closed_at?->toISOString(),
+                    'created_at' => $test->created_at?->toISOString(),
+                    'results_url' => route('admin.tests.results.index', $test),
+                    'analytics_url' => route('admin.tests.results.analytics', $test),
+                ])
+                ->values(),
         ]);
     }
 

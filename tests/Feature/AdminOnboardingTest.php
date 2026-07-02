@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\TestStatus;
 use App\Enums\UserRole;
 use App\Models\Organization;
+use App\Models\Test;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -124,6 +126,38 @@ class AdminOnboardingTest extends TestCase
         $this->assertTrue($admin->hasRole(UserRole::Admin->value));
         $this->assertSame($organization->id, $admin->organization_id);
         $this->assertSame($owner->id, $admin->created_by_id);
+    }
+
+    public function test_organization_owner_can_view_admins_tests_results_and_analytics_links(): void
+    {
+        $organization = Organization::factory()->create();
+        $owner = $this->userWithRole(UserRole::SuperAdmin, $organization);
+        $admin = $this->userWithRole(UserRole::Admin, $organization);
+        $admin->update(['created_by_id' => $owner->id]);
+
+        $test = Test::factory()->create([
+            'organization_id' => $organization->id,
+            'created_by_id' => $admin->id,
+            'title' => 'Owner Visible Assessment',
+            'status' => TestStatus::Published->value,
+            'published_at' => now(),
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('super-admin.organizations.show', $organization))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('SuperAdmin/Organizations/Show')
+                ->where('organization.id', $organization->id)
+                ->has('admins', 1)
+                ->where('admins.0.id', $admin->id)
+                ->where('admins.0.email', $admin->email)
+                ->has('tests', 1)
+                ->where('tests.0.id', $test->id)
+                ->where('tests.0.title', 'Owner Visible Assessment')
+                ->where('tests.0.creator.email', $admin->email)
+                ->where('tests.0.results_url', route('admin.tests.results.index', $test))
+                ->where('tests.0.analytics_url', route('admin.tests.results.analytics', $test)));
     }
 
     public function test_organization_owner_cannot_create_admin_for_another_organization(): void
