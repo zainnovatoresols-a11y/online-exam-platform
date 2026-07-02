@@ -2,6 +2,7 @@
 
 namespace App\Actions\Attempts;
 
+use App\Actions\Results\DetermineAttemptFinalOutcome;
 use App\Enums\AttemptStatus;
 use App\Enums\QuestionType;
 use App\Jobs\GradeAttemptCodingAnswers;
@@ -17,6 +18,7 @@ class SubmitMcqAttempt
 {
     public function __construct(
         private readonly GradeCodingQuestion $gradeCodingQuestion,
+        private readonly DetermineAttemptFinalOutcome $determineFinalOutcome,
     ) {}
 
     /**
@@ -73,6 +75,11 @@ class SubmitMcqAttempt
                 $percentage = $maxScore > 0
                     ? round(($score / $maxScore) * 100, 2)
                     : 0;
+                $outcome = $this->determineFinalOutcome->handle(
+                    $attempt,
+                    $percentage,
+                    (int) $attempt->test->pass_mark,
+                );
 
                 $attempt->update([
                     'status' => AttemptStatus::Submitted,
@@ -81,7 +88,11 @@ class SubmitMcqAttempt
                     'max_score' => $maxScore,
                     'total_marks' => $maxScore,
                     'percentage' => $percentage,
-                    'passed' => $percentage >= (int) $attempt->test->pass_mark,
+                    'passed' => $outcome['final_passed'],
+                    'score_passed' => $outcome['score_passed'],
+                    'proctoring_failed' => $outcome['proctoring_failed'],
+                    'suspicious_event_count' => $outcome['suspicious_event_count'],
+                    'final_failure_reason' => $outcome['failure_reason'],
                 ]);
 
                 return $attempt->refresh();

@@ -33,6 +33,10 @@ class TestAttemptFactory extends Factory
             'total_marks' => 0,
             'percentage' => null,
             'passed' => null,
+            'score_passed' => null,
+            'proctoring_failed' => false,
+            'suspicious_event_count' => 0,
+            'final_failure_reason' => null,
         ];
     }
 }

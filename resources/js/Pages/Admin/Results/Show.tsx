@@ -42,6 +42,10 @@ type Attempt = {
     total_marks: number;
     percentage: number | null;
     passed: boolean | null;
+    score_passed: boolean | null;
+    proctoring_failed: boolean;
+    suspicious_event_count: number;
+    final_failure_reason: string | null;
     started_at: string | null;
     submitted_at: string | null;
     expires_at: string | null;
@@ -384,7 +388,32 @@ export default function Show({
                                     <Metric label="Pass mark">
                                         {test.pass_mark}%
                                     </Metric>
+                                    <Metric label="Score result">
+                                        <ResultBadge
+                                            passed={attempt.score_passed}
+                                        />
+                                    </Metric>
+                                    <Metric label="Suspicious events">
+                                        {attempt.suspicious_event_count}
+                                    </Metric>
+                                    <Metric label="Proctoring result">
+                                        <ResultBadge
+                                            passed={!attempt.proctoring_failed}
+                                        />
+                                    </Metric>
+                                    <Metric label="Final result">
+                                        <ResultBadge
+                                            passed={attempt.passed}
+                                        />
+                                    </Metric>
                                 </dl>
+
+                                {attempt.final_failure_reason && (
+                                    <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                                        {attempt.final_failure_reason}. The
+                                        candidate score was kept unchanged.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </section>

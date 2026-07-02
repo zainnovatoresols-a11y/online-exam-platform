@@ -25,6 +25,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'total_marks',
     'percentage',
     'passed',
+    'score_passed',
+    'proctoring_failed',
+    'suspicious_event_count',
+    'final_failure_reason',
 ])]
 class TestAttempt extends Model
 {
@@ -45,6 +49,9 @@ class TestAttempt extends Model
             'expires_at' => 'datetime',
             'percentage' => 'decimal:2',
             'passed' => 'boolean',
+            'score_passed' => 'boolean',
+            'proctoring_failed' => 'boolean',
+            'suspicious_event_count' => 'integer',
         ];
     }
 

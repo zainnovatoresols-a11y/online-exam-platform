@@ -101,6 +101,13 @@ export default function CodingQuestionPanel({
         question.starter_code[selectedLanguage] ??
         '';
 
+    useEffect(() => {
+        onDraftChange?.(question.id, {
+            language: selectedLanguage,
+            submitted_code: currentCode,
+        });
+    }, [currentCode, onDraftChange, question.id, selectedLanguage]);
+
     const saveAnswer = useCallback(
         async (language: string, submittedCode: string): Promise<boolean> => {
             if (disabled) {

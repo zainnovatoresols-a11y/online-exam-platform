@@ -231,14 +231,16 @@ export function useProctoringGuards(
         };
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (! shouldBlockShortcut(event)) {
+            const eventType = proctoringEventForShortcut(event);
+
+            if (! eventType) {
                 return;
             }
 
             blockEvent(
                 event,
-                'shortcut_attempt',
-                'This keyboard shortcut is disabled during this assessment.',
+                eventType,
+                blockedShortcutMessage(eventType),
                 {
                     key: event.key,
                     code: event.code,
@@ -342,16 +344,16 @@ function metadataSignature(metadata: Metadata): string {
     );
 }
 
-function shouldBlockShortcut(event: KeyboardEvent): boolean {
+function proctoringEventForShortcut(event: KeyboardEvent): ProctoringEventType | null {
     if (event.key === 'PrintScreen') {
-        return true;
+        return 'shortcut_attempt';
     }
 
     const key = event.key.toLowerCase();
     const hasPrimaryModifier = event.ctrlKey || event.metaKey;
 
     if (['f5', 'f12'].includes(key)) {
-        return true;
+        return 'shortcut_attempt';
     }
 
     if (
@@ -359,13 +361,44 @@ function shouldBlockShortcut(event: KeyboardEvent): boolean {
         event.shiftKey &&
         ['c', 'i', 'j'].includes(key)
     ) {
-        return true;
+        return 'shortcut_attempt';
     }
 
-    return (
-        hasPrimaryModifier &&
-        ['a', 'c', 'f', 'p', 'r', 's', 'u', 'v', 'x'].includes(key)
-    );
+    if (! hasPrimaryModifier) {
+        return null;
+    }
+
+    if (key === 'c') {
+        return 'copy_attempt';
+    }
+
+    if (key === 'v') {
+        return 'paste_attempt';
+    }
+
+    if (key === 'x') {
+        return 'cut_attempt';
+    }
+
+    return ['a', 'f', 'p', 'r', 's', 'u'].includes(key)
+        ? 'shortcut_attempt'
+        : null;
+}
+
+function blockedShortcutMessage(eventType: ProctoringEventType): string {
+    if (eventType === 'copy_attempt') {
+        return 'Copy is disabled during this assessment.';
+    }
+
+    if (eventType === 'paste_attempt') {
+        return 'Paste is disabled during this assessment.';
+    }
+
+    if (eventType === 'cut_attempt') {
+        return 'Cut is disabled during this assessment.';
+    }
+
+    return 'This keyboard shortcut is disabled during this assessment.';
 }
 
 function violationFor(reason: ProctoringViolation['reason']): ProctoringViolation {

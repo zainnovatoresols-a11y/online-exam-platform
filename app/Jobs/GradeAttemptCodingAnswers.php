@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Attempts\GradeCodingQuestion;
+use App\Actions\Results\DetermineAttemptFinalOutcome;
 use App\Enums\AttemptStatus;
 use App\Enums\QuestionType;
 use App\Models\CodeExecutionRun;
@@ -28,6 +29,8 @@ class GradeAttemptCodingAnswers implements ShouldQueue
 
     public function handle(): void
     {
+        $determineFinalOutcome = app(DetermineAttemptFinalOutcome::class);
+
         if (is_string($this->expectedDriver) && $this->expectedDriver !== '') {
             config(['code_execution.driver' => $this->expectedDriver]);
             app()->forgetInstance(CodeExecutionService::class);
@@ -73,7 +76,7 @@ class GradeAttemptCodingAnswers implements ShouldQueue
             }
         }
 
-        $this->refreshAttemptScore($attempt);
+        $this->refreshAttemptScore($attempt, $determineFinalOutcome);
     }
 
     private function queuedFinalRun(TestAttempt $attempt, Question $question): ?CodeExecutionRun
@@ -87,7 +90,7 @@ class GradeAttemptCodingAnswers implements ShouldQueue
             ->first();
     }
 
-    private function refreshAttemptScore(TestAttempt $attempt): void
+    private function refreshAttemptScore(TestAttempt $attempt, DetermineAttemptFinalOutcome $determineFinalOutcome): void
     {
         $attempt->load([
             'test.questions',
@@ -99,13 +102,22 @@ class GradeAttemptCodingAnswers implements ShouldQueue
         $percentage = $maxScore > 0
             ? round(($score / $maxScore) * 100, 2)
             : 0;
+        $outcome = $determineFinalOutcome->handle(
+            $attempt,
+            $percentage,
+            (int) $attempt->test->pass_mark,
+        );
 
         $attempt->update([
             'score' => $score,
             'max_score' => $maxScore,
             'total_marks' => $maxScore,
             'percentage' => $percentage,
-            'passed' => $percentage >= (int) $attempt->test->pass_mark,
+            'passed' => $outcome['final_passed'],
+            'score_passed' => $outcome['score_passed'],
+            'proctoring_failed' => $outcome['proctoring_failed'],
+            'suspicious_event_count' => $outcome['suspicious_event_count'],
+            'final_failure_reason' => $outcome['failure_reason'],
         ]);
     }
 }
