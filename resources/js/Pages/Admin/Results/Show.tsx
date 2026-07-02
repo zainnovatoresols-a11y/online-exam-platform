@@ -58,6 +58,9 @@ type ProctoringSummary = {
     low: number;
     tab_switches: number;
     fullscreen_exits: number;
+    copy_attempts: number;
+    paste_attempts: number;
+    cut_attempts: number;
     clipboard_attempts: number;
     right_click_attempts: number;
     shortcut_attempts: number;
@@ -596,6 +599,15 @@ function ProctoringReview({
                     </Metric>
                     <Metric label="Fullscreen exits">
                         {summary.fullscreen_exits}
+                    </Metric>
+                    <Metric label="Copy attempts">
+                        {summary.copy_attempts}
+                    </Metric>
+                    <Metric label="Paste attempts">
+                        {summary.paste_attempts}
+                    </Metric>
+                    <Metric label="Cut attempts">
+                        {summary.cut_attempts}
                     </Metric>
                     <Metric label="Clipboard attempts">
                         {summary.clipboard_attempts}

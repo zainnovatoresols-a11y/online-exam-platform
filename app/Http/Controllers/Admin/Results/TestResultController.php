@@ -39,7 +39,7 @@ class TestResultController extends Controller
                     'candidateDetail',
                     'attempt.candidate:id,name,email,phone,stack_name',
                     'attempt.candidateDetail',
-                    'attempt.proctoringEvents:id,test_attempt_id,event_type,severity',
+                    'attempt.proctoringEvents:id,test_attempt_id,event_type,severity,metadata,occurred_at',
                     'attempt.proctoringReview:id,test_attempt_id,status',
                 ])
                 ->latest('id')
@@ -81,7 +81,7 @@ class TestResultController extends Controller
             ->map(fn (Collection $runs): ?CodeExecutionRun => $runs->first());
 
         $proctoringSummaryEvents = $attempt->proctoringEvents()
-            ->get(['event_type', 'severity']);
+            ->get(['event_type', 'severity', 'metadata', 'occurred_at']);
         $proctoringEvents = $attempt->proctoringEvents()
             ->orderBy('occurred_at')
             ->orderBy('id')
@@ -346,6 +346,9 @@ class TestResultController extends Controller
             'low' => $events->where('severity', 'low')->count(),
             'tab_switches' => $events->where('event_type', 'tab_hidden')->count(),
             'fullscreen_exits' => $events->where('event_type', 'fullscreen_exited')->count(),
+            'copy_attempts' => $events->where('event_type', 'copy_attempt')->count(),
+            'paste_attempts' => $events->where('event_type', 'paste_attempt')->count(),
+            'cut_attempts' => $events->where('event_type', 'cut_attempt')->count(),
             'clipboard_attempts' => $events
                 ->whereIn('event_type', ['copy_attempt', 'paste_attempt', 'cut_attempt'])
                 ->count(),

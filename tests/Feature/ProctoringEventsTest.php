@@ -286,6 +286,9 @@ class ProctoringEventsTest extends TestCase
             ->where('proctoring_summary.medium', 1)
             ->where('proctoring_summary.tab_switches', 1)
             ->where('proctoring_summary.clipboard_attempts', 1)
+            ->where('proctoring_summary.copy_attempts', 1)
+            ->where('proctoring_summary.paste_attempts', 0)
+            ->where('proctoring_summary.cut_attempts', 0)
             ->where('proctoring_events.total', 2)
             ->where('proctoring_events.per_page', 15)
             ->where('proctoring_events.data.0.event_type', 'tab_hidden')
@@ -377,6 +380,50 @@ class ProctoringEventsTest extends TestCase
             ->where('proctoring_summary.acknowledged_violations', 1)
             ->where('proctoring_summary.medium', 2)
             ->where('proctoring_summary.low', 1));
+    }
+
+    public function test_admin_result_summary_splits_clipboard_counts_and_risk_scores_activity(): void
+    {
+        $admin = $this->userWithRole(UserRole::Admin);
+        $test = $this->publishedTestFor($admin);
+        [, $attempt] = $this->publicAttemptFor($test, $admin, [
+            'status' => AttemptStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        foreach ([
+            'copy_attempt' => 'high',
+            'paste_attempt' => 'high',
+            'cut_attempt' => 'high',
+            'right_click_attempt' => 'medium',
+        ] as $eventType => $severity) {
+            ProctoringEvent::create([
+                'test_attempt_id' => $attempt->id,
+                'candidate_user_id' => null,
+                'event_type' => $eventType,
+                'severity' => $severity,
+                'occurred_at' => now(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'FeatureBrowser/1.0',
+                'metadata' => [],
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.tests.results.show', [$test, $attempt]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Results/Show')
+            ->where('proctoring_summary.total', 4)
+            ->where('proctoring_summary.copy_attempts', 1)
+            ->where('proctoring_summary.paste_attempts', 1)
+            ->where('proctoring_summary.cut_attempts', 1)
+            ->where('proctoring_summary.clipboard_attempts', 3)
+            ->where('proctoring_summary.right_click_attempts', 1)
+            ->where('proctoring_risk.score', 34)
+            ->where('proctoring_risk.event_count', 4)
+            ->where('proctoring_risk.level', 'high'));
     }
 
     public function test_candidate_result_page_does_not_expose_proctoring_events(): void

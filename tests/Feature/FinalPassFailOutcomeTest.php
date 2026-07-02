@@ -76,6 +76,24 @@ class FinalPassFailOutcomeTest extends TestCase
         $this->assertSame('Failed due to proctoring violations', $attempt->final_failure_reason);
     }
 
+    public function test_score_pass_with_same_suspicious_activity_twice_is_final_failed(): void
+    {
+        [$attempt, $question, $correctOption] = $this->attemptReadyForSubmission();
+        $this->recordEvent($attempt, 'copy_attempt', 'high');
+        $this->recordEvent($attempt, 'copy_attempt', 'high');
+
+        app(SubmitMcqAttempt::class)->handle($attempt, [
+            $question->id => $correctOption->id,
+        ]);
+
+        $attempt->refresh();
+
+        $this->assertTrue($attempt->score_passed);
+        $this->assertSame(2, $attempt->suspicious_event_count);
+        $this->assertTrue($attempt->proctoring_failed);
+        $this->assertFalse($attempt->passed);
+    }
+
     public function test_score_fail_is_final_failed_even_without_suspicious_events(): void
     {
         [$attempt, $question, $correctOption, $wrongOption] = $this->attemptReadyForSubmission();
