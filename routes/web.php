@@ -28,6 +28,7 @@ use App\Http\Controllers\DashboardRedirectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationAdminController;
+use App\Http\Controllers\SuperAdmin\OrganizationAnalyticsController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -96,6 +97,9 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])
 
         Route::resource('organizations', OrganizationController::class)
             ->except(['destroy']);
+
+        Route::get('organizations/{organization}/analytics', OrganizationAnalyticsController::class)
+            ->name('organizations.analytics');
 
         Route::get('organizations/{organization}/admins/create', [OrganizationAdminController::class, 'create'])
             ->name('organizations.admins.create');

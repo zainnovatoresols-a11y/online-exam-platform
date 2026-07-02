@@ -35,6 +35,7 @@ type OrganizationTest = {
 
 type Props = {
     organization: Organization;
+    analytics_url: string;
     admins: Admin[];
     tests: OrganizationTest[];
 };
@@ -53,7 +54,12 @@ const tableCellClass = 'whitespace-nowrap px-6 py-4 text-sm text-zinc-400';
 const statusBadgeClass =
     'inline-flex rounded-full border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs font-semibold capitalize text-zinc-300';
 
-export default function Show({ organization, admins, tests }: Props) {
+export default function Show({
+    organization,
+    analytics_url,
+    admins,
+    tests,
+}: Props) {
     return (
         <AuthenticatedLayout
             theme="dark"
@@ -95,6 +101,12 @@ export default function Show({ organization, admins, tests }: Props) {
                                     className={primaryLinkClass}
                                 >
                                     Create admin
+                                </Link>
+                                <Link
+                                    href={analytics_url}
+                                    className={secondaryLinkClass}
+                                >
+                                    Analytics
                                 </Link>
                                 <Link
                                     href={route(

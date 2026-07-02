@@ -60,6 +60,7 @@ class OrganizationController extends Controller
 
         return Inertia::render('SuperAdmin/Organizations/Show', [
             'organization' => $organization->loadCount('tests'),
+            'analytics_url' => route('super-admin.organizations.analytics', $organization),
             'admins' => User::query()
                 ->adminAccounts()
                 ->where('organization_id', $organization->id)
