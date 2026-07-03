@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Enums\TestStatus;
 use App\Enums\UserRole;
 use App\Models\Organization;
+use App\Models\ProctoringRecording;
+use App\Models\ProctoringRecordingChunk;
 use App\Models\Question;
 use App\Models\Test;
 use App\Models\TestAttempt;
@@ -253,7 +255,7 @@ class TestManagementTest extends TestCase
         $this->assertDatabaseHas('tests', ['id' => $publishedTest->id]);
     }
 
-    public function test_deleting_a_test_removes_private_proctoring_recording_files(): void
+    public function test_deleting_a_test_removes_private_proctoring_recording_files_and_rows(): void
     {
         Storage::fake('local');
 
@@ -269,17 +271,45 @@ class TestManagementTest extends TestCase
             'test_id' => $test->id,
             'organization_id' => $organization->id,
         ]);
-        $recordingPath = "proctoring/attempts/{$attempt->id}/recordings/camera/camera_000001.webm";
+        $chunkPath = "proctoring/attempts/{$attempt->id}/recordings/camera/camera_000001.webm";
+        $mergedPath = "proctoring/attempts/{$attempt->id}/recordings/camera/merged_camera.webm";
+        $recording = ProctoringRecording::create([
+            'test_attempt_id' => $attempt->id,
+            'recording_type' => 'camera',
+            'status' => 'completed',
+            'chunk_count' => 1,
+            'total_size_bytes' => 17,
+            'merged_disk' => 'local',
+            'merged_path' => $mergedPath,
+            'merged_status' => 'completed',
+            'merged_size_bytes' => 19,
+        ]);
+        $chunk = ProctoringRecordingChunk::create([
+            'proctoring_recording_id' => $recording->id,
+            'test_attempt_id' => $attempt->id,
+            'recording_type' => 'camera',
+            'disk' => 'local',
+            'path' => $chunkPath,
+            'mime_type' => 'video/webm',
+            'size_bytes' => 17,
+            'sequence' => 1,
+        ]);
 
-        Storage::disk('local')->put($recordingPath, 'fake-webm-content');
-        Storage::disk('local')->assertExists($recordingPath);
+        Storage::disk('local')->put($chunkPath, 'fake-webm-content');
+        Storage::disk('local')->put($mergedPath, 'fake-merged-content');
+        Storage::disk('local')->assertExists($chunkPath);
+        Storage::disk('local')->assertExists($mergedPath);
 
         $response = $this->actingAs($admin)
             ->delete(route('admin.tests.destroy', $test));
 
         $response->assertRedirect(route('admin.tests.index'));
         $this->assertDatabaseMissing('tests', ['id' => $test->id]);
-        Storage::disk('local')->assertMissing($recordingPath);
+        $this->assertDatabaseMissing('test_attempts', ['id' => $attempt->id]);
+        $this->assertDatabaseMissing('proctoring_recordings', ['id' => $recording->id]);
+        $this->assertDatabaseMissing('proctoring_recording_chunks', ['id' => $chunk->id]);
+        Storage::disk('local')->assertMissing($chunkPath);
+        Storage::disk('local')->assertMissing($mergedPath);
     }
 
     public function test_admin_can_add_an_mcq_question_with_options(): void
