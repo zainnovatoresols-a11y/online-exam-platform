@@ -132,6 +132,12 @@ class PublicTestController extends Controller
             return $this->statusPage($request, 'not_published', 'This test has not been published yet.', 403, $test);
         }
 
+        if ($this->detailsAlreadySubmitted($request, $test)) {
+            return back()
+                ->withErrors(['email' => RegisterCandidateForPublicTest::DUPLICATE_DETAILS_MESSAGE])
+                ->withInput();
+        }
+
         if (! $request->session()->get($this->policySessionKey($test), false)) {
             return to_route('candidate.public-tests.policy', [
                 'publicToken' => $test->public_token,
@@ -277,6 +283,26 @@ class PublicTestController extends Controller
             ->where('email', $email)
             ->latest('id')
             ->first();
+    }
+
+    private function detailsAlreadySubmitted(Request $request, Test $test): bool
+    {
+        $token = $this->invitationTokenFromRequest($request);
+        $email = $this->emailForRequest($request, null);
+
+        if ($token === '' && $email === '') {
+            return false;
+        }
+
+        return Invitation::query()
+            ->where('test_id', $test->id)
+            ->when(
+                $token !== '',
+                fn ($query) => $query->where('token', $token),
+                fn ($query) => $query->where('email', $email),
+            )
+            ->whereHas('candidateDetail')
+            ->exists();
     }
 
     private function blockedInvitationStatus(Request $request, ?Invitation $invitation): ?HttpResponse

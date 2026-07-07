@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Invitations\RegisterCandidateForPublicTest;
 use App\Enums\AttemptStatus;
 use App\Enums\InvitationStatus;
 use App\Enums\UserRole;
@@ -330,6 +331,56 @@ class PublicCandidateRegistrationTest extends TestCase
             'invitation_id' => $invitation->id,
             'name' => 'Open Candidate',
             'email' => 'open@example.com',
+        ]);
+    }
+
+    public function test_candidate_cannot_submit_public_details_twice_with_same_email(): void
+    {
+        [, $test] = $this->publishedSoloTest([
+            'public_access_enabled' => true,
+        ]);
+
+        $this->post(route('candidate.public-tests.policy.accept', $test->public_token));
+
+        $firstResponse = $this->post(route('candidate.public-tests.register.store', $test->public_token), [
+            'name' => 'Original Candidate',
+            'email' => 'duplicate-public@example.com',
+            'phone' => null,
+            'stack_name' => null,
+        ]);
+
+        $invitation = Invitation::where('email', 'duplicate-public@example.com')->firstOrFail();
+        $firstResponse->assertRedirect(route('candidate.public-attempts.show', $invitation->token));
+
+        $secondResponse = $this
+            ->from(route('candidate.public-tests.register', [
+                'publicToken' => $test->public_token,
+                'email' => 'duplicate-public@example.com',
+            ]))
+            ->post(route('candidate.public-tests.register.store', $test->public_token), [
+                'name' => 'Duplicate Candidate',
+                'email' => 'duplicate-public@example.com',
+                'phone' => null,
+                'stack_name' => null,
+            ]);
+
+        $secondResponse->assertRedirect(route('candidate.public-tests.register', [
+            'publicToken' => $test->public_token,
+            'email' => 'duplicate-public@example.com',
+        ]));
+        $secondResponse->assertSessionHasErrors([
+            'email' => RegisterCandidateForPublicTest::DUPLICATE_DETAILS_MESSAGE,
+        ]);
+
+        $this->assertSame(1, Invitation::where('email', 'duplicate-public@example.com')->count());
+        $this->assertDatabaseHas('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'name' => 'Original Candidate',
+            'email' => 'duplicate-public@example.com',
+        ]);
+        $this->assertDatabaseMissing('candidate_test_details', [
+            'invitation_id' => $invitation->id,
+            'name' => 'Duplicate Candidate',
         ]);
     }
 

@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class RegisterCandidateForPublicTest
 {
+    public const DUPLICATE_DETAILS_MESSAGE = 'Candidate details have already been submitted for this email address. Please use your original assessment link or contact the test administrator if you need help.';
+
     /**
      * Store candidate details through a public test link and accept/create their invitation.
      *
@@ -66,6 +68,12 @@ class RegisterCandidateForPublicTest
         if (! $invitation && ! $test->public_access_enabled) {
             throw ValidationException::withMessages([
                 'email' => 'This email is not allowed to access this test.',
+            ]);
+        }
+
+        if ($invitation?->candidateDetail()->exists()) {
+            throw ValidationException::withMessages([
+                'email' => self::DUPLICATE_DETAILS_MESSAGE,
             ]);
         }
 
