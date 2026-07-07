@@ -202,43 +202,56 @@ export default function Index({
 
             <div className="bg-zinc-950 px-4 py-10 text-zinc-100 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-4">
                         <div>
-                            <h3 className="text-2xl font-bold text-white">
-                                {test.title}
-                            </h3>
-                            <p className="mt-1 text-sm text-zinc-500">
-                                Status: {test.status}
-                            </p>
+                            <Link
+                                href={route('admin.tests.show', test.id)}
+                                className="text-sm font-semibold text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
+                            >
+                                Back to test
+                            </Link>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                            {canManageQuestions && (
-                                <Link
-                                    href={route(
-                                        'admin.tests.questions.create',
-                                        test.id,
-                                    )}
-                                    className={primaryLinkClass}
-                                >
-                                    Add MCQ
-                                </Link>
-                            )}
-                            {canManageCodingQuestions && (
-                                <Link
-                                    href={route(
-                                        'admin.tests.coding-questions.create',
-                                        test.id,
-                                    )}
-                                    className={secondaryLinkClass}
-                                >
-                                    Add Coding Question
-                                </Link>
-                            )}
+
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div>
+                                <h3 className="text-2xl font-bold text-white">
+                                    {test.title}
+                                </h3>
+                                <p className="mt-1 text-sm text-zinc-500">
+                                    Status: {test.status}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                {canManageQuestions && (
+                                    <Link
+                                        href={route(
+                                            'admin.tests.questions.create',
+                                            test.id,
+                                        )}
+                                        className={primaryLinkClass}
+                                    >
+                                        Add MCQ
+                                    </Link>
+                                )}
+                                {canManageCodingQuestions && (
+                                    <Link
+                                        href={route(
+                                            'admin.tests.coding-questions.create',
+                                            test.id,
+                                        )}
+                                        className={secondaryLinkClass}
+                                    >
+                                        Add Coding Question
+                                    </Link>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        {reorderingEnabled && (
+                        {reorderingEnabled &&
+                            (draggedQuestionId !== null || isSavingOrder) && (
                             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <p>
