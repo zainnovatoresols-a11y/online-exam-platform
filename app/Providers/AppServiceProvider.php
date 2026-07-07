@@ -17,6 +17,7 @@ use App\Services\CodeExecution\DockerCodeExecutionService;
 use App\Services\CodeExecution\FakeCodeExecutionService;
 use App\Services\CodeExecution\Judge0CodeExecutionService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
@@ -45,6 +46,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(Invitation::class, InvitationPolicy::class);
         Gate::policy(Test::class, TestPolicy::class);
