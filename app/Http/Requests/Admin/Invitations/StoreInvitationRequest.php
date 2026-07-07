@@ -29,6 +29,11 @@ class StoreInvitationRequest extends FormRequest
                 'email' => strtolower(trim((string) $this->input('email'))),
             ]);
         }
+
+        $this->merge([
+            'name' => $this->filled('name') ? trim((string) $this->input('name')) : null,
+            'emails' => $this->filled('emails') ? trim((string) $this->input('emails')) : null,
+        ]);
     }
 
     /**
@@ -39,12 +44,12 @@ class StoreInvitationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'required_without_all:emails,email_csv', 'email', 'max:255'],
-            'emails' => ['nullable', 'required_without_all:email,email_csv', 'string'],
-            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'max:2048'],
-            'starts_at' => ['required', 'date'],
-            'expires_at' => ['nullable', 'date', 'after:now'],
+            'name' => ['nullable', 'string', 'min:2', 'max:120', 'regex:/\A[\pL\pM .\'-]+\z/u'],
+            'email' => ['nullable', 'required_without_all:emails,email_csv', 'string', 'lowercase', 'email:rfc', 'max:255'],
+            'emails' => ['nullable', 'required_without_all:email,email_csv', 'string', 'max:20000'],
+            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'mimetypes:text/plain,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel', 'max:2048'],
+            'starts_at' => ['bail', 'required', 'date'],
+            'expires_at' => ['nullable', 'date', 'after:starts_at', 'after:now'],
         ];
     }
 
@@ -85,6 +90,10 @@ class StoreInvitationRequest extends FormRequest
 
             if (! $this->filled('email') && $this->hasBulkEmailInput() && $this->bulkEmails() === []) {
                 $validator->errors()->add('emails', 'No valid email addresses were found. Fix the invalid rows or upload a CSV with an email column.');
+            }
+
+            if (count($this->bulkEmails(false)) > 500) {
+                $validator->errors()->add('emails', 'You can invite up to 500 candidates at a time.');
             }
         });
     }

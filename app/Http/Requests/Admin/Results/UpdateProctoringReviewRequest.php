@@ -42,16 +42,31 @@ class UpdateProctoringReviewRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'status' => trim((string) $this->input('status')),
+            'risk_level' => $this->filled('risk_level') ? trim((string) $this->input('risk_level')) : null,
+            'reason_codes' => collect($this->input('reason_codes', []))
+                ->filter(fn (mixed $code): bool => is_string($code) && trim($code) !== '')
+                ->map(fn (string $code): string => trim($code))
+                ->unique()
+                ->values()
+                ->all(),
+            'notes' => $this->filled('notes') ? trim((string) $this->input('notes')) : null,
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
-            'status' => ['required', 'string', Rule::in(self::STATUSES)],
+            'status' => ['bail', 'required', 'string', Rule::in(self::STATUSES)],
             'risk_level' => ['nullable', 'string', Rule::in(self::RISK_LEVELS)],
-            'reason_codes' => ['nullable', 'array'],
-            'reason_codes.*' => ['string', Rule::in(self::REASON_CODES)],
+            'reason_codes' => ['nullable', 'array', 'max:'.count(self::REASON_CODES)],
+            'reason_codes.*' => ['string', 'distinct', Rule::in(self::REASON_CODES)],
             'notes' => ['nullable', 'string', 'max:5000'],
         ];
     }

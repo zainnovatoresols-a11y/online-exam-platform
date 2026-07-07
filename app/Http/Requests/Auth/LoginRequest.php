@@ -20,6 +20,14 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => strtolower(trim((string) $this->input('email'))),
+            'remember' => $this->boolean('remember'),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,8 +36,9 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email' => ['bail', 'required', 'string', 'lowercase', 'email:rfc', 'max:255'],
+            'password' => ['bail', 'required', 'string', 'max:255'],
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 

@@ -15,6 +15,13 @@ class UpdateOrganizationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => trim((string) $this->input('name')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -24,9 +31,12 @@ class UpdateOrganizationRequest extends FormRequest
     {
         return [
             'name' => [
+                'bail',
                 'required',
                 'string',
-                'max:255',
+                'min:2',
+                'max:160',
+                'regex:/\A[\pL\pM\pN .&\'(),\-\/]+\z/u',
                 Rule::unique('organizations', 'name')->ignore($this->route('organization')),
             ],
         ];

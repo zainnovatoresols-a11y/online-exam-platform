@@ -1,12 +1,11 @@
 <?php
 
-namespace App\Http\Requests\Onboarding;
+namespace App\Http\Requests\Auth;
 
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules;
 
-class StoreSoloAdminRegistrationRequest extends FormRequest
+class ResetPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -16,8 +15,8 @@ class StoreSoloAdminRegistrationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'name' => trim((string) $this->input('name')),
             'email' => strtolower(trim((string) $this->input('email'))),
+            'token' => trim((string) $this->input('token')),
         ]);
     }
 
@@ -27,8 +26,8 @@ class StoreSoloAdminRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['bail', 'required', 'string', 'min:2', 'max:120', 'regex:/\A[\pL\pM .\'-]+\z/u'],
-            'email' => ['bail', 'required', 'string', 'lowercase', 'email:rfc', 'max:255', 'unique:'.User::class],
+            'token' => ['bail', 'required', 'string', 'max:255'],
+            'email' => ['bail', 'required', 'string', 'lowercase', 'email:rfc', 'max:255'],
             'password' => ['bail', 'required', 'confirmed', Rules\Password::defaults(), 'max:255'],
         ];
     }

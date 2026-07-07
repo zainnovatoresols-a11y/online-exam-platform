@@ -13,16 +13,25 @@ class StoreOrganizationOwnerRegistrationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'organization_name' => trim((string) $this->input('organization_name')),
+            'name' => trim((string) $this->input('name')),
+            'email' => strtolower(trim((string) $this->input('email'))),
+        ]);
+    }
+
     /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
         return [
-            'organization_name' => ['required', 'string', 'max:255', 'unique:organizations,name'],
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'organization_name' => ['bail', 'required', 'string', 'min:2', 'max:160', 'regex:/\A[\pL\pM\pN .&\'(),\-\/]+\z/u', 'unique:organizations,name'],
+            'name' => ['bail', 'required', 'string', 'min:2', 'max:120', 'regex:/\A[\pL\pM .\'-]+\z/u'],
+            'email' => ['bail', 'required', 'string', 'lowercase', 'email:rfc', 'max:255', 'unique:'.User::class],
+            'password' => ['bail', 'required', 'confirmed', Rules\Password::defaults(), 'max:255'],
         ];
     }
 }

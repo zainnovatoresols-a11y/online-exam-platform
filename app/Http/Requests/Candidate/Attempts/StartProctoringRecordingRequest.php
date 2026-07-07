@@ -24,8 +24,8 @@ class StartProctoringRecordingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recording_type' => ['required', 'string', Rule::in(['camera', 'screen'])],
-            'mime_type' => ['nullable', 'string', 'max:100'],
+            'recording_type' => ['bail', 'required', 'string', Rule::in(['camera', 'screen'])],
+            'mime_type' => ['nullable', 'string', 'max:100', 'regex:/\A[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+(?:;\s?[a-z0-9_.+-]+=[a-z0-9_.+-]+)*\z/i'],
             'metadata' => ['nullable', 'array'],
         ];
     }

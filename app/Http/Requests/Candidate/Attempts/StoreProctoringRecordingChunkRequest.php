@@ -24,12 +24,12 @@ class StoreProctoringRecordingChunkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recording_type' => ['required', 'string', Rule::in(['camera', 'screen'])],
-            'chunk' => ['required', 'file', 'max:5120'],
-            'sequence' => ['required', 'integer', 'min:1'],
+            'recording_type' => ['bail', 'required', 'string', Rule::in(['camera', 'screen'])],
+            'chunk' => ['bail', 'required', 'file', 'mimetypes:video/webm,video/mp4,application/octet-stream', 'max:5120'],
+            'sequence' => ['bail', 'required', 'integer', 'min:1', 'max:100000'],
             'duration_ms' => ['nullable', 'integer', 'min:1', 'max:60000'],
             'recorded_at' => ['nullable', 'date'],
-            'mime_type' => ['nullable', 'string', 'max:100'],
+            'mime_type' => ['nullable', 'string', 'max:100', 'regex:/\A[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+(?:;\s?[a-z0-9_.+-]+=[a-z0-9_.+-]+)*\z/i'],
             'metadata' => ['nullable', 'array'],
         ];
     }

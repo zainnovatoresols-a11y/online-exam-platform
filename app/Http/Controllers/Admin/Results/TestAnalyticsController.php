@@ -4,25 +4,19 @@ namespace App\Http\Controllers\Admin\Results;
 
 use App\Actions\Analytics\BuildTestResultAnalytics;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Results\TestAnalyticsFilterRequest;
 use App\Models\Test;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TestAnalyticsController extends Controller
 {
-    public function show(Request $request, Test $test, BuildTestResultAnalytics $buildAnalytics): Response
+    public function show(TestAnalyticsFilterRequest $request, Test $test, BuildTestResultAnalytics $buildAnalytics): Response
     {
         Gate::authorize('view', $test);
 
-        $filters = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'status' => ['nullable', Rule::in(['in_progress', 'submitted', 'expired'])],
-            'review_status' => ['nullable', Rule::in(['needs_review', 'approved', 'flagged', 'rejected'])],
-        ]);
+        $filters = $request->validated();
 
         $test->load(['organization:id,name', 'creator:id,name,email'])
             ->loadCount(['invitations', 'attempts']);

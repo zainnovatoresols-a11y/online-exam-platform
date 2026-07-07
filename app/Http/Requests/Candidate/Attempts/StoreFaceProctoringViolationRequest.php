@@ -24,12 +24,12 @@ class StoreFaceProctoringViolationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'violation_type' => ['required', 'string', Rule::in(['no_face', 'multiple_faces'])],
-            'face_count' => ['required', 'integer', 'min:0', 'max:20'],
-            'snapshot' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
+            'violation_type' => ['bail', 'required', 'string', Rule::in(['no_face', 'multiple_faces'])],
+            'face_count' => ['bail', 'required', 'integer', 'min:0', 'max:20'],
+            'snapshot' => ['bail', 'required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
             'captured_at' => ['nullable', 'date'],
             'started_at' => ['nullable', 'date'],
-            'ended_at' => ['nullable', 'date'],
+            'ended_at' => ['nullable', 'date', 'after_or_equal:started_at'],
             'duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'metadata' => ['nullable', 'array'],
         ];

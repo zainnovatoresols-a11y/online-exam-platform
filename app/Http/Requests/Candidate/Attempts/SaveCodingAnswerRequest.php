@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Candidate\Attempts;
 
+use App\Enums\ProgrammingLanguage;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SaveCodingAnswerRequest extends FormRequest
 {
@@ -22,8 +24,8 @@ class SaveCodingAnswerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'question_id' => ['required', 'integer', 'exists:questions,id'],
-            'language' => ['required', 'string'],
+            'question_id' => ['bail', 'required', 'integer', 'min:1', 'exists:questions,id'],
+            'language' => ['bail', 'required', 'string', Rule::enum(ProgrammingLanguage::class)],
             'submitted_code' => ['nullable', 'string', 'max:50000'],
         ];
     }

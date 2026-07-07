@@ -14,6 +14,13 @@ class StoreOrganizationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => trim((string) $this->input('name')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -22,7 +29,7 @@ class StoreOrganizationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:organizations,name'],
+            'name' => ['bail', 'required', 'string', 'min:2', 'max:160', 'regex:/\A[\pL\pM\pN .&\'(),\-\/]+\z/u', 'unique:organizations,name'],
         ];
     }
 }

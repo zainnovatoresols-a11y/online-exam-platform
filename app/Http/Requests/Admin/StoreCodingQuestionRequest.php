@@ -18,6 +18,33 @@ class StoreCodingQuestionRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'body' => trim((string) $this->input('body')),
+            'supported_languages' => collect($this->input('supported_languages', []))
+                ->filter(fn (mixed $language): bool => is_string($language) && trim($language) !== '')
+                ->map(fn (string $language): string => trim($language))
+                ->unique()
+                ->values()
+                ->all(),
+            'starter_code' => collect($this->input('starter_code', []))
+                ->map(fn (mixed $code): ?string => $code === null ? null : (string) $code)
+                ->all(),
+            'test_cases' => collect($this->input('test_cases', []))
+                ->map(fn (mixed $testCase): mixed => is_array($testCase)
+                    ? [
+                        ...$testCase,
+                        'input' => filled($testCase['input'] ?? null) ? (string) $testCase['input'] : null,
+                        'expected_output' => trim((string) ($testCase['expected_output'] ?? '')),
+                        'is_hidden' => filter_var($testCase['is_hidden'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    ]
+                    : $testCase)
+                ->values()
+                ->all(),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,25 +55,26 @@ class StoreCodingQuestionRequest extends FormRequest
         $languages = $this->languageValues();
 
         return [
-            'body' => ['required', 'string'],
-            'marks' => ['required', 'integer', 'min:1'],
-            'order' => ['nullable', 'integer', 'min:0'],
+            'body' => ['bail', 'required', 'string', 'min:10', 'max:30000'],
+            'marks' => ['bail', 'required', 'integer', 'min:1', 'max:100000'],
+            'order' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'difficulty' => ['required', Rule::in($this->difficultyValues())],
-            'time_limit_ms' => ['required', 'integer', 'min:498', 'max:3600000'],
+            'time_limit_ms' => ['bail', 'required', 'integer', 'min:498', 'max:3600000'],
             'memory_limit_kb' => ['nullable', 'integer', 'min:32000', 'max:512000'],
-            'supported_languages' => ['required', 'array', 'min:1'],
-            'supported_languages.*' => ['required', Rule::in($languages)],
-            'starter_code' => ['nullable', 'array'],
-            'starter_code.php' => ['nullable', 'string'],
-            'starter_code.javascript' => ['nullable', 'string'],
-            'starter_code.python' => ['nullable', 'string'],
-            'starter_code.java' => ['nullable', 'string'],
-            'starter_code.cpp' => ['nullable', 'string'],
-            'test_cases' => ['required', 'array', 'min:1'],
-            'test_cases.*.input' => ['nullable', 'string'],
-            'test_cases.*.expected_output' => ['required', 'string'],
+            'supported_languages' => ['bail', 'required', 'array', 'min:1', 'max:'.count($languages)],
+            'supported_languages.*' => ['bail', 'required', 'string', 'distinct', Rule::in($languages)],
+            'starter_code' => ['nullable', 'array:php,javascript,python,java,cpp'],
+            'starter_code.php' => ['nullable', 'string', 'max:50000'],
+            'starter_code.javascript' => ['nullable', 'string', 'max:50000'],
+            'starter_code.python' => ['nullable', 'string', 'max:50000'],
+            'starter_code.java' => ['nullable', 'string', 'max:50000'],
+            'starter_code.cpp' => ['nullable', 'string', 'max:50000'],
+            'test_cases' => ['bail', 'required', 'array', 'min:1', 'max:50'],
+            'test_cases.*' => ['required', 'array:input,expected_output,is_hidden,points'],
+            'test_cases.*.input' => ['nullable', 'string', 'max:20000'],
+            'test_cases.*.expected_output' => ['bail', 'required', 'string', 'max:20000'],
             'test_cases.*.is_hidden' => ['nullable', 'boolean'],
-            'test_cases.*.points' => ['nullable', 'integer', 'min:1'],
+            'test_cases.*.points' => ['nullable', 'integer', 'min:1', 'max:100000'],
         ];
     }
 

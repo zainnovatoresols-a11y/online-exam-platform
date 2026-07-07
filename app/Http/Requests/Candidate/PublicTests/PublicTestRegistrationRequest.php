@@ -26,6 +26,12 @@ class PublicTestRegistrationRequest extends FormRequest
                 'invitation_token' => trim((string) $this->input('invitation_token')),
             ]);
         }
+
+        $this->merge([
+            'name' => trim((string) $this->input('name')),
+            'phone' => $this->filled('phone') ? trim((string) $this->input('phone')) : null,
+            'stack_name' => $this->filled('stack_name') ? trim((string) $this->input('stack_name')) : null,
+        ]);
     }
 
     /**
@@ -36,20 +42,23 @@ class PublicTestRegistrationRequest extends FormRequest
         $requiredFields = $this->test()?->candidateRegistrationFields() ?? [];
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'invitation_token' => ['nullable', 'string', 'max:255'],
+            'name' => ['bail', 'required', 'string', 'min:2', 'max:120', 'regex:/\A[\pL\pM .\'-]+\z/u'],
+            'email' => ['bail', 'required', 'string', 'lowercase', 'email:rfc', 'max:255'],
+            'invitation_token' => ['nullable', 'string', 'max:255', 'regex:/\A[A-Za-z0-9]+\z/'],
             'phone' => [
                 Rule::requiredIf(in_array('phone', $requiredFields, true)),
                 'nullable',
                 'string',
-                'max:50',
+                'min:7',
+                'max:30',
+                'regex:/\A[+0-9().\-\s]+\z/',
             ],
             'stack_name' => [
                 Rule::requiredIf(in_array('stack_name', $requiredFields, true)),
                 'nullable',
                 'string',
-                'max:255',
+                'min:2',
+                'max:120',
             ],
         ];
     }

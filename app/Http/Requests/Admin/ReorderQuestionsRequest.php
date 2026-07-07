@@ -19,8 +19,8 @@ class ReorderQuestionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'question_ids' => ['required', 'array', 'min:1'],
-            'question_ids.*' => ['required', 'integer', 'distinct'],
+            'question_ids' => ['bail', 'required', 'array', 'min:1', 'max:200'],
+            'question_ids.*' => ['bail', 'required', 'integer', 'min:1', 'distinct'],
         ];
     }
 

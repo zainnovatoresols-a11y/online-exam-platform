@@ -23,8 +23,8 @@ class UpdateFaceProctoringDurationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'ended_at' => ['required', 'date'],
-            'duration_seconds' => ['required', 'integer', 'min:0', 'max:86400'],
+            'ended_at' => ['bail', 'required', 'date'],
+            'duration_seconds' => ['bail', 'required', 'integer', 'min:0', 'max:86400'],
             'metadata' => ['nullable', 'array'],
         ];
     }

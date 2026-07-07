@@ -26,8 +26,8 @@ class SubmitMcqAttemptRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'answers' => ['present', 'array'],
-            'answers.*' => ['required', 'integer', 'exists:question_options,id'],
+            'answers' => ['present', 'array', 'max:200'],
+            'answers.*' => ['bail', 'required', 'integer', 'min:1', 'exists:question_options,id'],
         ];
     }
 
