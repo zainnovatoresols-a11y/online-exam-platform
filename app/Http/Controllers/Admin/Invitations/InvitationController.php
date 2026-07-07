@@ -13,6 +13,7 @@ use App\Models\Invitation;
 use App\Models\Test;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -129,12 +130,17 @@ class InvitationController extends Controller
         return $redirect;
     }
 
-    public function resend(Test $test, Invitation $invitation, ResendInvitation $resendInvitation): RedirectResponse
+    public function resend(
+        Request $request,
+        Test $test,
+        Invitation $invitation,
+        ResendInvitation $resendInvitation,
+    ): RedirectResponse
     {
         $this->ensureInvitationBelongsToTest($test, $invitation);
         Gate::authorize('resend', $invitation);
 
-        $resendInvitation->handle($invitation);
+        $resendInvitation->handle($invitation, $request->root());
 
         return to_route('admin.tests.invitations.index', $test)
             ->with('success', 'Invitation resent successfully.');
