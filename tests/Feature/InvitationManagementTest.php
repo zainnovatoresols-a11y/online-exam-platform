@@ -11,6 +11,7 @@ use App\Models\Organization;
 use App\Models\Test;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -170,6 +171,31 @@ class InvitationManagementTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('email');
+    }
+
+    public function test_admin_can_bulk_invite_from_csv_file_without_trusting_browser_mime_type(): void
+    {
+        Notification::fake();
+        [$admin, $test] = $this->publishedOrganizationTest();
+        $csv = UploadedFile::fake()->createWithContent(
+            'candidates.csv',
+            "email\nfirst@example.com\nsecond@example.com\n",
+        );
+
+        $response = $this->actingAs($admin)->post(route('admin.tests.invitations.store', $test), [
+            'email_csv' => $csv,
+            'starts_at' => now()->addHour()->toDateTimeString(),
+        ]);
+
+        $response->assertRedirect(route('admin.tests.invitations.index', $test));
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'email' => 'first@example.com',
+        ]);
+        $this->assertDatabaseHas('invitations', [
+            'test_id' => $test->id,
+            'email' => 'second@example.com',
+        ]);
     }
 
     public function test_invitation_organization_id_is_copied_from_organization_test(): void

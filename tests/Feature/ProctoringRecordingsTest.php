@@ -113,6 +113,46 @@ class ProctoringRecordingsTest extends TestCase
         ]);
     }
 
+    public function test_candidate_can_upload_recording_chunk_with_media_recorder_codec_mime_type(): void
+    {
+        Storage::fake('local');
+
+        $candidate = $this->userWithRole(UserRole::Candidate);
+        [, $attempt] = $this->attemptForCandidate($candidate);
+        $mimeType = 'video/webm;codecs=vp8,opus';
+
+        $this->actingAs($candidate)
+            ->postJson(route('candidate.attempts.proctoring-recordings.start', $attempt), [
+                'recording_type' => 'camera',
+                'mime_type' => $mimeType,
+            ])
+            ->assertCreated();
+
+        $this->actingAs($candidate)
+            ->post(route('candidate.attempts.proctoring-recordings.chunks.store', $attempt), [
+                'recording_type' => 'camera',
+                'chunk' => UploadedFile::fake()->create('camera_000001.webm', 64, 'video/webm'),
+                'sequence' => 1,
+                'duration_ms' => 10000,
+                'recorded_at' => now()->toISOString(),
+                'mime_type' => $mimeType,
+            ], [
+                'Accept' => 'application/json',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('proctoring_recordings', [
+            'test_attempt_id' => $attempt->id,
+            'recording_type' => 'camera',
+            'mime_type' => $mimeType,
+        ]);
+        $this->assertDatabaseHas('proctoring_recording_chunks', [
+            'test_attempt_id' => $attempt->id,
+            'recording_type' => 'camera',
+            'mime_type' => $mimeType,
+        ]);
+    }
+
     public function test_candidate_cannot_upload_recording_chunk_for_another_candidate_attempt(): void
     {
         Storage::fake('local');

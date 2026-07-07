@@ -47,7 +47,7 @@ class StoreInvitationRequest extends FormRequest
             'name' => ['nullable', 'string', 'min:2', 'max:120', 'regex:/\A[\pL\pM .\'-]+\z/u'],
             'email' => ['nullable', 'required_without_all:emails,email_csv', 'string', 'lowercase', 'email:rfc', 'max:255'],
             'emails' => ['nullable', 'required_without_all:email,email_csv', 'string', 'max:20000'],
-            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'mimetypes:text/plain,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel', 'max:2048'],
+            'email_csv' => ['nullable', 'required_without_all:email,emails', 'file', 'max:2048'],
             'starts_at' => ['bail', 'required', 'date'],
             'expires_at' => ['nullable', 'date', 'after:starts_at', 'after:now'],
         ];

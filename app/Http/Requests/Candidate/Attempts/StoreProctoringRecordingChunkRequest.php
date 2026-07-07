@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Candidate\Attempts;
 
+use App\Http\Requests\Concerns\ValidatesBrowserMediaTypes;
 use App\Http\Requests\Concerns\ValidatesSafeMetadata;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Validator;
 
 class StoreProctoringRecordingChunkRequest extends FormRequest
 {
+    use ValidatesBrowserMediaTypes;
     use ValidatesSafeMetadata;
 
     public function authorize(): bool
@@ -29,7 +31,7 @@ class StoreProctoringRecordingChunkRequest extends FormRequest
             'sequence' => ['bail', 'required', 'integer', 'min:1', 'max:100000'],
             'duration_ms' => ['nullable', 'integer', 'min:1', 'max:60000'],
             'recorded_at' => ['nullable', 'date'],
-            'mime_type' => ['nullable', 'string', 'max:100', 'regex:/\A[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+(?:;\s?[a-z0-9_.+-]+=[a-z0-9_.+-]+)*\z/i'],
+            'mime_type' => $this->browserMediaTypeRules(),
             'metadata' => ['nullable', 'array'],
         ];
     }

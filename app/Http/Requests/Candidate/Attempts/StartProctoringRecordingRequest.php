@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Candidate\Attempts;
 
+use App\Http\Requests\Concerns\ValidatesBrowserMediaTypes;
 use App\Http\Requests\Concerns\ValidatesSafeMetadata;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Validator;
 
 class StartProctoringRecordingRequest extends FormRequest
 {
+    use ValidatesBrowserMediaTypes;
     use ValidatesSafeMetadata;
 
     public function authorize(): bool
@@ -25,7 +27,7 @@ class StartProctoringRecordingRequest extends FormRequest
     {
         return [
             'recording_type' => ['bail', 'required', 'string', Rule::in(['camera', 'screen'])],
-            'mime_type' => ['nullable', 'string', 'max:100', 'regex:/\A[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+(?:;\s?[a-z0-9_.+-]+=[a-z0-9_.+-]+)*\z/i'],
+            'mime_type' => $this->browserMediaTypeRules(),
             'metadata' => ['nullable', 'array'],
         ];
     }
