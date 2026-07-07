@@ -66,6 +66,13 @@ function Test-PortOpen {
     }
 }
 
+function Disable-ViteHotMode {
+    if (Test-Path $ViteHotPath) {
+        Write-Step 'Disabling Vite dev-server asset mode for public tunnel access...'
+        Remove-Item -Path $ViteHotPath -Force
+    }
+}
+
 function Set-DotEnvValue {
     param(
         [string]$Path,
@@ -96,7 +103,7 @@ function Get-TunnelUrl {
             continue
         }
 
-        $match = Select-String -Path $path -Pattern 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' -AllMatches |
+        $match = Select-String -Path $path -Pattern 'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com' -AllMatches |
             Select-Object -First 1
 
         if ($match) {
@@ -120,14 +127,12 @@ try {
 
     $cloudflared = Get-CloudflaredPath
 
-    if (Test-Path $ViteHotPath) {
-        Write-Step 'Disabling Vite dev-server asset mode for public tunnel access...'
-        Remove-Item -Path $ViteHotPath -Force
-    }
+    Disable-ViteHotMode
 
     if (-not $SkipBuild) {
         Write-Step 'Building production frontend assets...'
         npm.cmd run build
+        Disable-ViteHotMode
     }
 
     if (-not (Test-PortOpen -HostName $LocalHostName -PortNumber $Port)) {
@@ -161,6 +166,10 @@ try {
 
     while ((Get-Date) -lt $deadline -and -not $publicUrl) {
         Start-Sleep -Seconds 1
+        if ($TunnelProcess.HasExited) {
+            throw "Cloudflare tunnel stopped before a public URL was created. Check $CloudflaredLogPath and $CloudflaredErrorPath."
+        }
+
         $publicUrl = Get-TunnelUrl -Paths @($CloudflaredLogPath, $CloudflaredErrorPath)
     }
 
@@ -175,6 +184,8 @@ try {
     php artisan config:clear
     php artisan route:clear
     php artisan view:clear
+
+    Disable-ViteHotMode
 
     if (-not $NoQueue) {
         Write-Step 'Starting Laravel queue worker...'

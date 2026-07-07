@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (str_starts_with((string) config('app.url'), 'https://')) {
+        if ($this->shouldForceHttpsUrls()) {
             URL::forceScheme('https');
         }
 
@@ -56,5 +56,14 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TestAttempt::class, TestAttemptPolicy::class);
         Gate::policy(Question::class, QuestionPolicy::class);
         Vite::prefetch(concurrency: 3);
+    }
+
+    private function shouldForceHttpsUrls(): bool
+    {
+        if (! str_starts_with((string) config('app.url'), 'https://')) {
+            return false;
+        }
+
+        return ! in_array(request()->getHost(), ['127.0.0.1', 'localhost', '::1'], true);
     }
 }
